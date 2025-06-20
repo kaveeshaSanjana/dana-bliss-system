@@ -336,7 +336,7 @@ const HelperDashboard: React.FC = () => {
                     <TableRow>
                       <TableHead>Family Name</TableHead>
                       <TableHead>Address</TableHead>
-                      <TableHea>Telephone</TableHead>
+                      <TableHead>Telephone</TableHead>
                       <TableHead>Members</TableHead>
                       <TableHead>Actions</TableHead>
                     </TableRow>
