@@ -12,6 +12,14 @@ import { FileText, Calendar, User, ExternalLink, RefreshCw, ArrowLeft, Lock, Edi
 import { useInstituteRole } from '@/hooks/useInstituteRole';
 import AppLayout from '@/components/layout/AppLayout';
 import UploadCorrectionDialog from '@/components/forms/UploadCorrectionDialog';
+import Paper from '@mui/material/Paper';
+import Table from '@mui/material/Table';
+import TableBody from '@mui/material/TableBody';
+import TableCell from '@mui/material/TableCell';
+import TableContainer from '@mui/material/TableContainer';
+import TableHead from '@mui/material/TableHead';
+import TablePagination from '@mui/material/TablePagination';
+import TableRow from '@mui/material/TableRow';
 
 const HomeworkSubmissionDetails = () => {
   const { homeworkId } = useParams<{ homeworkId: string }>();
@@ -25,7 +33,8 @@ const HomeworkSubmissionDetails = () => {
   const [isLoadingHomework, setIsLoadingHomework] = useState(false);
   const [correctionDialogOpen, setCorrectionDialogOpen] = useState(false);
   const [selectedSubmission, setSelectedSubmission] = useState<HomeworkSubmission | null>(null);
-
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
   const loadHomework = async () => {
     if (!homeworkId) return;
 
@@ -85,6 +94,15 @@ const HomeworkSubmissionDetails = () => {
       hour: '2-digit',
       minute: '2-digit'
     });
+  };
+
+  const handleChangePage = (event: unknown, newPage: number) => {
+    setPage(newPage);
+  };
+
+  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setRowsPerPage(+event.target.value);
+    setPage(0);
   };
 
   const handleCorrectionClick = (submission: HomeworkSubmission) => {
