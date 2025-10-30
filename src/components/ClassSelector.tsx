@@ -25,6 +25,13 @@ const enrollFormSchema = z.object({
   enrollmentCode: z.string().min(1, 'Enrollment code is required'),
 });
 
+const resolveImageUrl = (val?: string) => {
+  if (!val) return '';
+  if (val.startsWith('http')) return val;
+  const base = getBaseUrl();
+  return `${base}${val.startsWith('/') ? '' : '/'}${val}`;
+};
+
 interface ClassData {
   id: string;
   name: string;
@@ -360,13 +367,13 @@ const ClassSelector = () => {
       code: classItem.code,
       description: classItem.description || `${classItem.name} - ${classItem.specialty || classItem.classType || 'General'}`,
       capacity: classItem.capacity || 0,
-      studentCount: classItem._count?.students || 0,
-      subjectCount: classItem._count?.subjects || 0,
+      studentCount: (classItem as any)._count?.students || 0,
+      subjectCount: (classItem as any)._count?.subjects || 0,
       academicYear: classItem.academicYear || 'N/A',
       specialty: classItem.specialty || classItem.classType || 'General',
       classType: classItem.classType || 'Regular',
-      isActive: classItem.isActive !== false,
-      imageUrl: classItem.imageUrl
+      isActive: (classItem as any).isActive !== false,
+      imageUrl: resolveImageUrl((classItem as any).imageUrl || (classItem as any).image || (classItem as any).logo || (classItem as any).coverImageUrl)
     }));
 
     console.log('Transformed classes:', transformedClasses);
@@ -864,6 +871,7 @@ const ClassSelector = () => {
                         src={classItem.imageUrl} 
                         alt={classItem.name}
                         className="absolute inset-0 w-full h-full object-cover"
+                        onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/placeholder.svg'; }}
                       />
                     ) : (
                       <>
@@ -988,6 +996,7 @@ const ClassSelector = () => {
                         src={classItem.imageUrl} 
                         alt={classItem.name}
                         className="absolute inset-0 w-full h-full object-cover"
+                        onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/placeholder.svg'; }}
                       />
                     ) : (
                       <>

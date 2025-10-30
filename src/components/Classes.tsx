@@ -145,12 +145,22 @@ const Classes = () => {
         totalCount = 0;
       }
       
-      setClasses(classesArray);
+      // Normalize imageUrl from various possible fields and ensure absolute URL
+      const base = getBaseUrl?.() || '';
+      const normalized = (classesArray as any[]).map((c: any) => {
+        const raw = c.imageUrl || c.image || c.logo || c.coverImageUrl;
+        const imageUrl = raw
+          ? (String(raw).startsWith('http') ? String(raw) : `${base}${String(raw).startsWith('/') ? '' : '/'}${String(raw)}`)
+          : '';
+        return { ...c, imageUrl };
+      });
+
+      setClasses(normalized);
       setTotalCount(totalCount);
       
       toast({
         title: "Classes Loaded",
-        description: `Successfully loaded ${classesArray.length} classes.`
+        description: `Successfully loaded ${normalized.length} classes.`
       });
     } catch (error) {
       console.error('Error fetching classes:', error);
@@ -174,7 +184,7 @@ const Classes = () => {
         description: responseData.message
       });
     }
-    fetchClasses(); // Refresh data
+    fetchClasses(true); // Refresh data with cache bypass
   };
 
   const handleCancelCreate = () => {
@@ -190,7 +200,7 @@ const Classes = () => {
     console.log('Class updated successfully:', responseData);
     setIsUpdateDialogOpen(false);
     setSelectedClass(null);
-    fetchClasses(); // Refresh data
+    fetchClasses(true); // Refresh data with cache bypass
   };
 
   const handleCancelUpdate = () => {
