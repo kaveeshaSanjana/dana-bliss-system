@@ -4,7 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Award, RefreshCw, AlertTriangle, TrendingUp, BookOpen, Calendar, Target, Download, Filter, ArrowLeft, Search, Users } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Award, RefreshCw, AlertTriangle, TrendingUp, BookOpen, Target, Download, Filter, ArrowLeft, Search, Users } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { examResultsApi, type ExamResult, type ExamResultsQueryParams } from '@/api/examResults.api';
@@ -44,6 +45,7 @@ const ExamResults = () => {
   const [hasPreviousPage, setHasPreviousPage] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
+  const [showPerformanceDialog, setShowPerformanceDialog] = useState(false);
   const {
     execute: fetchResults,
     loading
@@ -116,13 +118,6 @@ const ExamResults = () => {
     if (selectedSubject) parts.push(selectedSubject.name);
     return parts.length > 0 ? `Exams (${parts.join(' → ')})` : 'Exams';
   };
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
-  };
   const getGradeColor = (grade: string) => {
     switch (grade.toUpperCase()) {
       case 'A+':
@@ -165,23 +160,28 @@ const ExamResults = () => {
     return result.student.firstName.toLowerCase().includes(searchLower) || result.student.lastName.toLowerCase().includes(searchLower) || result.student.email.toLowerCase().includes(searchLower) || result.grade.toLowerCase().includes(searchLower) || result.remarks && result.remarks.toLowerCase().includes(searchLower);
   });
   return <AppLayout>
-      <div className="container mx-auto p-6 space-y-6">
+      <div className="w-full min-h-full">
+        <div className="container mx-auto p-4 sm:p-6 space-y-4 sm:space-y-6">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-start gap-3 sm:gap-4">
-          <div className="flex-1">
-            <Button variant="ghost" size="sm" onClick={handleGoBack} className="mb-2 -ml-2">
-              <ArrowLeft className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
-              <span className="text-sm sm:text-base truncate">{getContextBreadcrumb()}</span>
-            </Button>
-            <h1 className="text-2xl sm:text-3xl font-bold text-foreground break-words">
+        <div className="flex flex-col gap-2">
+          <Button variant="ghost" size="sm" onClick={handleGoBack} className="-ml-2 w-fit">
+            <ArrowLeft className="h-4 w-4 mr-2 flex-shrink-0" />
+            <span className="text-sm truncate max-w-[200px] sm:max-w-none">{getContextBreadcrumb()}</span>
+          </Button>
+          <div className="space-y-1">
+            <h1 className="text-xl sm:text-2xl font-bold text-foreground break-words leading-tight">
               Exam Results{examDetails.title ? `: ${examDetails.title}` : ''}
             </h1>
-            <p className="text-sm sm:text-base text-muted-foreground mt-1">
-              View and analyze exam results
-            </p>
-            {lastRefresh && <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-                Last refreshed: {lastRefresh.toLocaleTimeString()}
-              </p>}
+            <div className="flex flex-col gap-1">
+              <p className="text-xs sm:text-sm text-muted-foreground">
+                View and analyze exam results
+              </p>
+              {lastRefresh && (
+                <p className="text-xs text-muted-foreground">
+                  Last refreshed: {lastRefresh.toLocaleTimeString()}
+                </p>
+              )}
+            </div>
           </div>
         </div>
 
@@ -189,18 +189,27 @@ const ExamResults = () => {
         
 
         {/* Action Bar */}
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
-          <h2 className="text-lg sm:text-xl font-semibold">
-            All Results ({filteredResults.length})
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-lg font-semibold">
+            All Results <span className="text-muted-foreground">({filteredResults.length})</span>
           </h2>
-          <Button variant="outline" onClick={() => loadExamResults(currentPage)} disabled={loading} size="sm" className="w-full sm:w-auto">
-            {loading ? <>
-                <RefreshCw className="h-3 w-3 sm:h-4 sm:w-4 mr-2 animate-spin" />
-                <span className="text-sm">Loading...</span>
-              </> : <>
-                <RefreshCw className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
-                <span className="text-sm">Refresh</span>
-              </>}
+          <Button 
+            variant="outline" 
+            onClick={() => loadExamResults(currentPage)} 
+            disabled={loading} 
+            size="sm"
+          >
+            {loading ? (
+              <>
+                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                <span className="hidden sm:inline">Loading...</span>
+              </>
+            ) : (
+              <>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                <span className="hidden sm:inline">Refresh</span>
+              </>
+            )}
           </Button>
         </div>
 
@@ -214,14 +223,15 @@ const ExamResults = () => {
             </CardContent>
           </Card> : <>
           {/* Summary Cards */}
-          {examResults.length > 0 && <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+          {examResults.length > 0 && (
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Results</CardTitle>
-                  <BookOpen className="h-4 w-4 text-blue-600" />
+                  <CardTitle className="text-xs sm:text-sm font-medium">Total Results</CardTitle>
+                  <BookOpen className="h-4 w-4 text-blue-600 flex-shrink-0" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-blue-600">
+                  <div className="text-xl sm:text-2xl font-bold text-blue-600">
                     {totalResults}
                   </div>
                 </CardContent>
@@ -229,70 +239,59 @@ const ExamResults = () => {
 
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Average Score</CardTitle>
-                  <Target className="h-4 w-4 text-green-600" />
+                  <CardTitle className="text-xs sm:text-sm font-medium">Performance</CardTitle>
+                  <TrendingUp className="h-4 w-4 text-purple-600 flex-shrink-0" />
                 </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-green-600">
-                    {averageScore}%
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">A Grades</CardTitle>
-                  <Award className="h-4 w-4 text-yellow-600" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-yellow-600">
-                    {(gradeDistribution.A || 0) + (gradeDistribution['A+'] || 0)}
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Performance</CardTitle>
-                  <TrendingUp className="h-4 w-4 text-purple-600" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-purple-600">
+                <CardContent className="space-y-2">
+                  <div className="text-xl sm:text-2xl font-bold text-purple-600">
                     {averageScore >= 85 ? 'Excellent' : averageScore >= 70 ? 'Good' : averageScore >= 50 ? 'Average' : 'Poor'}
                   </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    className="w-full bg-purple-600 hover:bg-purple-700 text-white border-purple-600"
+                    onClick={() => setShowPerformanceDialog(true)}
+                  >
+                    View Details
+                  </Button>
                 </CardContent>
               </Card>
-            </div>}
+            </div>
+          )}
 
           {/* Grade Distribution */}
-          {examResults.length > 0 && Object.keys(gradeDistribution).length > 0 && <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Award className="h-5 w-5" />
+          {examResults.length > 0 && Object.keys(gradeDistribution).length > 0 && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                  <Award className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
                   Grade Distribution
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="flex flex-wrap gap-4">
-                  {Object.entries(gradeDistribution).map(([grade, count]) => <div key={grade} className="flex items-center gap-2">
+                <div className="flex flex-wrap gap-3">
+                  {Object.entries(gradeDistribution).map(([grade, count]) => (
+                    <div key={grade} className="flex items-center gap-2">
                       <Badge className={getGradeColor(grade)}>
                         Grade {grade}
                       </Badge>
-                      <span className="text-sm text-muted-foreground">
+                      <span className="text-xs sm:text-sm text-muted-foreground whitespace-nowrap">
                         {count} result{count !== 1 ? 's' : ''}
                       </span>
-                    </div>)}
+                    </div>
+                  ))}
                 </div>
               </CardContent>
-            </Card>}
+            </Card>
+          )}
 
             {/* Results Table */}
             <Card>
-              <CardHeader className="p-4 sm:p-6">
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 sm:gap-4">
+              <CardHeader className="p-4">
+                <div className="flex flex-col gap-3">
                   <div>
-                    <CardTitle className="flex items-center gap-2 text-base sm:text-lg md:text-xl">
-                      <Users className="h-4 w-4 sm:h-5 sm:w-5" />
+                    <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                      <Users className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
                       <span>Student Results</span>
                     </CardTitle>
                     <p className="text-xs sm:text-sm text-muted-foreground mt-1">
@@ -300,9 +299,14 @@ const ExamResults = () => {
                     </p>
                   </div>
                   {/* Search Bar */}
-                  <div className="relative w-full md:max-w-sm">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-3 w-3 sm:h-4 sm:w-4" />
-                    <Input placeholder="Search students, grade, remarks..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-8 sm:pl-10 text-sm" />
+                  <div className="relative w-full">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                    <Input 
+                      placeholder="Search students, grade, remarks..." 
+                      value={searchTerm} 
+                      onChange={e => setSearchTerm(e.target.value)} 
+                      className="pl-9 text-sm" 
+                    />
                   </div>
                 </div>
               </CardHeader>
@@ -358,14 +362,6 @@ const ExamResults = () => {
                             {parseFloat(row.score) >= parseFloat(examDetails.passingMarks!) ? "Pass" : "Fail"}
                           </Badge>
             }] : []), {
-              id: 'createdAt',
-              label: 'Date',
-              minWidth: 120,
-              format: (value: string) => <div className="flex items-center gap-1 text-sm">
-                            <Calendar className="h-3 w-3" />
-                            {formatDate(value)}
-                          </div>
-            }, {
               id: 'remarks',
               label: 'Remarks',
               minWidth: 150,
@@ -384,6 +380,133 @@ const ExamResults = () => {
               </CardContent>
             </Card>
           </>}
+
+        {/* Performance Details Dialog */}
+        <Dialog open={showPerformanceDialog} onOpenChange={setShowPerformanceDialog}>
+          <DialogContent className="max-w-[95vw] sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader className="sticky top-0 bg-background z-10 pb-4">
+              <DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
+                <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
+                Performance Analytics
+              </DialogTitle>
+            </DialogHeader>
+            
+            <div className="space-y-4 sm:space-y-6 pb-4">
+              {/* Summary Stats */}
+              <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                <Card>
+                  <CardHeader className="pb-2 p-3 sm:p-6">
+                    <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Total Results</CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-3 sm:p-6 pt-0">
+                    <div className="text-2xl sm:text-3xl font-bold text-blue-600">{totalResults}</div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="pb-2 p-3 sm:p-6">
+                    <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Average Score</CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-3 sm:p-6 pt-0">
+                    <div className="text-2xl sm:text-3xl font-bold text-green-600">{averageScore}%</div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Performance Level */}
+              <Card>
+                <CardHeader className="p-3 sm:p-6">
+                  <CardTitle className="text-sm sm:text-base">Overall Performance</CardTitle>
+                </CardHeader>
+                <CardContent className="p-3 sm:p-6 pt-0">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <span className="text-2xl sm:text-4xl font-bold text-purple-600">
+                      {averageScore >= 85 ? 'Excellent' : averageScore >= 70 ? 'Good' : averageScore >= 50 ? 'Average' : 'Poor'}
+                    </span>
+                    <TrendingUp className="h-8 w-8 sm:h-12 sm:w-12 text-purple-600 flex-shrink-0" />
+                  </div>
+                  <div className="mt-4 space-y-2">
+                    <div className="flex justify-between text-xs sm:text-sm">
+                      <span>Performance Score</span>
+                      <span className="font-semibold">{averageScore}%</span>
+                    </div>
+                    <div className="w-full bg-secondary rounded-full h-2">
+                      <div className="bg-purple-600 h-2 rounded-full transition-all" style={{
+                      width: `${Math.min(averageScore, 100)}%`
+                    }} />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Grade Distribution */}
+              <Card>
+                <CardHeader className="p-3 sm:p-6">
+                  <CardTitle className="text-sm sm:text-base flex items-center gap-2">
+                    <Award className="h-4 w-4 flex-shrink-0" />
+                    Grade Distribution
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-3 sm:p-6 pt-0">
+                  <div className="space-y-3">
+                    {Object.entries(gradeDistribution).map(([grade, count]) => <div key={grade} className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <Badge className={getGradeColor(grade)}>
+                            Grade {grade}
+                          </Badge>
+                          <span className="text-xs sm:text-sm text-muted-foreground whitespace-nowrap">
+                            {count} student{count !== 1 ? 's' : ''}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                          <div className="flex-1 bg-secondary rounded-full h-2 min-w-[40px]">
+                            <div className="bg-primary h-2 rounded-full transition-all" style={{
+                          width: `${count / totalResults * 100}%`
+                        }} />
+                          </div>
+                          <span className="text-xs sm:text-sm font-semibold whitespace-nowrap">
+                            {Math.round(count / totalResults * 100)}%
+                          </span>
+                        </div>
+                      </div>)}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* A Grades Highlight */}
+              <Card>
+                <CardHeader className="p-3 sm:p-6">
+                  <CardTitle className="text-sm sm:text-base flex items-center gap-2">
+                    <Award className="h-4 w-4 text-yellow-600 flex-shrink-0" />
+                    Excellence Metrics
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-3 sm:p-6 pt-0">
+                  <div className="flex items-center justify-between flex-wrap gap-4">
+                    <div>
+                      <p className="text-xs sm:text-sm text-muted-foreground mb-1">Students with A Grades</p>
+                      <p className="text-2xl sm:text-3xl font-bold text-yellow-600">
+                        {(gradeDistribution.A || 0) + (gradeDistribution['A+'] || 0)}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs sm:text-sm text-muted-foreground mb-1">Percentage</p>
+                      <p className="text-2xl sm:text-3xl font-bold text-yellow-600">
+                        {Math.round(((gradeDistribution.A || 0) + (gradeDistribution['A+'] || 0)) / totalResults * 100)}%
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="flex justify-end sticky bottom-0 bg-background pt-4 border-t">
+              <Button variant="outline" onClick={() => setShowPerformanceDialog(false)}>
+                Close
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+        </div>
       </div>
     </AppLayout>;
 };

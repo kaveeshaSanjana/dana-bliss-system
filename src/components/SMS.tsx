@@ -130,7 +130,12 @@ const SMS = () => {
     setCustomScheduledAt(sriLankaTime);
   }, []);
 
-  // No auto-loading - user must click button to load data
+  // Auto-load credentials when component mounts
+  useEffect(() => {
+    if (currentInstituteId) {
+      fetchCredentials();
+    }
+  }, [currentInstituteId]);
 
   const fetchPaymentSubmissions = async () => {
     if (!currentInstituteId) return;
@@ -578,9 +583,6 @@ const SMS = () => {
                     rows={4}
                     className="mt-2"
                   />
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Use {`{{firstName}}`} and {`{{lastName}}`} as placeholders
-                  </p>
                 </div>
 
                 <div>
@@ -700,9 +702,6 @@ const SMS = () => {
                     rows={4}
                     className="mt-2"
                   />
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Use {`{{name}}`} as placeholder for recipient name
-                  </p>
                 </div>
 
                 <div>

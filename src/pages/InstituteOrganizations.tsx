@@ -3,13 +3,19 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Building2, RefreshCw, Plus, UserPlus, Eye } from 'lucide-react';
+import { Building2, RefreshCw, Plus, UserPlus, Eye, Key } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTableData } from '@/hooks/useTableData';
 import MUITable from '@/components/ui/mui-table';
 import CreateOrganizationForm from '@/components/forms/CreateOrganizationForm';
 import AddOrganizationUserDialog from '@/components/forms/AddOrganizationUserDialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { apiClient } from '@/api/client';
+import { useToast } from '@/hooks/use-toast';
+import { organizationApi } from '@/api/organization.api';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { toast as sonnerToast } from 'sonner';
 
 interface Organization {
   organizationId: string;
@@ -44,6 +50,7 @@ interface OrganizationMember {
 
 const InstituteOrganizations = () => {
   const { selectedInstitute } = useAuth();
+  const { toast } = useToast();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [addUserDialog, setAddUserDialog] = useState<{ open: boolean; orgId: string; orgName: string }>({
     open: false,
@@ -61,6 +68,36 @@ const InstituteOrganizations = () => {
     orgName: '',
   });
 
+  const [enrollmentKeyDialog, setEnrollmentKeyDialog] = useState<{
+    open: boolean;
+    orgId: string;
+    orgName: string;
+    enrollmentKey: string;
+    loading: boolean;
+  }>({
+    open: false,
+    orgId: '',
+    orgName: '',
+    enrollmentKey: '',
+    loading: false,
+  });
+
+  const [membersState, setMembersState] = useState<{
+    data: OrganizationMember[];
+    loading: boolean;
+    error: string | null;
+    page: number;
+    limit: number;
+    totalCount: number;
+  }>({
+    data: [],
+    loading: false,
+    error: null,
+    page: 0,
+    limit: 10,
+    totalCount: 0,
+  });
+
   const { state, actions, pagination, availableLimits } = useTableData<Organization>({
     endpoint: `/organizations/institute/${selectedInstitute?.id}`,
     autoLoad: false,
@@ -70,16 +107,62 @@ const InstituteOrganizations = () => {
     }
   });
 
-  const membersData = useTableData<OrganizationMember>({
-    endpoint: viewMembersDialog.orgId && selectedInstitute 
-      ? `/organizations/institute/${selectedInstitute.id}/organization/${viewMembersDialog.orgId}/students`
-      : '',
-    autoLoad: false,
-    pagination: {
-      defaultLimit: 10,
-      availableLimits: [10, 25, 50]
+  const loadMembers = async (orgId: string, page: number = 0, limit: number = 10) => {
+    if (!selectedInstitute) return;
+
+    setMembersState(prev => ({ ...prev, loading: true, error: null }));
+
+    try {
+      const response = await apiClient.get<{ data: OrganizationMember[]; meta: any }>(
+        `/organizations/institute/${selectedInstitute.id}/organization/${orgId}/students`,
+        { page: page + 1, limit }
+      );
+
+      setMembersState({
+        data: response.data || [],
+        loading: false,
+        error: null,
+        page,
+        limit,
+        totalCount: response.meta?.total || 0,
+      });
+    } catch (error: any) {
+      console.error('Failed to load members:', error);
+      setMembersState(prev => ({
+        ...prev,
+        loading: false,
+        error: error.message || 'Failed to load members',
+      }));
+      toast({
+        title: 'Error',
+        description: 'Failed to load organization members',
+        variant: 'destructive',
+      });
     }
-  });
+  };
+
+  const loadEnrollmentKey = async (orgId: string, orgName: string) => {
+    setEnrollmentKeyDialog({ open: true, orgId, orgName, enrollmentKey: '', loading: true });
+
+    try {
+      const response = await organizationApi.getEnrollmentKey(orgId);
+      setEnrollmentKeyDialog({
+        open: true,
+        orgId,
+        orgName,
+        enrollmentKey: response.enrollmentKey || 'N/A',
+        loading: false,
+      });
+    } catch (error: any) {
+      console.error('Failed to load enrollment key:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load enrollment key',
+        variant: 'destructive',
+      });
+      setEnrollmentKeyDialog({ open: false, orgId: '', orgName: '', enrollmentKey: '', loading: false });
+    }
+  };
 
   const memberColumns = [
     {
@@ -210,6 +293,23 @@ const InstituteOrganizations = () => {
       align: 'center' as const,
     },
     {
+      id: 'enrollmentKey',
+      label: 'Enrollment Key',
+      minWidth: 150,
+      align: 'center' as const,
+      format: (_value: any, row: any) => (
+        <Button
+          size="sm"
+          onClick={() => loadEnrollmentKey(row.organizationId, row.name)}
+          style={{ backgroundColor: '#06923E' }}
+          className="gap-1 hover:opacity-90"
+        >
+          <Key className="h-4 w-4" />
+          View Key
+        </Button>
+      )
+    },
+    {
       id: 'actions',
       label: 'Actions',
       minWidth: 200,
@@ -221,7 +321,7 @@ const InstituteOrganizations = () => {
             variant="outline"
             onClick={() => {
               setViewMembersDialog({ open: true, orgId: row.organizationId, orgName: row.name });
-              setTimeout(() => membersData.actions.loadData(true), 100);
+              loadMembers(row.organizationId);
             }}
             className="gap-1"
           >
@@ -324,23 +424,23 @@ const InstituteOrganizations = () => {
           <div className="flex-1 overflow-hidden">
             <Card className="h-full flex flex-col border-0 shadow-none">
               <CardContent className="p-0 flex-1 flex flex-col overflow-hidden">
-                {membersData.state.loading && !membersData.state.data.length ? (
+                {membersState.loading && !membersState.data.length ? (
                   <div className="flex items-center justify-center p-8">
                     <RefreshCw className="h-6 w-6 animate-spin" />
                   </div>
-                ) : membersData.state.error ? (
-                  <div className="p-4 text-destructive">{membersData.state.error}</div>
+                ) : membersState.error ? (
+                  <div className="p-4 text-destructive">{membersState.error}</div>
                 ) : (
                   <MUITable
                     title=""
                     columns={memberColumns}
-                    data={membersData.state.data}
-                    page={membersData.pagination.page}
-                    rowsPerPage={membersData.pagination.limit}
-                    totalCount={membersData.pagination.totalCount}
-                    onPageChange={membersData.actions.setPage}
-                    onRowsPerPageChange={membersData.actions.setLimit}
-                    rowsPerPageOptions={membersData.availableLimits}
+                    data={membersState.data}
+                    page={membersState.page}
+                    rowsPerPage={membersState.limit}
+                    totalCount={membersState.totalCount}
+                    onPageChange={(newPage) => loadMembers(viewMembersDialog.orgId, newPage, membersState.limit)}
+                    onRowsPerPageChange={(newLimit) => loadMembers(viewMembersDialog.orgId, 0, newLimit)}
+                    rowsPerPageOptions={[10, 25, 50]}
                     allowAdd={false}
                     allowEdit={false}
                     allowDelete={false}
@@ -349,6 +449,53 @@ const InstituteOrganizations = () => {
               </CardContent>
             </Card>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={enrollmentKeyDialog.open} onOpenChange={(open) => setEnrollmentKeyDialog({ ...enrollmentKeyDialog, open })}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-semibold">Enrollment Code</DialogTitle>
+          </DialogHeader>
+
+          {enrollmentKeyDialog.loading ? (
+            <div className="flex items-center justify-center p-8">
+              <RefreshCw className="h-6 w-6 animate-spin" />
+            </div>
+          ) : (
+            <div className="space-y-6">
+              <div className="bg-muted/50 rounded-lg p-4 mb-2">
+                <p className="text-sm text-muted-foreground">Organization</p>
+                <p className="text-lg font-semibold">{enrollmentKeyDialog.orgName}</p>
+              </div>
+              
+              <div className="bg-muted/50 rounded-lg p-6 text-center">
+                <p className="text-sm text-muted-foreground mb-2">Class Enrollment Code</p>
+                <p className="text-4xl font-bold tracking-tight">{enrollmentKeyDialog.enrollmentKey}</p>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Enrollment Enabled</span>
+                  <Badge className="bg-blue-500 hover:bg-blue-600 text-white">Yes</Badge>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Requires Verification</span>
+                  <Badge className="bg-blue-500 hover:bg-blue-600 text-white">Yes</Badge>
+                </div>
+              </div>
+
+              <Button 
+                className="w-full bg-blue-500 hover:bg-blue-600 text-white"
+                onClick={() => {
+                  navigator.clipboard.writeText(enrollmentKeyDialog.enrollmentKey);
+                  sonnerToast.success('Enrollment code copied to clipboard!');
+                }}
+              >
+                Copy Code
+              </Button>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 

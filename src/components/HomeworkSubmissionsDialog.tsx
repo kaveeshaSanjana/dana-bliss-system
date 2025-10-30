@@ -13,14 +13,6 @@ import { useInstituteRole } from '@/hooks/useInstituteRole';
 import { AccessControl, UserRole } from '@/utils/permissions';
 import { homeworkSubmissionsApi, type HomeworkSubmission } from '@/api/homeworkSubmissions.api';
 import { FileText, Calendar, User, ExternalLink, RefreshCw, Lock } from 'lucide-react';
-import Paper from '@mui/material/Paper';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableContainer from '@mui/material/TableContainer';
-import TableHead from '@mui/material/TableHead';
-import TablePagination from '@mui/material/TablePagination';
-import TableRow from '@mui/material/TableRow';
 
 interface HomeworkSubmissionsDialogProps {
   homework: any;
@@ -34,8 +26,6 @@ const HomeworkSubmissionsDialog = ({ homework, isOpen, onClose }: HomeworkSubmis
   const userRole = useInstituteRole();
   const [submissions, setSubmissions] = useState<HomeworkSubmission[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
 
   const loadSubmissions = async () => {
     if (!homework?.id) return;
@@ -81,15 +71,6 @@ const HomeworkSubmissionsDialog = ({ homework, isOpen, onClose }: HomeworkSubmis
       hour: '2-digit',
       minute: '2-digit'
     });
-  };
-
-  const handleChangePage = (event: unknown, newPage: number) => {
-    setPage(newPage);
-  };
-
-  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setRowsPerPage(+event.target.value);
-    setPage(0);
   };
 
   // Check if user has permission to view homework submissions
@@ -164,7 +145,7 @@ const HomeworkSubmissionsDialog = ({ homework, isOpen, onClose }: HomeworkSubmis
             </Button>
           </div>
 
-          {/* Submissions Table */}
+          {/* Submissions List */}
           {isLoading ? (
             <div className="text-center py-8">
               <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4 text-muted-foreground" />
@@ -177,104 +158,73 @@ const HomeworkSubmissionsDialog = ({ homework, isOpen, onClose }: HomeworkSubmis
               <p className="text-muted-foreground">No students have submitted this homework yet.</p>
             </div>
           ) : (
-            <Paper sx={{ width: '100%', overflow: 'hidden' }}>
-              <TableContainer sx={{ maxHeight: 440 }}>
-                <Table stickyHeader aria-label="homework submissions table">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell style={{ minWidth: 170 }}>Student Name</TableCell>
-                      <TableCell style={{ minWidth: 100 }}>Status</TableCell>
-                      <TableCell style={{ minWidth: 170 }}>Submission Date</TableCell>
-                      <TableCell style={{ minWidth: 200 }}>Remarks</TableCell>
-                      <TableCell style={{ minWidth: 150 }}>Submitted File</TableCell>
-                      <TableCell style={{ minWidth: 150 }}>Teacher Correction</TableCell>
-                      <TableCell style={{ minWidth: 170 }}>Created/Updated</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {submissions
-                      .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                      .map((submission) => {
-                        return (
-                          <TableRow hover role="checkbox" tabIndex={-1} key={submission.id}>
-                            <TableCell>
-                              <div className="flex items-center gap-2">
-                                <User className="h-4 w-4" />
-                                <span className="font-medium">
-                                  {submission.student?.firstName} {submission.student?.lastName}
-                                </span>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant={submission.isActive ? 'default' : 'secondary'}>
-                                {submission.isActive ? 'Active' : 'Inactive'}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-2 text-sm">
-                                <Calendar className="h-4 w-4" />
-                                {formatDate(submission.submissionDate)}
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              {submission.remarks ? (
-                                <p className="text-sm line-clamp-2">{submission.remarks}</p>
-                              ) : (
-                                <span className="text-muted-foreground">-</span>
-                              )}
-                            </TableCell>
-                            <TableCell>
-                              {submission.fileUrl ? (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => window.open(submission.fileUrl, '_blank')}
-                                >
-                                  <ExternalLink className="h-3 w-3 mr-1" />
-                                  View File
-                                </Button>
-                              ) : (
-                                <span className="text-muted-foreground">-</span>
-                              )}
-                            </TableCell>
-                            <TableCell>
-                              {submission.teacherCorrectionFileUrl ? (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => window.open(submission.teacherCorrectionFileUrl, '_blank')}
-                                >
-                                  <ExternalLink className="h-3 w-3 mr-1" />
-                                  View Correction
-                                </Button>
-                              ) : (
-                                <span className="text-muted-foreground">-</span>
-                              )}
-                            </TableCell>
-                            <TableCell>
-                              <div className="text-xs">
-                                <div>Created: {formatDate(submission.createdAt)}</div>
-                                {submission.updatedAt !== submission.createdAt && (
-                                  <div>Updated: {formatDate(submission.updatedAt)}</div>
-                                )}
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-              <TablePagination
-                rowsPerPageOptions={[10, 25, 50, 100]}
-                component="div"
-                count={submissions.length}
-                rowsPerPage={rowsPerPage}
-                page={page}
-                onPageChange={handleChangePage}
-                onRowsPerPageChange={handleChangeRowsPerPage}
-              />
-            </Paper>
+            <div className="space-y-4">
+              {submissions.map((submission) => (
+                <div key={submission.id} className="border rounded-lg p-4 space-y-3">
+                  <div className="flex items-start justify-between">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <User className="h-4 w-4" />
+                        <span className="font-medium">
+                          {submission.student?.firstName} {submission.student?.lastName}
+                        </span>
+                        <Badge variant={submission.isActive ? 'default' : 'secondary'}>
+                          {submission.isActive ? 'Active' : 'Inactive'}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Calendar className="h-4 w-4" />
+                        Submitted: {formatDate(submission.submissionDate)}
+                      </div>
+                    </div>
+                  </div>
+
+                  {submission.remarks && (
+                    <div>
+                      <h4 className="text-sm font-medium mb-1">Student Notes:</h4>
+                      <p className="text-sm text-muted-foreground bg-muted/50 p-2 rounded">
+                        {submission.remarks}
+                      </p>
+                    </div>
+                  )}
+
+                  {submission.fileUrl && (
+                    <div>
+                      <h4 className="text-sm font-medium mb-2">Submitted File:</h4>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => window.open(submission.fileUrl, '_blank')}
+                      >
+                        <ExternalLink className="h-3 w-3 mr-1" />
+                        View File
+                      </Button>
+                    </div>
+                  )}
+
+                  {submission.teacherCorrectionFileUrl && (
+                    <div>
+                      <h4 className="text-sm font-medium mb-2">Teacher Correction:</h4>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => window.open(submission.teacherCorrectionFileUrl, '_blank')}
+                      >
+                        <ExternalLink className="h-3 w-3 mr-1" />
+                        View Correction
+                      </Button>
+                    </div>
+                  )}
+
+                  <div className="text-xs text-muted-foreground pt-2 border-t">
+                    Created: {formatDate(submission.createdAt)}
+                    {submission.updatedAt !== submission.createdAt && (
+                      <> • Updated: {formatDate(submission.updatedAt)}</>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
         </div>
       </DialogContent>
