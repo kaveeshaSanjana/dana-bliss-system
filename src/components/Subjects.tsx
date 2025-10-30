@@ -108,7 +108,31 @@ const Subjects = () => {
     actions.updateFilters(newFilters);
     actions.refresh();
   };
+  const getBaseUrl = () => {
+    return import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+  };
+
+  const resolveImageUrl = (url?: string | null) => {
+    if (!url) return '/placeholder.svg';
+    if (url.startsWith('http')) return url;
+    const base = getBaseUrl();
+    return `${base}${url.startsWith('/') ? '' : '/'}${url}`;
+  };
+
   const subjectsColumns = [{
+    key: 'imgUrl',
+    header: 'Image',
+    render: (value: string | null) => (
+      <div className="w-16 h-16 rounded-lg overflow-hidden bg-muted">
+        <img
+          src={resolveImageUrl(value)}
+          alt="Subject"
+          className="w-full h-full object-cover"
+          onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/placeholder.svg'; }}
+        />
+      </div>
+    )
+  }, {
     key: 'code',
     header: 'Code'
   }, {
