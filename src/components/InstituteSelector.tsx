@@ -5,13 +5,14 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 import { useInstituteRole } from '@/hooks/useInstituteRole';
-import { Building, Users, CheckCircle, RefreshCw, MapPin, Mail, Phone } from 'lucide-react';
+import { Building, Users, CheckCircle, RefreshCw, MapPin, Mail, Phone, Youtube, Facebook, Globe } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { cachedApiClient } from '@/api/cachedClient';
 
 interface InstituteApiResponse {
   id: string;
   name: string;
+  shortName?: string;
   email: string;
   phone: string;
   address: string;
@@ -21,7 +22,11 @@ interface InstituteApiResponse {
   type: string;
   isActive: boolean;
   createdAt: string;
-  imageUrl: string;
+  imageUrl?: string;
+  logoUrl?: string;
+  websiteUrl?: string;
+  facebookPageUrl?: string;
+  youtubeChannelUrl?: string;
 }
 
 interface InstituteSelectorProps {
@@ -106,6 +111,7 @@ const InstituteSelector = ({ useChildId = false }: InstituteSelectorProps) => {
       const normalized = (result as any[]).map((raw: any) => ({
         id: raw.id || raw.instituteId || '',
         name: raw.name || raw.instituteName || '',
+        shortName: raw.shortName || '',
         email: raw.email || raw.instituteEmail || '',
         phone: raw.phone || raw.institutePhone || '',
         address: raw.address || raw.instituteAddress || '',
@@ -115,7 +121,11 @@ const InstituteSelector = ({ useChildId = false }: InstituteSelectorProps) => {
         type: raw.type || raw.instituteType || '',
         isActive: raw.isActive !== undefined ? raw.isActive : (raw.instituteIsActive !== undefined ? raw.instituteIsActive : true),
         createdAt: raw.createdAt || '',
-        imageUrl: raw.instituteUserImageUrl || raw.imageUrl || raw.instituteLogo || '',
+        imageUrl: raw.imageUrl || '',
+        logoUrl: raw.logoUrl || raw.instituteLogo || '',
+        websiteUrl: raw.websiteUrl || '',
+        facebookPageUrl: raw.facebookPageUrl || '',
+        youtubeChannelUrl: raw.youtubeChannelUrl || '',
         instituteUserType: raw.instituteUserType || '',
         userIdByInstitute: raw.userIdByInstitute || '',
         status: raw.status || ''
@@ -161,8 +171,8 @@ const InstituteSelector = ({ useChildId = false }: InstituteSelectorProps) => {
       type: institute.type,
       userRole: (institute as any).instituteUserType || '',
       userIdByInstitute: (institute as any).userIdByInstitute || '',
-      shortName: (institute as any).instituteShortName || institute.name,
-      logo: (institute as any).instituteLogo || institute.imageUrl || ''
+      shortName: institute.shortName || institute.name,
+      logo: institute.logoUrl || ''
     };
     setSelectedInstitute(selectedInstitute);
     
@@ -229,12 +239,12 @@ const InstituteSelector = ({ useChildId = false }: InstituteSelectorProps) => {
                   className="cursor-pointer transition-all duration-200 hover:shadow-lg hover:scale-[1.02] border-2 hover:border-blue-500"
                 >
                   <div className="flex flex-col md:flex-row">
-                    {/* Institute Image */}
-                    <div className="md:w-48 h-48 md:h-auto flex-shrink-0">
+                    {/* Institute Logo */}
+                    <div className="md:w-48 h-48 md:h-auto flex-shrink-0 bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-blue-900 dark:to-indigo-950">
                       <img
-                        src={institute.imageUrl || '/placeholder.svg'}
+                        src={institute.logoUrl || '/placeholder.svg'}
                         alt={institute.name || 'Institute'}
-                        className="w-full h-full object-cover rounded-t-lg md:rounded-l-lg md:rounded-t-none"
+                        className="w-full h-full object-contain p-4 rounded-t-lg md:rounded-l-lg md:rounded-t-none"
                         onError={(e) => {
                           e.currentTarget.src = '/placeholder.svg';
                         }}
@@ -302,12 +312,54 @@ const InstituteSelector = ({ useChildId = false }: InstituteSelectorProps) => {
                         )}
                       </div>
 
-                      <Button 
-                        className="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white px-4 py-2"
-                        onClick={() => handleSelectInstitute(institute)}
-                      >
-                        Select Institute
-                      </Button>
+                      <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+                        <Button 
+                          className="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-700 text-white px-4 py-2"
+                          onClick={() => handleSelectInstitute(institute)}
+                        >
+                          Select Institute
+                        </Button>
+                        
+                        {/* Social Media & Website Links */}
+                        <div className="flex gap-2 justify-center sm:justify-start">
+                          {institute.websiteUrl && (
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              asChild
+                              className="hover:bg-blue-50 dark:hover:bg-blue-950"
+                            >
+                              <a href={institute.websiteUrl} target="_blank" rel="noopener noreferrer" aria-label="Visit website">
+                                <Globe className="h-4 w-4" />
+                              </a>
+                            </Button>
+                          )}
+                          {institute.facebookPageUrl && (
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              asChild
+                              className="hover:bg-blue-50 dark:hover:bg-blue-950"
+                            >
+                              <a href={institute.facebookPageUrl} target="_blank" rel="noopener noreferrer" aria-label="Visit Facebook page">
+                                <Facebook className="h-4 w-4" />
+                              </a>
+                            </Button>
+                          )}
+                          {institute.youtubeChannelUrl && (
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              asChild
+                              className="hover:bg-red-50 dark:hover:bg-red-950"
+                            >
+                              <a href={institute.youtubeChannelUrl} target="_blank" rel="noopener noreferrer" aria-label="Visit YouTube channel">
+                                <Youtube className="h-4 w-4" />
+                              </a>
+                            </Button>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </Card>
