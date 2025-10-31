@@ -51,13 +51,19 @@ const InstitutePayments = () => {
   const isInstituteAdmin = effectiveRole === 'InstituteAdmin';
   const isStudent = effectiveRole === 'Student';
   const isTeacher = effectiveRole === 'Teacher';
+
+  // Build endpoint strictly based on allowed roles
+  const endpoint = (isInstituteAdmin || isTeacher)
+    ? `/institute-payments/institute/${selectedInstitute?.id}/payments`
+    : (isStudent ? `/institute-payments/institute/${selectedInstitute?.id}/my-payments` : '');
+
   // Configure table data hook
   const tableData = useTableData<InstitutePayment>({
-    endpoint: isInstituteAdmin || isTeacher ? `/institute-payments/institute/${selectedInstitute?.id}/payments` : `/institute-payments/institute/${selectedInstitute?.id}/my-payments`,
+    endpoint,
     defaultParams: {
       search: searchQuery
     },
-    dependencies: [selectedInstitute?.id, isInstituteAdmin, isTeacher, searchQuery],
+    dependencies: [selectedInstitute?.id, endpoint, searchQuery],
     pagination: {
       defaultLimit: 50,
       availableLimits: [25, 50, 100]
@@ -270,9 +276,13 @@ const InstitutePayments = () => {
               Institute Payments
             </h2>
             <p className="text-gray-600 dark:text-gray-400 mb-6">
-              {!selectedInstitute?.id ? 'Please select an institute first.' : 'Click the button below to load payments data'}
+              {!selectedInstitute?.id
+                ? 'Please select an institute first.'
+                : (!endpoint
+                    ? "You don't have permission to view payments for this institute with your current role."
+                    : 'Click the button below to load payments data')}
             </p>
-            <Button onClick={() => tableData.actions.refresh()} disabled={tableData.state.loading || !selectedInstitute?.id} className="bg-blue-600 hover:bg-blue-700">
+            <Button onClick={() => tableData.actions.refresh()} disabled={tableData.state.loading || !selectedInstitute?.id || !endpoint} className="bg-blue-600 hover:bg-blue-700">
               {tableData.state.loading ? <>
                   <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
                   Loading Data...
