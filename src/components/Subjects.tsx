@@ -120,12 +120,13 @@ const Subjects = () => {
   };
 
   const subjectsColumns = [{
+    id: 'imgUrl',
     key: 'imgUrl',
     header: 'Image',
-    render: (value: string | null) => (
+    format: (value: string | null, row: any) => (
       <div className="w-16 h-16 rounded-lg overflow-hidden bg-muted">
         <img
-          src={resolveImageUrl(value)}
+          src={resolveImageUrl(row?.imgUrl || value)}
           alt="Subject"
           className="w-full h-full object-cover"
           onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/placeholder.svg'; }}

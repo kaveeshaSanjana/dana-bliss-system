@@ -115,7 +115,7 @@ const InstituteSelector = ({ useChildId = false }: InstituteSelectorProps) => {
         type: raw.type || raw.instituteType || '',
         isActive: raw.isActive !== undefined ? raw.isActive : (raw.instituteIsActive !== undefined ? raw.instituteIsActive : true),
         createdAt: raw.createdAt || '',
-        imageUrl: raw.imageUrl || raw.instituteLogo || '',
+        imageUrl: raw.instituteUserImageUrl || raw.imageUrl || raw.instituteLogo || '',
         instituteUserType: raw.instituteUserType || '',
         userIdByInstitute: raw.userIdByInstitute || '',
         status: raw.status || ''

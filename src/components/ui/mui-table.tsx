@@ -167,9 +167,8 @@ export default function MUITable({
             })}
               {data.length === 0 && <TableRow>
                   <TableCell colSpan={allColumns.length} align="center">
-                    <div className="py-12 text-center text-gray-500">
-                      <p className="text-lg">No data found</p>
-                      <p className="text-sm">No records available for display</p>
+                    <div className="py-8 text-center">
+                      <p className="text-sm text-muted-foreground">No records found</p>
                     </div>
                   </TableCell>
                 </TableRow>}

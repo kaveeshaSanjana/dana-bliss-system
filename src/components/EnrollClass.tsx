@@ -106,7 +106,8 @@ const EnrollClass = () => {
       
       if (!data) {
         console.log('❌ No data received from API');
-        toast.error('No data received from server');
+        setClasses([]);
+        setHasData(true);
         return;
       }
       
