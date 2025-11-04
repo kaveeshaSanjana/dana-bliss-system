@@ -239,13 +239,13 @@ const InstituteSelector = ({ useChildId = false }: InstituteSelectorProps) => {
                   className="cursor-pointer transition-all duration-200 hover:shadow-lg hover:scale-[1.02] border-2 hover:border-blue-500"
                 >
                   <div className="flex flex-col md:flex-row">
-                    {/* Institute Logo */}
+                    {/* Institute Image */}
                     <div className="md:w-48 h-48 md:h-auto flex-shrink-0 bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-blue-900 dark:to-indigo-950">
                       <img
                         src={
                           institute.id === '1' 
                             ? 'https://drive.google.com/uc?export=view&id=113mXnheH8zJq3AKZj_5JKBVfrrHF2Axb'
-                            : (institute.logoUrl || '/placeholder.svg')
+                            : (institute.imageUrl || institute.logoUrl || '/placeholder.svg')
                         }
                         alt={institute.name || 'Institute'}
                         className="w-full h-full object-contain p-4 rounded-t-lg md:rounded-l-lg md:rounded-t-none"
