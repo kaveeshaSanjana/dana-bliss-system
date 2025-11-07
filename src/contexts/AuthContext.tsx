@@ -83,7 +83,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         userRole: institute.instituteUserType, // Keep for backward compatibility
         userIdByInstitute: institute.userIdByInstitute,
         shortName: institute.instituteShortName || institute.name || 'Unknown Institute',
-        logo: institute.instituteLogo || ''
+        logo: institute.logoUrl || institute.instituteLogo || ''
       }));
 
       console.log('Mapped institutes:', institutes);
