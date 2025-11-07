@@ -127,7 +127,7 @@ const Subjects = () => {
       <div className="w-16 h-16 rounded-lg overflow-hidden bg-muted">
         <img
           src={resolveImageUrl(row?.imgUrl || value)}
-          alt="Subject"
+          alt={row?.name ? `Subject ${row.name}` : 'Subject image'}
           className="w-full h-full object-cover"
           onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/placeholder.svg'; }}
         />
@@ -358,7 +358,7 @@ const Subjects = () => {
                 id: col.key,
                 label: col.header,
                 minWidth: 170,
-                format: col.render
+                format: col.render || col.format
               }))}
               onEdit={!isInstituteAdmin && canEdit ? handleEditSubject : undefined}
               onDelete={!isInstituteAdmin && canDelete ? handleDeleteSubject : undefined}

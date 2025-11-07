@@ -9,6 +9,7 @@ import { apiClient } from '@/api/client';
 import { CalendarIcon, User, GraduationCap, Users, Camera, ImageIcon, X } from 'lucide-react';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { AspectRatio } from '@/components/ui/aspect-ratio';
 import { Check, ChevronsUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast as sonnerToast } from 'sonner';
@@ -365,6 +366,14 @@ const CreateComprehensiveUserForm = ({ onSubmit, onCancel }: CreateComprehensive
   return (
     <Dialog open={true} onOpenChange={() => onCancel()}>
       <DialogContent className="max-w-6xl max-h-[98vh] overflow-y-auto p-6 sm:p-8">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="absolute right-4 top-4 h-8 w-8 rounded-full z-10"
+          onClick={onCancel}
+        >
+          <X className="h-4 w-4" />
+        </Button>
         <DialogHeader className="pb-6 border-b">
           <DialogTitle className="text-3xl sm:text-4xl font-bold text-center bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">
             Create Comprehensive User
@@ -437,7 +446,7 @@ const CreateComprehensiveUserForm = ({ onSubmit, onCancel }: CreateComprehensive
                     </div>
                   )}
                   
-                  <div className="flex gap-4 justify-center">
+                  <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
                     <input
                       type="file"
                       ref={fileInputRef}
@@ -449,7 +458,7 @@ const CreateComprehensiveUserForm = ({ onSubmit, onCancel }: CreateComprehensive
                       type="button"
                       variant="outline"
                       onClick={() => fileInputRef.current?.click()}
-                      className="flex items-center gap-2"
+                      className="flex items-center gap-2 w-full sm:w-auto"
                     >
                       <ImageIcon className="h-4 w-4" />
                       Choose Image
@@ -458,7 +467,7 @@ const CreateComprehensiveUserForm = ({ onSubmit, onCancel }: CreateComprehensive
                       type="button"
                       variant="outline"
                       onClick={openCamera}
-                      className="flex items-center gap-2"
+                      className="flex items-center gap-2 w-full sm:w-auto"
                     >
                       <Camera className="h-4 w-4" />
                       Take Photo
@@ -976,26 +985,26 @@ const CreateComprehensiveUserForm = ({ onSubmit, onCancel }: CreateComprehensive
 
       {/* Camera Modal */}
       <Dialog open={isCameraOpen} onOpenChange={(open) => !open && closeCamera()}>
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent className="max-w-[95vw] sm:max-w-[600px]">
           <DialogHeader>
             <DialogTitle>Take Photo</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="relative bg-black rounded-lg overflow-hidden">
+            <AspectRatio ratio={3/4} className="bg-black rounded-lg overflow-hidden">
               <video
                 ref={videoRef}
                 autoPlay
                 playsInline
-                className="w-full h-auto"
+                className="h-full w-full object-cover"
               />
-            </div>
+            </AspectRatio>
             <canvas ref={canvasRef} className="hidden" />
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <Button
                 type="button"
                 variant="outline"
                 onClick={switchCamera}
-                className="flex-1"
+                className="w-full sm:flex-1"
               >
                 <Camera className="h-4 w-4 mr-2" />
                 Switch to {facingMode === 'user' ? 'Back' : 'Front'} Camera
@@ -1003,7 +1012,7 @@ const CreateComprehensiveUserForm = ({ onSubmit, onCancel }: CreateComprehensive
               <Button
                 type="button"
                 onClick={capturePhoto}
-                className="flex-1"
+                className="w-full sm:flex-1"
               >
                 <Camera className="h-4 w-4 mr-2" />
                 Capture Photo
@@ -1012,6 +1021,7 @@ const CreateComprehensiveUserForm = ({ onSubmit, onCancel }: CreateComprehensive
                 type="button"
                 variant="outline"
                 onClick={closeCamera}
+                className="w-full sm:w-auto"
               >
                 <X className="h-4 w-4 mr-2" />
                 Cancel

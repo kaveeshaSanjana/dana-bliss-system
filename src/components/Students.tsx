@@ -18,6 +18,7 @@ import { cachedApiClient } from '@/api/cachedClient';
 import { useApiRequest } from '@/hooks/useApiRequest';
 import { useTableData } from '@/hooks/useTableData';
 import { getBaseUrl } from '@/contexts/utils/auth.api';
+import ImagePreviewModal from '@/components/ImagePreviewModal';
 
 interface InstituteStudent {
   id: string;
@@ -104,6 +105,11 @@ const Students = () => {
   // Filter states
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [imagePreview, setImagePreview] = useState<{ isOpen: boolean; url: string; title: string }>({
+    isOpen: false,
+    url: '',
+    title: ''
+  });
 
   // Enhanced pagination with useTableData hook - DISABLE AUTO-LOADING
   const {
@@ -304,12 +310,25 @@ const Students = () => {
         
         return (
           <div className="flex items-center space-x-3">
-            <Avatar className="h-8 w-8 sm:h-10 sm:w-10 flex-shrink-0">
-              <AvatarImage src={imageUrl || ''} alt={name} />
-              <AvatarFallback className="text-xs">
-                {name.split(' ').map(n => n.charAt(0)).join('')}
-              </AvatarFallback>
-            </Avatar>
+            <div 
+              className="cursor-pointer flex-shrink-0"
+              onClick={() => {
+                if (imageUrl) {
+                  setImagePreview({ 
+                    isOpen: true, 
+                    url: imageUrl, 
+                    title: name 
+                  });
+                }
+              }}
+            >
+              <Avatar className="h-8 w-8 sm:h-10 sm:w-10 hover:opacity-80 transition-opacity">
+                <AvatarImage src={imageUrl || ''} alt={name} />
+                <AvatarFallback className="text-xs">
+                  {name.split(' ').map(n => n.charAt(0)).join('')}
+                </AvatarFallback>
+              </Avatar>
+            </div>
             <div className="min-w-0 flex-1">
               <p className="font-medium truncate">{name}</p>
               <p className="text-sm text-muted-foreground truncate">ID: {userIdByInstitute}</p>
@@ -782,6 +801,13 @@ const Students = () => {
           }}
         />
       )}
+
+      <ImagePreviewModal
+        isOpen={imagePreview.isOpen}
+        onClose={() => setImagePreview({ isOpen: false, url: '', title: '' })}
+        imageUrl={imagePreview.url}
+        title={imagePreview.title}
+      />
     </div>
   );
 };
