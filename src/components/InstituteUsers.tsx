@@ -35,7 +35,6 @@ import { usersApi, BasicUser } from '@/api/users.api';
 import UserInfoDialog from '@/components/forms/UserInfoDialog';
 import UserOrganizationsDialog from '@/components/forms/UserOrganizationsDialog';
 import { getBaseUrl } from '@/contexts/utils/auth.api';
-import ImagePreviewModal from '@/components/ImagePreviewModal';
 
 interface InstituteUserData {
   id: string;
@@ -91,11 +90,6 @@ const InstituteUsers = () => {
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [orgDialogOpen, setOrgDialogOpen] = useState(false);
   const [selectedUserForOrg, setSelectedUserForOrg] = useState<{ id: string; name: string } | null>(null);
-  const [imagePreview, setImagePreview] = useState<{ isOpen: boolean; url: string; title: string }>({
-    isOpen: false,
-    url: '',
-    title: ''
-  });
 
   // Table data management for each user type
   const studentsTable = useTableData<InstituteUserData>({
@@ -659,25 +653,12 @@ const InstituteUsers = () => {
                 .map((userData) => (
                 <TableRow hover role="checkbox" tabIndex={-1} key={userData.id}>
                   <TableCell>
-                    <div 
-                      className="cursor-pointer" 
-                      onClick={() => {
-                        if (userData.imageUrl) {
-                          setImagePreview({ 
-                            isOpen: true, 
-                            url: userData.imageUrl, 
-                            title: userData.name 
-                          });
-                        }
-                      }}
-                    >
-                      <Avatar className="h-10 w-10 hover:opacity-80 transition-opacity">
-                        <AvatarImage src={userData.imageUrl || ''} alt={userData.name} />
-                        <AvatarFallback>
-                          {userData.name.split(' ').map(n => n.charAt(0)).join('').slice(0, 2)}
-                        </AvatarFallback>
-                      </Avatar>
-                    </div>
+                    <Avatar className="h-10 w-10">
+                      <AvatarImage src={userData.imageUrl || ''} alt={userData.name} />
+                      <AvatarFallback>
+                        {userData.name.split(' ').map(n => n.charAt(0)).join('').slice(0, 2)}
+                      </AvatarFallback>
+                    </Avatar>
                   </TableCell>
                   <TableCell>
                     <span className="font-mono text-sm">{userData.id}</span>
@@ -1093,13 +1074,6 @@ const InstituteUsers = () => {
           </div>
         </DialogContent>
       </Dialog>
-
-      <ImagePreviewModal
-        isOpen={imagePreview.isOpen}
-        onClose={() => setImagePreview({ isOpen: false, url: '', title: '' })}
-        imageUrl={imagePreview.url}
-        title={imagePreview.title}
-      />
     </div>
   );
 };

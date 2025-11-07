@@ -311,10 +311,10 @@ export default function SMSHistory() {
       <Paper sx={{
       width: '100%',
       overflow: 'hidden',
-      height: showFilters ? 'calc(100vh - 350px)' : 'calc(100vh - 200px)'
+      height: 'calc(100vh - 280px)'
     }}>
         <TableContainer sx={{
-        height: 'calc(100% - 56px)'
+        height: 'calc(100% - 52px)'
       }}>
           <Table stickyHeader aria-label="sms messages table">
             <TableHead>

@@ -12,7 +12,6 @@ import { DataCardView } from '@/components/ui/data-card-view';
 import DataTable from '@/components/ui/data-table';
 import { Input } from '@/components/ui/input';
 import AssignStudentsDialog from '@/components/forms/AssignStudentsDialog';
-import ImagePreviewModal from '@/components/ImagePreviewModal';
 
 interface ClassSubjectStudent {
   id: string;
@@ -52,11 +51,6 @@ const TeacherStudents = () => {
   
   // Filter states
   const [searchTerm, setSearchTerm] = useState('');
-  const [imagePreview, setImagePreview] = useState<{ isOpen: boolean; url: string; title: string }>({
-    isOpen: false,
-    url: '',
-    title: ''
-  });
 
   // Role check - only InstituteAdmin and Teacher can access this component
   if (!effectiveRole || !['InstituteAdmin', 'Teacher'].includes(effectiveRole)) {
@@ -155,25 +149,12 @@ const TeacherStudents = () => {
       header: 'Student',
       render: (value: any, row: ClassSubjectStudent) => (
         <div className="flex items-center space-x-3">
-          <div 
-            className="cursor-pointer flex-shrink-0"
-            onClick={() => {
-              if (row.imageUrl) {
-                setImagePreview({ 
-                  isOpen: true, 
-                  url: row.imageUrl, 
-                  title: row.name 
-                });
-              }
-            }}
-          >
-            <Avatar className="h-8 w-8 sm:h-10 sm:w-10 hover:opacity-80 transition-opacity">
-              <AvatarImage src={row.imageUrl || ''} alt={row.name} />
-              <AvatarFallback className="text-xs">
-                {row.name.split(' ').map(n => n.charAt(0)).join('')}
-              </AvatarFallback>
-            </Avatar>
-          </div>
+          <Avatar className="h-8 w-8 sm:h-10 sm:w-10 flex-shrink-0">
+            <AvatarImage src={row.imageUrl || ''} alt={row.name} />
+            <AvatarFallback className="text-xs">
+              {row.name.split(' ').map(n => n.charAt(0)).join('')}
+            </AvatarFallback>
+          </Avatar>
           <div className="min-w-0 flex-1">
             <p className="font-medium truncate">{row.name}</p>
             <p className="text-sm text-muted-foreground truncate">ID: {row.userIdByInstitute || row.id}</p>
@@ -475,13 +456,6 @@ const TeacherStudents = () => {
         onAssignmentComplete={() => {
           getLoadFunction()(); // Refresh the list
         }}
-      />
-
-      <ImagePreviewModal
-        isOpen={imagePreview.isOpen}
-        onClose={() => setImagePreview({ isOpen: false, url: '', title: '' })}
-        imageUrl={imagePreview.url}
-        title={imagePreview.title}
       />
     </div>
   );

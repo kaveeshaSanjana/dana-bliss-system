@@ -52,25 +52,18 @@ const InstitutePayments = () => {
   const isStudent = effectiveRole === 'Student';
   const isTeacher = effectiveRole === 'Teacher';
 
-  // Build endpoint strictly based on allowed roles (fallback to general list for students)
-  const endpoint = (isInstituteAdmin || isTeacher || isStudent)
+  // Build endpoint strictly based on allowed roles
+  const endpoint = (isInstituteAdmin || isTeacher)
     ? `/institute-payments/institute/${selectedInstitute?.id}/payments`
-    : '';
+    : (isStudent ? `/institute-payments/institute/${selectedInstitute?.id}/my-payments` : '');
 
   // Configure table data hook
   const tableData = useTableData<InstitutePayment>({
     endpoint,
     defaultParams: {
-      search: searchQuery,
-      userId: user?.id,
-      role: effectiveRole
+      search: searchQuery
     },
-    cacheOptions: {
-      userId: user?.id,
-      role: effectiveRole,
-      instituteId: selectedInstitute?.id
-    },
-    dependencies: [selectedInstitute?.id, endpoint, searchQuery, user?.id, effectiveRole],
+    dependencies: [selectedInstitute?.id, endpoint, searchQuery],
     pagination: {
       defaultLimit: 50,
       availableLimits: [25, 50, 100]

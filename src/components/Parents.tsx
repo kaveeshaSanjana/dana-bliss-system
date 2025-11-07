@@ -13,7 +13,6 @@ import { useInstituteRole } from '@/hooks/useInstituteRole';
 import { type UserRole } from '@/contexts/types/auth.types';
 import { useToast } from '@/hooks/use-toast';
 import { useTableData } from '@/hooks/useTableData';
-import ImagePreviewModal from '@/components/ImagePreviewModal';
 
 const Parents = () => {
   const {
@@ -26,11 +25,6 @@ const Parents = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
-  const [imagePreview, setImagePreview] = useState<{ isOpen: boolean; url: string; title: string }>({
-    isOpen: false,
-    url: '',
-    title: ''
-  });
 
   // Filter states
   const [filters, setFilters] = useState({
@@ -60,27 +54,12 @@ const Parents = () => {
     label: 'Avatar',
     minWidth: 80,
     align: 'center' as const,
-    format: (value: string, row: any) => (
-      <div 
-        className="cursor-pointer"
-        onClick={() => {
-          if (value) {
-            setImagePreview({ 
-              isOpen: true, 
-              url: value, 
-              title: row.name 
-            });
-          }
-        }}
-      >
-        <Avatar className="h-8 w-8 md:h-10 md:w-10 hover:opacity-80 transition-opacity">
+    format: (value: string, row: any) => <Avatar className="h-8 w-8 md:h-10 md:w-10">
           <AvatarImage src={value} alt={row.name} />
           <AvatarFallback>
             <User className="h-4 w-4" />
           </AvatarFallback>
         </Avatar>
-      </div>
-    )
   }, {
     id: 'userIdByInstitute',
     label: 'Institute ID',
@@ -289,13 +268,6 @@ const Parents = () => {
       <div className="flex-1 min-h-0">
         <MUITable title="Institute Parents" columns={columns} data={filteredData} page={tableData.pagination.page} rowsPerPage={tableData.pagination.limit} totalCount={tableData.pagination.totalCount} onPageChange={tableData.actions.setPage} onRowsPerPageChange={tableData.actions.setLimit} rowsPerPageOptions={tableData.availableLimits} allowAdd={false} allowEdit={false} allowDelete={false} />
       </div>
-
-      <ImagePreviewModal
-        isOpen={imagePreview.isOpen}
-        onClose={() => setImagePreview({ isOpen: false, url: '', title: '' })}
-        imageUrl={imagePreview.url}
-        title={imagePreview.title}
-      />
     </div>;
 };
 export default Parents;
