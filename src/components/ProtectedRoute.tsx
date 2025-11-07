@@ -231,14 +231,21 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
   // Redirect if validation failed
   if (validationError) {
-    console.log('🔄 Redirecting to:', redirectTo, 'Reason:', validationError);
+    console.log('🔄 Redirecting to login, preserving intended destination');
     
     // Preserve the intended destination for redirect after login
+    const targetPath = location.pathname !== '/login' ? location.pathname : '/';
+    
+    // Store redirect path in sessionStorage
+    if (targetPath !== '/') {
+      sessionStorage.setItem('login_redirect', targetPath);
+    }
+    
     return (
       <Navigate 
-        to={redirectTo} 
+        to="/login"
         state={{ 
-          from: location.pathname,
+          from: targetPath,
           error: validationError
         }} 
         replace 

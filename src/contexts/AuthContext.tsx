@@ -1,5 +1,5 @@
 
-import React, { createContext, useState, useContext } from 'react';
+import React, { createContext, useState, useContext, useEffect } from 'react';
 import { 
   User, 
   Institute, 
@@ -15,6 +15,15 @@ import { mapUserData } from './utils/user.utils';
 import { Institute as ApiInstitute } from '@/api/institute.api';
 import { cachedApiClient } from '@/api/cachedClient';
 import { apiCache } from '@/utils/apiCache';
+import { 
+  storeAuthToken, 
+  getAuthToken, 
+  isTokenValid, 
+  clearAuthToken,
+  storeUserSession,
+  getUserSession,
+  clearUserSession
+} from '@/utils/tokenManager';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -40,7 +49,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [selectedTransport, setSelectedTransportState] = useState<{ id: string; vehicleNumber: string; bookhireId: string } | null>(null);
   const [selectedInstituteType, setSelectedInstituteType] = useState<string | null>(null);
   const [selectedClassGrade, setSelectedClassGrade] = useState<number | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true); // Start with true for session restoration
+  const [isRestoringSession, setIsRestoringSession] = useState(true);
 
   // Public variables for current IDs - no localStorage sync
   const [currentInstituteId, setCurrentInstituteId] = useState<string | null>(null);
@@ -94,26 +104,33 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  const login = async (credentials: LoginCredentials) => {
+  const login = async (credentials: LoginCredentials & { rememberMe?: boolean }) => {
     setIsLoading(true);
     try {
-      console.log('Starting login process...');
+      console.log('🔐 Starting login process...', { email: credentials.email, rememberMe: credentials.rememberMe });
       
       const data = await loginUser(credentials);
-      console.log('Login response received:', data);
+      console.log('✅ Login response received');
 
-      // Ensure token is properly stored
-      if (data.access_token) {
+      // Store token securely with expiry
+      if (data.access_token && data.user?.id) {
+        // Use new secure token manager
+        storeAuthToken(data.access_token, data.user.id, credentials.rememberMe || false);
+        
+        // Keep legacy storage for backward compatibility
         localStorage.setItem('access_token', data.access_token);
-        console.log('Access token stored successfully');
+        console.log('✅ Access token stored securely');
       }
 
       // Map user data without fetching institutes automatically
       const mappedUser = mapUserData(data.user, []);
-      console.log('User mapped successfully:', mappedUser);
+      console.log('✅ User mapped successfully:', mappedUser);
       setUser(mappedUser);
+      
+      // Store user session
+      storeUserSession(mappedUser);
     } catch (error) {
-      console.error('Login error:', error);
+      console.error('❌ Login error:', error);
       throw error;
     } finally {
       setIsLoading(false);
@@ -144,13 +161,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const logout = async () => {
-    console.log('Logging out user...');
-    
-    // Get current userId before clearing state
-    const currentUserId = user?.id;
+    console.log('🚪 Logging out user...');
     
     // Clear backend session and localStorage
     await logoutUser();
+    
+    // 🧹 CLEAR SECURE TOKEN STORAGE
+    clearAuthToken();
+    clearUserSession();
     
     // 🧹 ALWAYS CLEAR ALL CACHE ON LOGOUT (Security & Fresh Start)
     console.log('🧹 Clearing ALL cache on logout...');
@@ -187,7 +205,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setCurrentOrganizationId(null);
     setCurrentTransportId(null);
     
-    console.log('✅ User logged out successfully and cache cleared');
+    console.log('✅ User logged out successfully and all data cleared');
   };
 
   const setSelectedInstitute = (institute: Institute | any | null) => {
@@ -312,6 +330,70 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  // 🔄 SESSION RESTORATION - Restore session on app load
+  useEffect(() => {
+    const restoreSession = async () => {
+      console.log('🔄 Attempting session restoration...');
+      setIsRestoringSession(true);
+      
+      try {
+        // Check if valid token exists
+        const tokenData = getAuthToken();
+        
+        if (!tokenData) {
+          console.log('⚠️ No valid token found, session restoration skipped');
+          setIsRestoringSession(false);
+          setIsLoading(false);
+          return;
+        }
+        
+        console.log('✅ Valid token found, restoring session...');
+        
+        // Try to restore user session from cache
+        const cachedUser = getUserSession();
+        
+        if (cachedUser && cachedUser.id === tokenData.userId) {
+          console.log('✅ Restoring user from cached session:', cachedUser.email);
+          
+          // Validate token with backend
+          try {
+            const userData = await validateToken();
+            const mappedUser = mapUserData(userData, []);
+            setUser(mappedUser);
+            console.log('✅ Session restored successfully from backend validation');
+          } catch (error) {
+            console.warn('⚠️ Backend validation failed, using cached session:', error);
+            // Use cached user if backend fails (offline scenario)
+            setUser(cachedUser);
+          }
+        } else {
+          console.log('⚠️ No cached user or ID mismatch, validating with backend...');
+          
+          try {
+            const userData = await validateToken();
+            const mappedUser = mapUserData(userData, []);
+            setUser(mappedUser);
+            storeUserSession(mappedUser);
+            console.log('✅ Session restored from backend');
+          } catch (error) {
+            console.error('❌ Session restoration failed:', error);
+            clearAuthToken();
+            clearUserSession();
+          }
+        }
+      } catch (error) {
+        console.error('❌ Error during session restoration:', error);
+        clearAuthToken();
+        clearUserSession();
+      } finally {
+        setIsRestoringSession(false);
+        setIsLoading(false);
+      }
+    };
+    
+    restoreSession();
+  }, []); // Run once on mount
+
   const value = {
     user,
     selectedInstitute,
@@ -340,7 +422,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     refreshUserData,
     validateUserToken,
     isAuthenticated: !!user,
-    isLoading
+    isLoading: isLoading || isRestoringSession
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

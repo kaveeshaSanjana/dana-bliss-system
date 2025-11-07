@@ -141,6 +141,7 @@ const Login = ({
   const [isLoading, setIsLoading] = useState(false);
   const [useApiLogin, setUseApiLogin] = useState(true);
   const [showFirstLogin, setShowFirstLogin] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false); // Remember me state
 
   // First login and forgot password states
   const [loginStep, setLoginStep] = useState<LoginStep>('login');
@@ -516,20 +517,25 @@ const Login = ({
     }
     try {
       if (useApiLogin) {
-        console.log('Attempting API login with credentials:', {
+        console.log('🔐 Attempting API login with credentials:', {
           email,
-          password: '***'
+          password: '***',
+          rememberMe
         });
         console.log('Using base URL:', baseUrl);
 
-        // Use the passed login function from AuthContext
+        // Use the passed login function from AuthContext with rememberMe
         await loginFunction({
           email,
-          password
-        });
+          password,
+          rememberMe
+        } as any); // Type assertion for compatibility
+        
         toast({
           title: "Success",
-          description: "Logged in successfully"
+          description: rememberMe 
+            ? "Logged in successfully. Session will last 30 days." 
+            : "Logged in successfully. Session will last 1 day."
         });
       } else {
         // Handle mock login
@@ -543,7 +549,7 @@ const Login = ({
         onLogin(user);
       }
     } catch (error) {
-      console.error('Login failed:', error);
+      console.error('❌ Login failed:', error);
       const errorMessage = error instanceof Error ? error.message : 'Login failed';
       setError(errorMessage);
       toast({
@@ -672,7 +678,13 @@ const Login = ({
                 {/* Remember me and Forgot Password */}
                 {useApiLogin && <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
-                    <input type="checkbox" id="remember" className="rounded border-border" />
+                    <input 
+                      type="checkbox" 
+                      id="remember" 
+                      className="rounded border-border"
+                      checked={rememberMe}
+                      onChange={(e) => setRememberMe(e.target.checked)}
+                    />
                     <label htmlFor="remember" className="text-sm text-foreground cursor-pointer">
                       Remember for 30 days
                     </label>

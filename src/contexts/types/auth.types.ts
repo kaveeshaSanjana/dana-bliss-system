@@ -113,6 +113,7 @@ export interface Organization {
 export interface LoginCredentials {
   email: string;
   password?: string;
+  rememberMe?: boolean; // Optional remember me preference for 30-day sessions
 }
 
 export interface AuthContextType {
@@ -131,7 +132,7 @@ export interface AuthContextType {
   currentChildId: string | null;
   currentOrganizationId: string | null;
   currentTransportId: string | null;
-  login: (credentials: LoginCredentials) => Promise<void>;
+  login: (credentials: LoginCredentials & { rememberMe?: boolean }) => Promise<void>;
   logout: () => void;
   setSelectedInstitute: (institute: Institute | null) => void;
   setSelectedClass: (classData: Class | null) => void;
