@@ -93,37 +93,19 @@ const AppContent = ({ initialPage }: AppContentProps) => {
   const [currentPage, setCurrentPageState] = useState(() => {
     if (initialPage) return initialPage;
     
-    // Get page from current URL path
+    // Get page from current URL path using hierarchical parser
     try {
       const pathname = window.location.pathname;
-      console.log('Getting page from pathname:', pathname);
+      console.log('🔍 Getting page from pathname:', pathname);
       
-      if (pathname === '/') return 'dashboard';
+      // Use the hierarchical URL parser
+      const { extractPageFromUrl } = require('@/utils/pageNavigation');
+      const pageName = extractPageFromUrl(pathname);
       
-      // Handle nested routes
-      if (pathname.startsWith('/institutes/')) {
-        const parts = pathname.split('/');
-        if (parts[2] === 'users') return 'institute-users';
-        if (parts[2] === 'classes') return 'classes';
-        return 'institutes';
-      }
-
-      // Handle child routes - e.g., /child/123/dashboard
-      if (pathname.startsWith('/child/')) {
-        const parts = pathname.split('/');
-        if (parts.length >= 4) {
-          // Return pattern like 'child/:childId/dashboard'
-          return `child/:childId/${parts[3]}`;
-        }
-        return 'my-children';
-      }
-      
-      // Remove leading slash and use as page name
-      const pageName = pathname.slice(1);
-      console.log('🔍 Final page name from URL:', pageName, 'pathname:', pathname);
-      return pageName || 'dashboard';
+      console.log('✅ Extracted page name:', pageName, 'from', pathname);
+      return pageName;
     } catch (error) {
-      console.error('Error getting page from URL:', error);
+      console.error('❌ Error getting page from URL:', error);
       return 'dashboard';
     }
   });
@@ -139,15 +121,19 @@ const AppContent = ({ initialPage }: AppContentProps) => {
   useEffect(() => {
     const handlePopState = () => {
       const pathname = window.location.pathname;
-      console.log('URL changed to:', pathname);
-      const pageName = getPageFromPath(pathname);
-      console.log('Setting page to:', pageName);
+      console.log('🔄 URL changed to:', pathname);
+      
+      // Use hierarchical URL parser
+      const { extractPageFromUrl } = require('@/utils/pageNavigation');
+      const pageName = extractPageFromUrl(pathname);
+      
+      console.log('✅ Setting page to:', pageName);
       setCurrentPageState(pageName);
     };
 
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [getPageFromPath]);
+  }, []);
 
   const setCurrentPage = (page: string) => {
     setCurrentPageState(page);

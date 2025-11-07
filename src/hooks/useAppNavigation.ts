@@ -1,99 +1,118 @@
 
 import { useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { buildContextUrl } from '@/utils/routeContext';
 
 export const useAppNavigation = () => {
-  const { currentChildId, selectedChild } = useAuth();
+  const { 
+    currentChildId, 
+    selectedChild, 
+    selectedInstitute, 
+    selectedClass, 
+    selectedSubject 
+  } = useAuth();
 
-  // Router-agnostic navigation that works even before Router is ready
+  // Router-agnostic navigation with hierarchical context-aware URLs
   const navigateToPage = useCallback((page: string) => {
-    console.log('Navigating to page:', page);
+    console.log('🔗 Navigating to page:', page);
     
-    const routeMap: Record<string, string> = {
-      'dashboard': '/',
+    // Base route mapping (without context)
+    const baseRouteMap: Record<string, string> = {
+      'dashboard': '/dashboard',
       'institutes': '/institutes',
-      'institute-users': '/institutes/users', 
-      'institute-classes': '/institutes/classes',
-      'organizations': '/organizations',
       'profile': '/profile',
       'users': '/users',
+      'organizations': '/organizations',
+      'my-children': '/my-children',
+      'transport': '/transport',
+      'settings': '/settings',
+      'appearance': '/appearance',
+      // Auth routes
+      'login': '/login',
+      'forgot-password': '/forgot-password',
+      'change-password': '/change-password',
+      'first-login': '/first-login'
+    };
+    
+    // Context-dependent routes
+    const contextRouteMap: Record<string, string> = {
       'students': '/students',
       'teachers': '/teachers',
       'parents': '/parents',
       'classes': '/classes',
       'subjects': '/subjects',
-      'grades': '/grades',
-      'grading': '/grading',
       'attendance': '/attendance',
-      'my-attendance': '/my-attendance',
-      'daily-attendance': '/daily-attendance',
-      
-      'attendance-markers': '/attendance-markers',
-      'qr-attendance': '/qr-attendance',
-      'institute-mark-attendance': '/institute-mark-attendance',
+      'payments': '/payments',
       'lectures': '/lectures',
-      'live-lectures': '/live-lectures',
       'homework': '/homework',
-      'homework-submissions': '/homework-submissions',
       'exams': '/exams',
       'results': '/results',
-      'select-institute': '/select-institute',
-      'select-class': '/select-class',
-      'select-subject': '/select-subject',
-      'parent-children': '/parent-children',
-      'teacher-students': '/teacher-students',
-      'teacher-homework': '/teacher-homework',
-      'teacher-exams': '/teacher-exams',
-      'teacher-lectures': '/teacher-lectures',
-      'institute-lectures': '/institute-lectures',
-      'settings': '/settings',
-      'appearance': '/appearance',
-      'institute-details': '/institute-details',
+      'institute-users': '/users',
+      'institute-classes': '/classes',
+      'institute-organizations': '/organizations',
+      'institute-payments': '/payments',
+      'institute-lectures': '/lectures',
+      'subject-payments': '/payments',
       'gallery': '/gallery',
-      'institute-payments': '/institute-payments',
-      'subject-payments': '/subject-payments',
-      'subject-pay-submission': '/subject-pay-submission',
-      'unverified-students': '/unverified-students',
-      'verify-image': '/verify-image',
-      'enroll-class': '/enroll-class',
-      'enroll-subject': '/enroll-subject',
-      'free-lectures': '/free-lectures',
-      'institute-profile': '/institute-profile',
       'sms': '/sms',
-      'sms-history': '/sms-history',
-      'system-payment': '/payments',
-      'payments': '/payments',
-      'transport': '/transport',
-      'transport-attendance': '/transport/:transportId/attendance',
-      'my-children': '/my-children',
-      // Child routes (support both legacy and new keys)
-      'child-dashboard': '/child/:childId/dashboard',
-      'child-results-page': '/child/:childId/results',
-      'child-attendance-page': '/child/:childId/attendance',
-      'child-transport': '/child/:childId/transport',
-      // Sidebar keys
-      'child-results': '/child/:childId/results',
-      'child-attendance': '/child/:childId/attendance'
+      'institute-profile': '/profile'
     };
     
-    let route = routeMap[page] || `/${page}`;
-
-    // Replace dynamic params
-    if (route.includes(':childId')) {
-      const cid = (currentChildId ?? selectedChild?.id) as string | undefined;
-      route = cid ? route.replace(':childId', String(cid)) : '/my-children';
+    // Child-specific routes
+    if (page.startsWith('child-') || page === 'my-children') {
+      const childRoutes: Record<string, string> = {
+        'child-dashboard': '/dashboard',
+        'child-results': '/results',
+        'child-attendance': '/attendance',
+        'child-transport': '/transport'
+      };
+      
+      const childRoute = childRoutes[page];
+      if (childRoute) {
+        const cid = (currentChildId ?? selectedChild?.id) as string | undefined;
+        const route = cid ? `/child/${cid}${childRoute}` : '/my-children';
+        
+        try {
+          window.history.pushState({}, '', route);
+          window.dispatchEvent(new PopStateEvent('popstate'));
+        } catch (e) {
+          window.location.assign(route);
+        }
+        return;
+      }
     }
-
+    
+    // Check if route is context-independent
+    if (baseRouteMap[page]) {
+      const route = baseRouteMap[page];
+      try {
+        window.history.pushState({}, '', route);
+        window.dispatchEvent(new PopStateEvent('popstate'));
+      } catch (e) {
+        window.location.assign(route);
+      }
+      return;
+    }
+    
+    // Build context-aware hierarchical URL
+    const basePath = contextRouteMap[page] || `/${page}`;
+    const context = {
+      instituteId: selectedInstitute?.id,
+      classId: selectedClass?.id,
+      subjectId: selectedSubject?.id
+    };
+    
+    const route = buildContextUrl(basePath, context);
+    
+    console.log('🚀 Hierarchical route:', { page, basePath, context, route });
+    
     try {
-      // Prefer history API without reload
       window.history.pushState({}, '', route);
-      // Notify listeners that rely on pathname
       window.dispatchEvent(new PopStateEvent('popstate'));
     } catch (e) {
-      // Fallback
       window.location.assign(route);
     }
-  }, [currentChildId, selectedChild?.id]);
+  }, [currentChildId, selectedChild?.id, selectedInstitute?.id, selectedClass?.id, selectedSubject?.id]);
 
   const getPageFromPath = useCallback((pathname: string): string => {
     if (pathname === '/') return 'dashboard';

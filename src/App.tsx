@@ -4,12 +4,8 @@ import React from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, Outlet } from "react-router-dom";
 import Index from "./pages/Index";
-import QRAttendance from '@/components/QRAttendance';
-import RfidAttendance from '@/pages/RFIDAttendance';
-import InstituteMarkAttendance from '@/pages/InstituteMarkAttendance';
-
 import NotFound from "./pages/NotFound";
 import Payments from "./pages/Payments";
 import CreatePayment from "./pages/CreatePayment";
@@ -37,6 +33,7 @@ import ChildResultsPage from '@/pages/ChildResultsPage';
 import ChildAttendancePage from '@/pages/ChildAttendancePage';
 import ChildTransportPage from '@/pages/ChildTransportPage';
 import AppLayout from '@/components/layout/AppLayout';
+import ProtectedRoute from '@/components/ProtectedRoute';
 
 const queryClient = new QueryClient();
 
@@ -57,121 +54,92 @@ const App = () => {
             <Toaster />
             <Sonner />
             <Routes>
-              {/* Main Dashboard Route */}
-              <Route path="/" element={<Index />} />
-              <Route path="/dashboard" element={<Index />} />
+              {/* ========== PUBLIC ROUTES ========== */}
+              <Route path="/login" element={<Index />} />
+              <Route path="/forgot-password" element={<Index />} />
+              <Route path="/change-password" element={<Index />} />
+              <Route path="/first-login" element={<Index />} />
               
-              {/* Institute Routes */}
-              <Route path="/institutes" element={<Index />} />
-              <Route path="/institutes/users" element={<Index />} />
-              <Route path="/institute-users" element={<Index />} />
-              <Route path="/institutes/classes" element={<Index />} />
-              <Route path="/verify-image" element={<Index />} />
+              {/* ========== ROOT DASHBOARD ========== */}
+              <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+              <Route path="/dashboard" element={<ProtectedRoute><Index /></ProtectedRoute>} />
               
-              {/* Organization Routes */}
-              <Route path="/organizations" element={<Index />} />
-              <Route path="/institute-organizations" element={<Index />} />
+              {/* ========== INSTITUTE LEVEL ROUTES ========== */}
+              <Route path="/institute/:instituteId/dashboard" element={<ProtectedRoute requireInstitute><Index /></ProtectedRoute>} />
+              <Route path="/institute/:instituteId/users" element={<ProtectedRoute requireInstitute><Index /></ProtectedRoute>} />
+              <Route path="/institute/:instituteId/classes" element={<ProtectedRoute requireInstitute><Index /></ProtectedRoute>} />
+              <Route path="/institute/:instituteId/students" element={<ProtectedRoute requireInstitute><Index /></ProtectedRoute>} />
+              <Route path="/institute/:instituteId/teachers" element={<ProtectedRoute requireInstitute><Index /></ProtectedRoute>} />
+              <Route path="/institute/:instituteId/parents" element={<ProtectedRoute requireInstitute><Index /></ProtectedRoute>} />
+              <Route path="/institute/:instituteId/organizations" element={<ProtectedRoute requireInstitute><Index /></ProtectedRoute>} />
+              <Route path="/institute/:instituteId/attendance" element={<ProtectedRoute requireInstitute><Index /></ProtectedRoute>} />
+              <Route path="/institute/:instituteId/payments" element={<ProtectedRoute requireInstitute><Index /></ProtectedRoute>} />
+              <Route path="/institute/:instituteId/lectures" element={<ProtectedRoute requireInstitute><Index /></ProtectedRoute>} />
+              <Route path="/institute/:instituteId/transport" element={<ProtectedRoute requireInstitute><Transport /></ProtectedRoute>} />
+              <Route path="/institute/:instituteId/settings" element={<ProtectedRoute requireInstitute><Index /></ProtectedRoute>} />
+              <Route path="/institute/:instituteId/profile" element={<ProtectedRoute requireInstitute><Index /></ProtectedRoute>} />
+              <Route path="/institute/:instituteId/gallery" element={<ProtectedRoute requireInstitute><Index /></ProtectedRoute>} />
+              <Route path="/institute/:instituteId/sms" element={<ProtectedRoute requireInstitute><Index /></ProtectedRoute>} />
               
-              {/* User Management Routes */}
-              <Route path="/users" element={<Index />} />
-              <Route path="/students" element={<Index />} />
-              <Route path="/unverified-students" element={<Index />} />
-              <Route path="/enroll-class" element={<Index />} />
-              <Route path="/enroll-subject" element={<Index />} />
-              <Route path="/teachers" element={<Index />} />
-              <Route path="/parents" element={<Index />} />
+              {/* ========== CLASS LEVEL ROUTES ========== */}
+              <Route path="/institute/:instituteId/class/:classId/dashboard" element={<ProtectedRoute requireInstitute requireClass><Index /></ProtectedRoute>} />
+              <Route path="/institute/:instituteId/class/:classId/students" element={<ProtectedRoute requireInstitute requireClass><Index /></ProtectedRoute>} />
+              <Route path="/institute/:instituteId/class/:classId/subjects" element={<ProtectedRoute requireInstitute requireClass><Index /></ProtectedRoute>} />
+              <Route path="/institute/:instituteId/class/:classId/attendance" element={<ProtectedRoute requireInstitute requireClass><Index /></ProtectedRoute>} />
+              <Route path="/institute/:instituteId/class/:classId/payments" element={<ProtectedRoute requireInstitute requireClass><Index /></ProtectedRoute>} />
+              <Route path="/institute/:instituteId/class/:classId/homework" element={<ProtectedRoute requireInstitute requireClass><Index /></ProtectedRoute>} />
+              <Route path="/institute/:instituteId/class/:classId/exams" element={<ProtectedRoute requireInstitute requireClass><Index /></ProtectedRoute>} />
+              <Route path="/institute/:instituteId/class/:classId/results" element={<ProtectedRoute requireInstitute requireClass><Index /></ProtectedRoute>} />
+              <Route path="/institute/:instituteId/class/:classId/lectures" element={<ProtectedRoute requireInstitute requireClass><Index /></ProtectedRoute>} />
               
-              {/* Academic Routes */}
-              <Route path="/classes" element={<Index />} />
-              <Route path="/subjects" element={<Index />} />
-              <Route path="/grades" element={<Index />} />
-              <Route path="/grading" element={<Index />} />
-              <Route path="/grades-table" element={<Index />} />
-              <Route path="/create-grade" element={<Index />} />
-              <Route path="/assign-grade-classes" element={<Index />} />
-              <Route path="/view-grade-classes" element={<Index />} />
+              {/* ========== SUBJECT LEVEL ROUTES ========== */}
+              <Route path="/institute/:instituteId/class/:classId/subject/:subjectId/dashboard" element={<ProtectedRoute requireInstitute requireClass requireSubject><Index /></ProtectedRoute>} />
+              <Route path="/institute/:instituteId/class/:classId/subject/:subjectId/students" element={<ProtectedRoute requireInstitute requireClass requireSubject><Index /></ProtectedRoute>} />
+              <Route path="/institute/:instituteId/class/:classId/subject/:subjectId/attendance" element={<ProtectedRoute requireInstitute requireClass requireSubject><Index /></ProtectedRoute>} />
+              <Route path="/institute/:instituteId/class/:classId/subject/:subjectId/payments" element={<ProtectedRoute requireInstitute requireClass requireSubject><Index /></ProtectedRoute>} />
+              <Route path="/institute/:instituteId/class/:classId/subject/:subjectId/homework" element={<ProtectedRoute requireInstitute requireClass requireSubject><Index /></ProtectedRoute>} />
+              <Route path="/institute/:instituteId/class/:classId/subject/:subjectId/exams" element={<ProtectedRoute requireInstitute requireClass requireSubject><Index /></ProtectedRoute>} />
+              <Route path="/institute/:instituteId/class/:classId/subject/:subjectId/results" element={<ProtectedRoute requireInstitute requireClass requireSubject><Index /></ProtectedRoute>} />
+              <Route path="/institute/:instituteId/class/:classId/subject/:subjectId/lectures" element={<ProtectedRoute requireInstitute requireClass requireSubject><Index /></ProtectedRoute>} />
               
-              {/* Attendance Routes */}
-              <Route path="/attendance" element={<Index />} />
-              <Route path="/my-attendance" element={<Index />} />
-              <Route path="/daily-attendance" element={<Index />} />
+              {/* ========== CHILD ROUTES (for Parents) ========== */}
+              <Route path="/child/:childId/dashboard" element={<ProtectedRoute requireChild><AppLayout><ChildDashboard /></AppLayout></ProtectedRoute>} />
+              <Route path="/child/:childId/attendance" element={<ProtectedRoute requireChild><AppLayout><ChildAttendancePage /></AppLayout></ProtectedRoute>} />
+              <Route path="/child/:childId/results" element={<ProtectedRoute requireChild><AppLayout><ChildResultsPage /></AppLayout></ProtectedRoute>} />
+              <Route path="/child/:childId/transport" element={<ProtectedRoute requireChild><AppLayout><ChildTransportPage /></AppLayout></ProtectedRoute>} />
               
-              <Route path="/attendance-markers" element={<Index />} />
-              <Route path="/qr-attendance" element={<Index />} />
-              <Route path="/rfid-attendance" element={<RfidAttendance />} />
-              <Route path="/institute-mark-attendance" element={<Index />} />
+              {/* ========== LEGACY FLAT ROUTES (Redirects to hierarchical) ========== */}
+              <Route path="/institutes" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+              <Route path="/classes" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+              <Route path="/subjects" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+              <Route path="/students" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+              <Route path="/teachers" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+              <Route path="/parents" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+              <Route path="/attendance" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+              <Route path="/payments" element={<ProtectedRoute><Payments /></ProtectedRoute>} />
+              <Route path="/homework" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+              <Route path="/exams" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+              <Route path="/results" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+              <Route path="/lectures" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+              <Route path="/my-children" element={<ProtectedRoute><AppLayout><MyChildren /></AppLayout></ProtectedRoute>} />
               
-              {/* Academic Content Routes */}
-              <Route path="/lectures" element={<Index />} />
-              <Route path="/institute-lectures" element={<Index />} />
-              <Route path="/live-lectures" element={<Index />} />
-              <Route path="/free-lectures" element={<Index />} />
-              <Route path="/homework" element={<Index />} />
-                <Route path="/homework/update/:homeworkId" element={<UpdateHomework />} />
-                <Route path="/lecture/update/:lectureId" element={<UpdateLecture />} />
-              <Route path="/homework-submissions" element={<Index />} />
-              <Route path="/homework-submissions/:homeworkId" element={<HomeworkSubmissions />} />
-              <Route path="/homework/:homeworkId/submissions" element={<HomeworkSubmissionDetails />} />
-              <Route path="/exams" element={<Index />} />
-          <Route path="/exams/:examId/results" element={<ExamResults />} />
-          <Route path="/exams/:examId/create-results" element={<CreateExamResults />} />
-              <Route path="/results" element={<Index />} />
+              {/* ========== OTHER PROTECTED ROUTES ========== */}
+              <Route path="/profile" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+              <Route path="/settings" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+              <Route path="/organizations" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+              <Route path="/transport" element={<ProtectedRoute><Transport /></ProtectedRoute>} />
+              <Route path="/transport/:transportId/attendance" element={<ProtectedRoute requireTransport><TransportAttendance /></ProtectedRoute>} />
               
-              {/* Selection Routes */}
-              <Route path="/select-institute" element={<Index />} />
-              <Route path="/select-class" element={<Index />} />
-              <Route path="/select-subject" element={<Index />} />
-              <Route path="/parent-children" element={<Index />} />
+              {/* ========== SPECIAL ROUTES ========== */}
+              <Route path="/homework/update/:homeworkId" element={<ProtectedRoute><UpdateHomework /></ProtectedRoute>} />
+              <Route path="/lecture/update/:lectureId" element={<ProtectedRoute><UpdateLecture /></ProtectedRoute>} />
+              <Route path="/exams/:examId/results" element={<ProtectedRoute><ExamResults /></ProtectedRoute>} />
+              <Route path="/exams/:examId/create-results" element={<ProtectedRoute><CreateExamResults /></ProtectedRoute>} />
+              <Route path="/homework-submissions/:homeworkId" element={<ProtectedRoute><HomeworkSubmissions /></ProtectedRoute>} />
+              <Route path="/homework/:homeworkId/submissions" element={<ProtectedRoute><HomeworkSubmissionDetails /></ProtectedRoute>} />
+              <Route path="/payment-submissions/:paymentId" element={<ProtectedRoute><PaymentSubmissions /></ProtectedRoute>} />
               
-              {/* Parent Child Routes */}
-              <Route path="/child-attendance" element={<Index />} />
-              <Route path="/child-results" element={<Index />} />
-              
-              {/* Teacher Specific Routes */}
-              <Route path="/teacher-students" element={<Index />} />
-              <Route path="/teacher-homework" element={<Index />} />
-              <Route path="/teacher-exams" element={<Index />} />
-              <Route path="/teacher-lectures" element={<Index />} />
-              
-              {/* Settings and Profile Routes */}
-              <Route path="/profile" element={<Index />} />
-              <Route path="/settings" element={<Index />} />
-              <Route path="/appearance" element={<Index />} />
-              <Route path="/institute-details" element={<Index />} />
-              <Route path="/institute-profile" element={<Index />} />
-              <Route path="/gallery" element={<Index />} />
-              <Route path="/sms" element={<Index />} />
-              <Route path="/sms-history" element={<Index />} />
-              
-              {/* Transport Routes */}
-              <Route path="/transport" element={<Transport />} />
-              <Route path="/transport-attendance" element={<TransportAttendance />} />
-              <Route path="/transport/:transportId/attendance" element={<TransportAttendance />} />
-              
-              {/* My Children Routes */}
-              <Route element={<AppLayout><Outlet /></AppLayout>}>
-                <Route path="/my-children" element={<MyChildren />} />
-                <Route path="/child/:childId/dashboard" element={<ChildDashboard />} />
-                <Route path="/child/:childId/results" element={<ChildResultsPage />} />
-                <Route path="/child/:childId/attendance" element={<ChildAttendancePage />} />
-                <Route path="/child/:childId/transport" element={<ChildTransportPage />} />
-              </Route>
-              
-              {/* Demo Routes */}
-              <Route path="/card-demo" element={<CardDemo />} />
-              
-              {/* Payment Routes */}
-              <Route path="/payments" element={<Payments />} />
-              <Route path="/payments/create" element={<CreatePayment />} />
-              <Route path="/payment-submissions/:paymentId" element={<PaymentSubmissions />} />
-              <Route path="/payment-submissions" element={<PaymentSubmissionsPage />} />
-              <Route path="/my-submissions" element={<MySubmissions />} />
-              <Route path="/institute-payments" element={<Index />} />
-              <Route path="/subject-payments" element={<Index />} />
-              <Route path="/subject-submissions" element={<SubjectSubmissions />} />
-              <Route path="/subject-pay-submission" element={<SubjectPaymentSubmissions />} />
-              
-              {/* Catch-all route for 404 */}
+              {/* ========== CATCH-ALL ========== */}
               <Route path="*" element={<NotFound />} />
             </Routes>
           </AuthProvider>
