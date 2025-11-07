@@ -6,6 +6,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from "react-router-dom";
 import Index from "./pages/Index";
+import LoginPage from "./pages/LoginPage";
 import NotFound from "./pages/NotFound";
 import Payments from "./pages/Payments";
 import CreatePayment from "./pages/CreatePayment";
@@ -55,10 +56,10 @@ const App = () => {
             <Sonner />
             <Routes>
               {/* ========== PUBLIC ROUTES ========== */}
-              <Route path="/login" element={<Index />} />
-              <Route path="/forgot-password" element={<Index />} />
-              <Route path="/change-password" element={<Index />} />
-              <Route path="/first-login" element={<Index />} />
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/forgot-password" element={<LoginPage />} />
+              <Route path="/change-password" element={<LoginPage />} />
+              <Route path="/first-login" element={<LoginPage />} />
               
               {/* ========== ROOT DASHBOARD ========== */}
               <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
