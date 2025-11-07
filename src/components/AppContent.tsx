@@ -882,25 +882,6 @@ const AppContent = ({ initialPage }: AppContentProps) => {
     }
   };
 
-  if (!user) {
-    // Check if there's a redirect path from protected route
-    const location = window.location;
-    const urlParams = new URLSearchParams(location.search);
-    const redirectPath = urlParams.get('redirect') || sessionStorage.getItem('login_redirect');
-    
-    return <Login onLogin={(userData) => {
-      // Login success is handled by the auth context
-      console.log('✅ User logged in successfully:', userData);
-      
-      // Redirect to intended page after login
-      if (redirectPath && redirectPath !== '/login') {
-        console.log('🔄 Redirecting to intended page:', redirectPath);
-        sessionStorage.removeItem('login_redirect');
-        window.history.pushState({}, '', redirectPath);
-        window.dispatchEvent(new PopStateEvent('popstate'));
-      }
-    }} loginFunction={login} />;
-  }
 
   // If organizations page is active, render full screen
   if (currentPage === 'organizations' && !selectedOrganization) {
