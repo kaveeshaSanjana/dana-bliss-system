@@ -107,7 +107,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
         }
 
         // Check 2: Token validation (check if token exists)
-        const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+        const token = localStorage.getItem('access_token') || sessionStorage.getItem('access_token');
         if (!token) {
           console.warn('❌ Access denied: No authentication token found');
           setValidationError('Authentication token missing');

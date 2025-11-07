@@ -31,14 +31,14 @@ export const getApiHeaders = (): Record<string, string> => {
     'Content-Type': 'application/json'
   };
 
-  // Always get token from localStorage for API calls
-  const token = localStorage.getItem('access_token');
+  // Get token from storage for API calls
+  const token = localStorage.getItem('access_token') || sessionStorage.getItem('access_token');
   
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
     console.log('Authorization header added with token');
   } else {
-    console.warn('No access token found in localStorage');
+    console.warn('No access token found in storage');
   }
 
   return headers;
@@ -87,7 +87,7 @@ export const validateToken = async (): Promise<User> => {
 
   console.log('Validating token with backend...');
 
-  const response = await fetch(`${baseUrl}/auth/me`, {
+  const response = await fetch(`${baseUrl}/v2/auth/me`, {
     method: 'GET',
     headers: getApiHeaders()
   });
@@ -95,7 +95,8 @@ export const validateToken = async (): Promise<User> => {
   if (!response.ok) {
     // Clear invalid token
     localStorage.removeItem('access_token');
-    console.log('Invalid token cleared from localStorage');
+    sessionStorage.removeItem('access_token');
+    console.log('Invalid token cleared from storage');
     throw new Error('Token validation failed');
   }
 
@@ -105,11 +106,16 @@ export const validateToken = async (): Promise<User> => {
 };
 
 export const logoutUser = async (): Promise<void> => {
-  // Clear all auth-related data from localStorage
+  // Clear all auth-related data from storage
   localStorage.removeItem('access_token');
   localStorage.removeItem('token');
   localStorage.removeItem('authToken');
   localStorage.removeItem('org_access_token');
+  
+  sessionStorage.removeItem('access_token');
+  sessionStorage.removeItem('token');
+  sessionStorage.removeItem('authToken');
+  sessionStorage.removeItem('org_access_token');
   
   // Clear any other user-related data
   localStorage.removeItem('selectedInstitute');
@@ -118,5 +124,5 @@ export const logoutUser = async (): Promise<void> => {
   localStorage.removeItem('selectedChild');
   localStorage.removeItem('selectedOrganization');
   
-  console.log('All auth tokens and user data cleared from localStorage');
+  console.log('All auth tokens and user data cleared from storage');
 };
