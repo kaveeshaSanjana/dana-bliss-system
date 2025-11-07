@@ -98,8 +98,27 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
           requireChild
         });
 
+        const ctx = (() => {
+          try {
+            const { parseContextIds } = require('@/utils/pageNavigation');
+            return parseContextIds(location.pathname);
+          } catch {
+            return {} as any;
+          }
+        })();
+
+        console.log('🌐 Route context from URL:', ctx);
+
+        // Token presence (for race conditions)
+        const token = localStorage.getItem('access_token') || sessionStorage.getItem('access_token');
+
         // Check 1: User authentication
         if (!user) {
+          if (token) {
+            console.log('⏳ Token present but user not loaded yet — awaiting context restoration');
+            // Keep validating; do not fail yet
+            return;
+          }
           console.warn('❌ Access denied: User not authenticated');
           setValidationError('User not authenticated');
           setIsValidating(false);
@@ -107,7 +126,6 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
         }
 
         // Check 2: Token validation (check if token exists)
-        const token = localStorage.getItem('access_token') || sessionStorage.getItem('access_token');
         if (!token) {
           console.warn('❌ Access denied: No authentication token found');
           setValidationError('Authentication token missing');
@@ -131,48 +149,48 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
         }
 
         // Check 4: Institute requirement
-        if (requireInstitute && !selectedInstitute) {
-          console.warn('❌ Access denied: Institute selection required');
+        if (requireInstitute && !(selectedInstitute || (ctx as any).instituteId)) {
+          console.warn('❌ Access denied: Institute selection or URL context required');
           setValidationError('Institute selection required');
           setIsValidating(false);
           return;
         }
 
         // Check 5: Class requirement
-        if (requireClass && !selectedClass) {
-          console.warn('❌ Access denied: Class selection required');
+        if (requireClass && !(selectedClass || (ctx as any).classId)) {
+          console.warn('❌ Access denied: Class selection or URL context required');
           setValidationError('Class selection required');
           setIsValidating(false);
           return;
         }
 
         // Check 6: Subject requirement
-        if (requireSubject && !selectedSubject) {
-          console.warn('❌ Access denied: Subject selection required');
+        if (requireSubject && !(selectedSubject || (ctx as any).subjectId)) {
+          console.warn('❌ Access denied: Subject selection or URL context required');
           setValidationError('Subject selection required');
           setIsValidating(false);
           return;
         }
 
         // Check 7: Child requirement (for parent routes)
-        if (requireChild && !selectedChild) {
-          console.warn('❌ Access denied: Child selection required');
+        if (requireChild && !(selectedChild || (ctx as any).childId)) {
+          console.warn('❌ Access denied: Child selection or URL context required');
           setValidationError('Child selection required');
           setIsValidating(false);
           return;
         }
 
         // Check 8: Organization requirement
-        if (requireOrganization && !selectedOrganization) {
-          console.warn('❌ Access denied: Organization selection required');
+        if (requireOrganization && !(selectedOrganization || (ctx as any).organizationId)) {
+          console.warn('❌ Access denied: Organization selection or URL context required');
           setValidationError('Organization selection required');
           setIsValidating(false);
           return;
         }
 
         // Check 9: Transport requirement
-        if (requireTransport && !selectedTransport) {
-          console.warn('❌ Access denied: Transport selection required');
+        if (requireTransport && !(selectedTransport || (ctx as any).transportId)) {
+          console.warn('❌ Access denied: Transport selection or URL context required');
           setValidationError('Transport selection required');
           setIsValidating(false);
           return;
