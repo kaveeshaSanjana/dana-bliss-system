@@ -79,7 +79,7 @@ export const loginUser = async (credentials: LoginCredentials): Promise<ApiRespo
 
 export const validateToken = async (): Promise<User> => {
   const baseUrl = getBaseUrl();
-  const token = localStorage.getItem('access_token');
+  const token = localStorage.getItem('access_token') || sessionStorage.getItem('access_token');
 
   if (!token) {
     throw new Error('No authentication token found');
@@ -87,17 +87,34 @@ export const validateToken = async (): Promise<User> => {
 
   console.log('Validating token with backend...');
 
-  const response = await fetch(`${baseUrl}/v2/auth/me`, {
-    method: 'GET',
-    headers: getApiHeaders()
-  });
+  const tryEndpoint = async (path: string) => {
+    const res = await fetch(`${baseUrl}${path}`, {
+      method: 'GET',
+      headers: getApiHeaders()
+    });
+    return res;
+  };
+
+  let response = await tryEndpoint('/v2/auth/me');
+  if (!response.ok) {
+    // Fallback to legacy endpoint
+    try {
+      const legacy = await tryEndpoint('/auth/me');
+      response = legacy;
+    } catch {
+      // keep original response
+    }
+  }
 
   if (!response.ok) {
-    // Clear invalid token
-    localStorage.removeItem('access_token');
-    sessionStorage.removeItem('access_token');
-    console.log('Invalid token cleared from storage');
-    throw new Error('Token validation failed');
+    const status = response.status;
+    if (status === 401 || status === 403) {
+      // Clear invalid token
+      localStorage.removeItem('access_token');
+      sessionStorage.removeItem('access_token');
+      console.log('Invalid token cleared from storage');
+    }
+    throw new Error(`Token validation failed (${status})`);
   }
 
   const userData = await response.json();

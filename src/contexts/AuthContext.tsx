@@ -332,65 +332,61 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   // 🔄 SESSION RESTORATION - Restore session on app load
   useEffect(() => {
-    const restoreSession = async () => {
+    const restoreSession = () => {
       console.log('🔄 Attempting session restoration...');
       setIsRestoringSession(true);
-      
+
       try {
         // Check if valid token exists
         const tokenData = getAuthToken();
-        
+
         if (!tokenData) {
           console.log('⚠️ No valid token found, session restoration skipped');
           setIsRestoringSession(false);
           setIsLoading(false);
           return;
         }
-        
-        console.log('✅ Valid token found, restoring session...');
-        
-        // Try to restore user session from cache
+
+        console.log('✅ Token found, restoring session optimistically...');
+
+        // Try to restore user session from cache first (no blocking)
         const cachedUser = getUserSession();
-        
         if (cachedUser && cachedUser.id === tokenData.userId) {
-          console.log('✅ Restoring user from cached session:', cachedUser.email);
-          
-          // Validate token with backend
-          try {
-            const userData = await validateToken();
-            const mappedUser = mapUserData(userData, []);
-            setUser(mappedUser);
-            console.log('✅ Session restored successfully from backend validation');
-          } catch (error) {
-            console.warn('⚠️ Backend validation failed, using cached session:', error);
-            // Use cached user if backend fails (offline scenario)
-            setUser(cachedUser);
-          }
-        } else {
-          console.log('⚠️ No cached user or ID mismatch, validating with backend...');
-          
+          setUser(cachedUser);
+          console.log('✅ Optimistically restored user from cached session:', cachedUser.email);
+        }
+
+        // Background validate token and refresh user data
+        (async () => {
           try {
             const userData = await validateToken();
             const mappedUser = mapUserData(userData, []);
             setUser(mappedUser);
             storeUserSession(mappedUser);
-            console.log('✅ Session restored from backend');
+            console.log('✅ Session validated and refreshed from backend');
           } catch (error) {
-            console.error('❌ Session restoration failed:', error);
-            clearAuthToken();
-            clearUserSession();
+            console.warn('⚠️ Backend validation failed; keeping cached session if available:', error);
+            // If no cached user, clear state fully
+            if (!cachedUser) {
+              clearAuthToken();
+              clearUserSession();
+              setUser(null);
+              console.log('🧹 Cleared session due to failed validation and no cached user');
+            }
+          } finally {
+            setIsRestoringSession(false);
+            setIsLoading(false);
           }
-        }
+        })();
       } catch (error) {
         console.error('❌ Error during session restoration:', error);
         clearAuthToken();
         clearUserSession();
-      } finally {
         setIsRestoringSession(false);
         setIsLoading(false);
       }
     };
-    
+
     restoreSession();
   }, []); // Run once on mount
 
