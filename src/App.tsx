@@ -139,6 +139,12 @@ const App = () => {
               <Route path="/homework/:homeworkId/submissions" element={<ProtectedRoute><HomeworkSubmissionDetails /></ProtectedRoute>} />
               <Route path="/payment-submissions/:paymentId" element={<ProtectedRoute><PaymentSubmissions /></ProtectedRoute>} />
               
+              {/* ========== GENERIC CONTEXT ROUTES (Fallback to Index) ========== */}
+              <Route path="/:page" element={<ProtectedRoute><Index /></ProtectedRoute>} />
+              <Route path="/institute/:instituteId/:page" element={<ProtectedRoute requireInstitute><Index /></ProtectedRoute>} />
+              <Route path="/institute/:instituteId/class/:classId/:page" element={<ProtectedRoute requireInstitute requireClass><Index /></ProtectedRoute>} />
+              <Route path="/institute/:instituteId/class/:classId/subject/:subjectId/:page" element={<ProtectedRoute requireInstitute requireClass requireSubject><Index /></ProtectedRoute>} />
+
               {/* ========== CATCH-ALL ========== */}
               <Route path="*" element={<NotFound />} />
             </Routes>
