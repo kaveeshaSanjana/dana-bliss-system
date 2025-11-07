@@ -537,6 +537,9 @@ const Login = ({
             ? "Logged in successfully. Session will last 30 days." 
             : "Logged in successfully. Session will last 1 day."
         });
+
+        // Notify parent to handle post-login redirect
+        onLogin({ email });
       } else {
         // Handle mock login
         const user = await handleMockLogin(email, password, selectedRole);
