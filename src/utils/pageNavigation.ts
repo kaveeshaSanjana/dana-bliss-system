@@ -202,17 +202,32 @@ export const buildSidebarUrl = (
     url = `/transport/${context.transportId}`;
     if (page !== 'dashboard') url += `/${pagePath}`;
   } else if (context.instituteId) {
-    url = `/institute/${context.instituteId}`;
-    
-    if (context.classId) {
-      url += `/class/${context.classId}`;
-      
-      if (context.subjectId) {
-        url += `/subject/${context.subjectId}`;
+    // Special handling for selection flows
+    if (page === 'select-class') {
+      // Stay at institute level: /institute/:id/select-class
+      url = `/institute/${context.instituteId}/select-class`;
+    } else if (page === 'select-subject') {
+      // Use institute + class, but no subject yet: /institute/:id/class/:classId/select-subject
+      url = `/institute/${context.instituteId}`;
+      if (context.classId) {
+        url += `/class/${context.classId}/select-subject`;
+      } else {
+        // Fallback: if no class yet, stay at institute level
+        url += '/select-class';
       }
+    } else {
+      url = `/institute/${context.instituteId}`;
+      
+      if (context.classId) {
+        url += `/class/${context.classId}`;
+        
+        if (context.subjectId) {
+          url += `/subject/${context.subjectId}`;
+        }
+      }
+      
+      if (page !== 'dashboard') url += `/${pagePath}`;
     }
-    
-    if (page !== 'dashboard') url += `/${pagePath}`;
   } else {
     url = `/${pagePath}`;
   }
