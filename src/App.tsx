@@ -59,6 +59,9 @@ const App = () => {
               {/* Main Dashboard Route */}
               <Route path="/" element={<Index />} />
               <Route path="/dashboard" element={<Index />} />
+              <Route path="/select-institute" element={<Index />} />
+              <Route path="/select-class" element={<Index />} />
+              <Route path="/select-subject" element={<Index />} />
               
               {/* 🛡️ HIERARCHICAL INSTITUTE ROUTES - Full Context in URL */}
               <Route path="/institutes" element={<Index />} />
@@ -85,6 +88,7 @@ const App = () => {
               <Route path="/institute/:instituteId/grades" element={<Index />} />
               <Route path="/institute/:instituteId/grading" element={<Index />} />
               <Route path="/institute/:instituteId/parents" element={<Index />} />
+              <Route path="/institute/:instituteId/select-class" element={<Index />} />
               <Route path="/institute/:instituteId/settings" element={<Index />} />
               
               {/* Class Level */}
@@ -92,6 +96,7 @@ const App = () => {
               <Route path="/institute/:instituteId/class/:classId/dashboard" element={<Index />} />
               <Route path="/institute/:instituteId/class/:classId/students" element={<Index />} />
               <Route path="/institute/:instituteId/class/:classId/subjects" element={<Index />} />
+              <Route path="/institute/:instituteId/class/:classId/select-subject" element={<Index />} />
               <Route path="/institute/:instituteId/class/:classId/attendance" element={<Index />} />
               <Route path="/institute/:instituteId/class/:classId/my-attendance" element={<Index />} />
               <Route path="/institute/:instituteId/class/:classId/daily-attendance" element={<Index />} />
