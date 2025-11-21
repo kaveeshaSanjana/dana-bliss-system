@@ -331,16 +331,9 @@ const Dashboard = () => {
       </div>;
   }
 
-  // Navigation flow based on selections for other roles
-  if (selectedInstitute && !selectedClass) {
-    return <ClassSelector />;
-  }
-  if (selectedClass && !selectedSubject) {
-    return <SubjectSelector />;
-  }
-
-  // If subject is selected or we're at institute level, show main dashboard
+  // For other roles, always show main dashboard content here.
   return <div className="space-y-6">
+
       <div>
         
         
