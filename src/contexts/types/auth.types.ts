@@ -49,6 +49,7 @@ export interface Institute {
   userIdByInstitute?: string; // User's ID within this institute
   shortName?: string; // Institute's short name
   logo?: string; // Institute's logo URL
+  instituteUserImageUrl?: string; // User's profile image within this institute
 }
 
 export interface Class {
@@ -113,7 +114,6 @@ export interface Organization {
 export interface LoginCredentials {
   email: string;
   password?: string;
-  rememberMe?: boolean; // Optional remember me preference for 30-day sessions
 }
 
 export interface AuthContextType {
@@ -132,7 +132,7 @@ export interface AuthContextType {
   currentChildId: string | null;
   currentOrganizationId: string | null;
   currentTransportId: string | null;
-  login: (credentials: LoginCredentials & { rememberMe?: boolean }) => Promise<void>;
+  login: (credentials: LoginCredentials) => Promise<void>;
   logout: () => void;
   setSelectedInstitute: (institute: Institute | null) => void;
   setSelectedClass: (classData: Class | null) => void;
@@ -145,6 +145,7 @@ export interface AuthContextType {
   validateUserToken?: () => Promise<void>;
   isAuthenticated: boolean;
   isLoading: boolean;
+  isInitialized: boolean;
 }
 
 export interface ApiResponse {

@@ -10,6 +10,8 @@ import { getBaseUrl } from '@/contexts/utils/auth.api';
 import { instituteApi } from '@/api/institute.api';
 import { useApiRequest } from '@/hooks/useApiRequest';
 import { useInstituteRole } from '@/hooks/useInstituteRole';
+import { enhancedCachedClient } from '@/api/enhancedCachedClient';
+import { CACHE_TTL } from '@/config/cacheTTL';
 interface Subject {
   id: string;
   name: string;
@@ -103,43 +105,50 @@ const SubjectSelector = () => {
     }
     return headers;
   };
-  const fetchSubjectsByRole = async (page: number = 1, limit: number = 10) => {
+  const fetchSubjectsByRole = async (page: number = 1, limit: number = 10, forceRefresh = false) => {
     setIsLoading(true);
     console.log('Loading subjects data for teacher');
     try {
-      const baseUrl = getBaseUrl();
-      const headers = getApiHeaders();
-      let url: string;
+      let endpoint: string;
+      const params = { page: page.toString(), limit: limit.toString() };
 
-      // For Institute Admin and AttendanceMarker, use the new class subjects API endpoint
+      // Determine endpoint based on role
       if (instituteRole === 'InstituteAdmin' || instituteRole === 'AttendanceMarker') {
         if (!currentInstituteId || !currentClassId) {
           throw new Error('Missing required parameters for institute admin/attendance marker subject fetch');
         }
-        url = `${baseUrl}/institutes/${currentInstituteId}/classes/${currentClassId}/subjects?page=${page}&limit=${limit}`;
+        endpoint = `/institutes/${currentInstituteId}/classes/${currentClassId}/subjects`;
       } else if (instituteRole === 'Teacher') {
         if (!currentInstituteId || !currentClassId || !user.id) {
           throw new Error('Missing required parameters for teacher subject fetch');
         }
-        url = `${baseUrl}/institutes/${currentInstituteId}/classes/${currentClassId}/subjects/teacher/${user.id}?page=${page}&limit=${limit}`;
+        endpoint = `/institutes/${currentInstituteId}/classes/${currentClassId}/subjects/teacher/${user.id}`;
       } else if (instituteRole === 'Student') {
         if (!currentInstituteId || !currentClassId || !user.id) {
           throw new Error('Missing required parameters for student subject fetch');
         }
-        url = `${baseUrl}/institute-class-subject-students/${currentInstituteId}/student-subjects/class/${currentClassId}/student/${user.id}?page=${page}&limit=${limit}`;
+        endpoint = `/institute-class-subject-students/${currentInstituteId}/student-subjects/class/${currentClassId}/student/${user.id}`;
       } else {
         // For other roles, use the original subjects endpoint
-        url = `${baseUrl}/subjects`;
+        endpoint = '/subjects';
       }
-      console.log('Fetching from URL:', url);
-      const response = await fetch(url, {
-        method: 'GET',
-        headers
-      });
-      if (!response.ok) {
-        throw new Error(`Failed to fetch subjects data: ${response.status}`);
-      }
-      const result = await response.json();
+
+      console.log('Fetching from endpoint:', endpoint);
+      
+      // Use enhanced cached client
+      const result = await enhancedCachedClient.get(
+        endpoint,
+        params,
+        {
+          ttl: CACHE_TTL.SUBJECTS,
+          forceRefresh,
+          userId: user?.id,
+          role: instituteRole,
+          instituteId: currentInstituteId,
+          classId: currentClassId
+        }
+      );
+
       console.log('Raw API response:', result);
       let subjects: SubjectCardData[] = [];
       if (instituteRole === 'InstituteAdmin' || instituteRole === 'Teacher' || instituteRole === 'AttendanceMarker') {
@@ -267,8 +276,14 @@ const SubjectSelector = () => {
     }
   };
 
-  // REMOVED: Auto-loading useEffect that caused unnecessary API calls
-  // Data now only loads when user explicitly clicks load button
+  // Auto-load subjects when class changes (uses cache if available)
+  useEffect(() => {
+    if (currentInstituteId && selectedClass?.id && !dataLoaded) {
+      console.log('Auto-loading subjects from cache for class:', selectedClass.id);
+      fetchSubjectsByRole(1, pageSize);
+    }
+  }, [currentInstituteId, selectedClass?.id]);
+
   const handleSelectSubject = (subject: SubjectCardData) => {
     console.log('Selecting subject:', subject);
     setSelectedSubject({
@@ -331,7 +346,7 @@ const SubjectSelector = () => {
               Class: {selectedClass.name}
             </p>}
         </div>
-        <Button onClick={() => fetchSubjectsByRole(currentPage, pageSize)} disabled={isLoading} variant="outline" size="sm" className="w-full sm:w-auto">
+        <Button onClick={() => fetchSubjectsByRole(currentPage, pageSize, true)} disabled={isLoading} variant="outline" size="sm" className="w-full sm:w-auto">
           {isLoading ? <>
               <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
               <span className="hidden sm:inline">Loading...</span>
@@ -342,19 +357,10 @@ const SubjectSelector = () => {
         </Button>
       </div>
 
-      {!dataLoaded ? <div className="text-center py-12">
+      {subjectsData.length === 0 && !isLoading ? <div className="text-center py-12">
           <p className="text-gray-600 dark:text-gray-400 mb-6">
-            Click the button below to load your subjects
+            No subjects found for this class
           </p>
-          <Button onClick={() => fetchSubjectsByRole(1, pageSize)} disabled={isLoading} className="bg-blue-600 hover:bg-blue-700">
-            {isLoading ? <>
-                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                Loading Subjects...
-              </> : <>
-                <BookOpen className="h-4 w-4 mr-2" />
-                Load My Subjects
-              </>}
-          </Button>
         </div> : <div className="max-h-[600px] overflow-y-auto">
           <div className={`grid grid-cols-1 md:grid-cols-2 ${sidebarCollapsed ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-4 md:gap-6 p-2 md:p-4 mb-16`}>
             {subjectsData.map(subject => {

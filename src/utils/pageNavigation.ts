@@ -1,19 +1,18 @@
 import { useEffect } from 'react';
-import { useNavigate, useLocation, useParams } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { buildContextUrl, extractBasePath } from './routeContext';
+import React from 'react';
 
 /**
- * 🔗 Hierarchical Context-Aware Navigation Manager
+ * 🔗 Page-Based Context Navigation Manager
  * 
- * Automatically syncs URL with context (institute/class/subject)
- * Supports industrial-level hierarchical routing
+ * Manages URL updates when context (institute/class/subject) changes
+ * Works with existing page-based navigation system
  */
 
 export const useContextUrlSync = (currentPage: string) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const params = useParams();
   const { 
     selectedInstitute, 
     selectedClass, 
@@ -23,13 +22,25 @@ export const useContextUrlSync = (currentPage: string) => {
     selectedTransport
   } = useAuth();
 
+  // Track if this is initial mount to avoid redirect loops
+  const isInitialMount = React.useRef(true);
+
   useEffect(() => {
-    // Parse current URL context
-    const urlContext = parseContextIds(location.pathname);
-    const urlBasePath = extractBasePath(location.pathname);
-    
-    // Build expected context based on selections
-    const expectedContext = {
+    // Skip on initial mount if URL already has context - let useRouteContext handle it
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      const hasContext = location.pathname.includes('/institute/') || 
+                         location.pathname.includes('/child/') || 
+                         location.pathname.includes('/organization/') ||
+                         location.pathname.includes('/transport/');
+      if (hasContext) {
+        console.log('⏭️ [PageNav] Skipping initial URL sync - URL has context, letting useRouteContext load it');
+        return;
+      }
+    }
+
+    // Build context from current selections
+    const context = {
       instituteId: selectedInstitute?.id,
       classId: selectedClass?.id,
       subjectId: selectedSubject?.id,
@@ -38,20 +49,45 @@ export const useContextUrlSync = (currentPage: string) => {
       transportId: selectedTransport?.id
     };
     
-    console.log('🔗 URL Sync Check:', {
-      currentPath: location.pathname,
-      urlContext,
-      expectedContext,
-      basePath: urlBasePath
-    });
+    // Derive effective page from URL if needed
+    const derivedPage = extractPageFromUrl(location.pathname);
+    const effectivePage = (!currentPage || currentPage.includes('/')) ? derivedPage : currentPage;
     
-    // Build expected URL with context
-    const expectedUrl = buildSidebarUrl(currentPage, expectedContext);
+    // Build context-aware URL
+    const contextUrl = buildSidebarUrl(effectivePage, context);
     
-    // Only update if URL doesn't match expected structure
-    if (location.pathname !== expectedUrl && !isSpecialRoute(location.pathname)) {
-      console.log('🔄 Updating URL:', { from: location.pathname, to: expectedUrl });
-      navigate(expectedUrl, { replace: true });
+    // Parse current URL context
+    const currentContext = parseContextIds(location.pathname);
+    
+    // Check if we need to update URL
+    const needsUpdate = 
+      currentContext.instituteId !== context.instituteId?.toString() ||
+      currentContext.classId !== context.classId?.toString() ||
+      currentContext.subjectId !== context.subjectId?.toString() ||
+      currentContext.childId !== context.childId?.toString() ||
+      currentContext.organizationId !== context.organizationId?.toString() ||
+      currentContext.transportId !== context.transportId?.toString();
+    
+    // Only update if context changed and URLs are different
+    if (needsUpdate && location.pathname !== contextUrl) {
+      // CRITICAL: Preserve ALL query params
+      const searchParams = new URLSearchParams(location.search);
+      const queryString = searchParams.toString();
+      const fullUrl = contextUrl + (queryString ? `?${queryString}` : '');
+      
+      console.log('🔗 [PageNav] Updating URL with context:', {
+        from: location.pathname,
+        to: fullUrl,
+        queryParams: Object.fromEntries(searchParams.entries()),
+        reason: 'Context changed',
+        context: {
+          institute: selectedInstitute?.name,
+          class: selectedClass?.name,
+          subject: selectedSubject?.name
+        }
+      });
+      
+      navigate(fullUrl, { replace: true });
     }
   }, [
     currentPage,
@@ -67,57 +103,34 @@ export const useContextUrlSync = (currentPage: string) => {
 };
 
 /**
- * Check if route is special (shouldn't be modified)
- */
-const isSpecialRoute = (pathname: string): boolean => {
-  const specialRoutes = [
-    '/login',
-    '/forgot-password',
-    '/change-password',
-    '/first-login',
-    '/homework/update/',
-    '/lecture/update/',
-    '/exams/',
-    '/payment-submissions/',
-    '/homework-submissions/'
-  ];
-  
-  return specialRoutes.some(route => pathname.startsWith(route));
-};
-
-/**
- * Extract page name from hierarchical URL
+ * Extract page name from context URL
  */
 export const extractPageFromUrl = (pathname: string): string => {
-  // Handle special routes
-  if (pathname === '/' || pathname === '/dashboard') return 'dashboard';
-  if (pathname === '/login') return 'login';
-  if (pathname === '/forgot-password') return 'forgot-password';
-  if (pathname === '/change-password') return 'change-password';
-  if (pathname === '/first-login') return 'first-login';
-  
   // Remove leading slash
   let path = pathname.startsWith('/') ? pathname.slice(1) : pathname;
   
-  // Remove context segments and extract base page
-  const parts = path.split('/').filter(Boolean);
+  // Remove context segments
+  path = path
+    .replace(/^institute\/[^\/]+\/?/, '')
+    .replace(/^class\/[^\/]+\/?/, '')
+    .replace(/^subject\/[^\/]+\/?/, '')
+    .replace(/^child\/[^\/]+\/?/, '')
+    .replace(/^organization\/[^\/]+\/?/, '')
+    .replace(/^transport\/[^\/]+\/?/, '');
   
-  // Find the last non-ID part (the actual page)
-  for (let i = parts.length - 1; i >= 0; i--) {
-    const part = parts[i];
-    const prevPart = i > 0 ? parts[i - 1] : null;
-    
-    // Skip if it's an ID (follows institute/class/subject/child/organization/transport)
-    if (prevPart && ['institute', 'class', 'subject', 'child', 'organization', 'transport'].includes(prevPart)) {
-      continue;
-    }
-    
-    // This is the page name
-    return part;
+  // Convert URL paths to page IDs
+  const urlToPageMap: Record<string, string> = {
+    'institutes/users': 'institute-users',
+    'institutes/classes': 'institute-classes',
+  };
+  
+  // Check if path matches any special URL pattern
+  if (urlToPageMap[path]) {
+    return urlToPageMap[path];
   }
   
-  // Default to dashboard
-  return 'dashboard';
+  // If empty, return dashboard
+  return path || 'dashboard';
 };
 
 /**
@@ -150,67 +163,61 @@ export const parseContextIds = (pathname: string): {
 };
 
 /**
- * Build URL for navigation with hierarchical context
+ * Build URL for sidebar navigation
  */
 export const buildSidebarUrl = (
   page: string,
   context: {
-    instituteId?: string;
-    classId?: string;
-    subjectId?: string;
-    childId?: string;
-    organizationId?: string;
-    transportId?: string;
+    instituteId?: string | number;
+    classId?: string | number;
+    subjectId?: string | number;
+    childId?: string | number;
+    organizationId?: string | number;
+    transportId?: string | number;
   }
 ): string => {
-  // Public routes without context
-  const publicPages = ['login', 'forgot-password', 'change-password', 'first-login'];
-  if (publicPages.includes(page)) {
-    return `/${page}`;
+  // Convert page IDs to URL paths
+  const pageToUrlMap: Record<string, string> = {
+    'institute-users': 'institutes/users',
+    'institute-classes': 'institutes/classes',
+  };
+  
+  // Get the actual URL path for the page
+  const pagePath = pageToUrlMap[page] || page;
+  
+  let url = '';
+  
+  // Handle special dashboard case
+  if (page === 'dashboard' && !context.childId && !context.organizationId && !context.transportId && !context.instituteId) {
+    return '/dashboard';
   }
   
-  // Root-level pages without context
-  const rootPages = ['dashboard', 'institutes', 'organizations', 'profile', 'settings', 'my-children'];
-  if (rootPages.includes(page) && !context.instituteId && !context.childId) {
-    return `/${page}`;
-  }
-  
-  // Child context routes
   if (context.childId) {
-    return `/child/${context.childId}/${page}`;
-  }
-  
-  // Organization context routes
-  if (context.organizationId) {
-    return `/organization/${context.organizationId}/${page}`;
-  }
-  
-  // Transport context routes
-  if (context.transportId) {
-    return `/transport/${context.transportId}/${page}`;
-  }
-  
-  // Institute hierarchical routes
-  if (context.instituteId) {
-    let url = `/institute/${context.instituteId}`;
+    url = `/child/${context.childId}`;
+    if (page !== 'dashboard') url += `/${pagePath}`;
+  } else if (context.organizationId) {
+    url = `/organization/${context.organizationId}`;
+    if (page !== 'dashboard') url += `/${pagePath}`;
+  } else if (context.transportId) {
+    url = `/transport/${context.transportId}`;
+    if (page !== 'dashboard') url += `/${pagePath}`;
+  } else if (context.instituteId) {
+    url = `/institute/${context.instituteId}`;
     
-    // Class level
     if (context.classId) {
       url += `/class/${context.classId}`;
       
-      // Subject level
       if (context.subjectId) {
         url += `/subject/${context.subjectId}`;
       }
     }
     
-    // Append page
-    url += `/${page}`;
-    return url;
+    if (page !== 'dashboard') url += `/${pagePath}`;
+  } else {
+    url = `/${pagePath}`;
   }
   
-  // Fallback to simple path
-  return `/${page}`;
+  return url;
 };
 
 export default {

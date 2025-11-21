@@ -67,7 +67,6 @@ const TeacherExams = () => {
   const [isCreateResultsDialogOpen, setIsCreateResultsDialogOpen] = useState(false);
   const [isUpdateDialogOpen, setIsUpdateDialogOpen] = useState(false);
   const [selectedExam, setSelectedExam] = useState<TeacherExam | null>(null);
-  const [hasAttemptedLoad, setHasAttemptedLoad] = useState(false);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
 
   // Filter states
@@ -99,7 +98,7 @@ const TeacherExams = () => {
       defaultLimit: 50,
       availableLimits: [25, 50, 100]
     },
-    autoLoad: false // Keep disabled
+        autoLoad: true, // Enable auto-loading from cache // Keep disabled
   });
   const {
     state: {
@@ -163,7 +162,17 @@ const TeacherExams = () => {
   }, ...(['InstituteAdmin', 'Teacher'].includes(effectiveRole) ? [{
     key: 'createResults',
     header: 'Create Results',
-    render: (value: any, row: TeacherExam) => <Button size="sm" variant="outline" onClick={() => navigate(`/exams/${row.id}/create-results`)} className="flex items-center gap-2">
+    render: (value: any, row: TeacherExam) => <Button size="sm" variant="outline" onClick={() => {
+      if (!selectedInstitute?.id || !selectedClass?.id || !selectedSubject?.id) {
+        toast({
+          title: "Missing Context",
+          description: "Please select institute, class, and subject first",
+          variant: "destructive"
+        });
+        return;
+      }
+      navigate(`/institute/${selectedInstitute.id}/class/${selectedClass.id}/subject/${selectedSubject.id}/exam/${row.id}/create-results`);
+    }} className="flex items-center gap-2">
           <BarChart3 className="h-3 w-3" />
           Create
         </Button>
@@ -202,7 +211,17 @@ const TeacherExams = () => {
     setIsCreateResultsDialogOpen(true);
   };
   const handleViewResults = (exam: TeacherExam) => {
-    navigate(`/exams/${exam.id}/results`);
+    // 🛡️ SECURE: Use full hierarchical URL
+    if (!selectedInstitute?.id || !selectedClass?.id || !selectedSubject?.id) {
+      toast({
+        title: "Missing Context",
+        description: "Please select institute, class, and subject first",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    navigate(`/institute/${selectedInstitute.id}/class/${selectedClass.id}/subject/${selectedSubject.id}/exam/${exam.id}/results`);
   };
   const handleEditExam = (exam: TeacherExam) => {
     setSelectedExam(exam);
@@ -214,7 +233,6 @@ const TeacherExams = () => {
     actions.refresh();
   };
   const handleLoadData = () => {
-    setHasAttemptedLoad(true);
     actions.loadData();
   };
   const handleRefreshData = () => {
@@ -244,27 +262,6 @@ const TeacherExams = () => {
           <p className="text-muted-foreground">
             Please select an institute, class, and subject to view your exams.
           </p>
-        </div>
-      </div>;
-  }
-  if (!hasAttemptedLoad) {
-    return <div className="container mx-auto p-6 space-y-6">
-        <div className="text-center py-12">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
-            Exams ({getCurrentSelection()})
-          </h2>
-          <p className="text-gray-600 dark:text-gray-400 mb-6">
-            Click the button below to load exams data
-          </p>
-          <Button onClick={handleLoadData} disabled={loading} className="bg-blue-600 hover:bg-blue-700">
-            {loading ? <>
-                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                Loading Data...
-              </> : <>
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Load Data
-              </>}
-          </Button>
         </div>
       </div>;
   }

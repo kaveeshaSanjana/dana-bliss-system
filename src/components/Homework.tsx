@@ -58,7 +58,17 @@ const Homework = ({ apiLevel = 'institute' }: HomeworkProps) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
 
-  // Removed auto-loading useEffects - data now only loads when button is clicked
+  // Track current context to prevent unnecessary reloads
+  const contextKey = `${currentInstituteId}-${currentClassId}-${currentSubjectId}`;
+  const [lastLoadedContext, setLastLoadedContext] = useState<string>('');
+
+  // Auto-load homework when subject is selected
+  useEffect(() => {
+    if (currentInstituteId && currentClassId && currentSubjectId && contextKey !== lastLoadedContext) {
+      setLastLoadedContext(contextKey);
+      handleLoadData(false); // Auto-load from cache
+    }
+  }, [contextKey]);
 
   const buildQueryParams = () => {
     const userRole = instituteRole;
@@ -240,7 +250,18 @@ const Homework = ({ apiLevel = 'institute' }: HomeworkProps) => {
 
   const handleViewSubmissions = (homeworkData: any) => {
     console.log('View homework submissions:', homeworkData);
-    navigate(`/homework/${homeworkData.id}/submissions`);
+    
+    // 🛡️ SECURE: Use full hierarchical URL
+    if (!currentInstituteId || !currentClassId || !currentSubjectId) {
+      toast({
+        title: "Missing Context",
+        description: "Please select institute, class, and subject first",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    navigate(`/institute/${currentInstituteId}/class/${currentClassId}/subject/${currentSubjectId}/homework/${homeworkData.id}/submissions`);
   };
 
   const handleSubmissionSuccess = async () => {

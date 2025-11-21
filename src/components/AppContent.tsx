@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAppNavigation } from '@/hooks/useAppNavigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useInstituteRole } from '@/hooks/useInstituteRole';
-import { useContextUrlSync } from '@/utils/pageNavigation';
+import { useContextUrlSync, extractPageFromUrl } from '@/utils/pageNavigation';
+import { useRouteContext } from '@/hooks/useRouteContext';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Building2, BookOpen, GraduationCap, User, Palette, Menu, X, ArrowLeft } from 'lucide-react';
@@ -16,6 +18,7 @@ import Parents from '@/components/Parents';
 import ChildAttendance from '@/components/ChildAttendance';
 import ChildResults from '@/components/ChildResults';
 import VerifyImage from '@/components/VerifyImage';
+import ModalRouter from '@/components/ModalRouter';
 
 import Grades from '@/components/Grades';
 import Classes from '@/components/Classes';
@@ -83,60 +86,31 @@ interface AppContentProps {
 const AppContent = ({ initialPage }: AppContentProps) => {
   const { user, login, selectedInstitute, selectedClass, selectedSubject, selectedChild, selectedOrganization, setSelectedOrganization, currentInstituteId } = useAuth();
   const { navigateToPage, getPageFromPath } = useAppNavigation();
+  const location = useLocation();
+  const navigate = useNavigate();
+  
+  // Sync URL context with AuthContext and validate access (403 if unauthorized)
+  const { isValidating } = useRouteContext();
   
   // Institute-specific role - always uses selectedInstitute.userRole
   const userRole = useInstituteRole();
   
   console.log('🎯 AppContent - Role:', userRole, 'Institute UserType:', selectedInstitute?.userRole);
   
-  // Initialize currentPage from URL or prop or default to dashboard
-  const [currentPage, setCurrentPageState] = useState(() => {
-    if (initialPage) return initialPage;
-    
-    // Get page from current URL path using hierarchical parser
-    try {
-      const pathname = window.location.pathname;
-      console.log('🔍 Getting page from pathname:', pathname);
-      
-      // Use the hierarchical URL parser
-      const { extractPageFromUrl } = require('@/utils/pageNavigation');
-      const pageName = extractPageFromUrl(pathname);
-      
-      console.log('✅ Extracted page name:', pageName, 'from', pathname);
-      return pageName;
-    } catch (error) {
-      console.error('❌ Error getting page from URL:', error);
-      return 'dashboard';
-    }
-  });
+  // Derive current page from URL pathname
+  const currentPage = React.useMemo(() => {
+    return extractPageFromUrl(location.pathname);
+  }, [location.pathname]);
   
   // 🔗 Sync URL with context automatically
   useContextUrlSync(currentPage);
   
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  
   const [showCreateOrgForm, setShowCreateOrgForm] = useState(false);
   const [organizationCurrentPage, setOrganizationCurrentPage] = useState('organizations');
 
-  // Listen to URL changes and update currentPage accordingly
-  useEffect(() => {
-    const handlePopState = () => {
-      const pathname = window.location.pathname;
-      console.log('🔄 URL changed to:', pathname);
-      
-      // Use hierarchical URL parser
-      const { extractPageFromUrl } = require('@/utils/pageNavigation');
-      const pageName = extractPageFromUrl(pathname);
-      
-      console.log('✅ Setting page to:', pageName);
-      setCurrentPageState(pageName);
-    };
-
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, []);
-
   const setCurrentPage = (page: string) => {
-    setCurrentPageState(page);
     navigateToPage(page);
   };
 
@@ -166,13 +140,14 @@ const AppContent = ({ initialPage }: AppContentProps) => {
 
   const handleBackToMain = () => {
     setOrganizationCurrentPage('organizations');
+    setSelectedOrganization(null);
     
     // Switch back to using baseUrl for main API calls
     import('@/api/client').then(({ apiClient }) => {
       apiClient.setUseBaseUrl2(false);
     });
     
-    setCurrentPage('dashboard');
+    navigateToPage('dashboard');
   };
 
   const handleCreateOrganization = () => {
@@ -882,6 +857,25 @@ const AppContent = ({ initialPage }: AppContentProps) => {
     }
   };
 
+  if (!user) {
+    return <Login onLogin={(userData) => {
+      // Login success is handled by the auth context
+      console.log('User logged in successfully:', userData);
+    }} loginFunction={login} />;
+  }
+
+  // 🛡️ CRITICAL: Show loading state while validating context from URL
+  // This MUST happen BEFORE any institute/class/subject checks
+  if (isValidating) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading context from URL...</p>
+        </div>
+      </div>
+    );
+  }
 
   // If organizations page is active, render full screen
   if (currentPage === 'organizations' && !selectedOrganization) {
@@ -894,8 +888,6 @@ const AppContent = ({ initialPage }: AppContentProps) => {
         <Sidebar 
           isOpen={isSidebarOpen}
           onClose={handleSidebarClose}
-          currentPage={currentPage}
-          onPageChange={setCurrentPage}
         />
         <div className="flex-1 flex flex-col overflow-hidden min-w-0">
           <Header onMenuClick={handleMenuClick} />
@@ -904,6 +896,7 @@ const AppContent = ({ initialPage }: AppContentProps) => {
               {renderComponent()}
             </div>
           </main>
+          <ModalRouter />
         </div>
       </div>
     </div>

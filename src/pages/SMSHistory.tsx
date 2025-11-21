@@ -86,7 +86,7 @@ export default function SMSHistory() {
     }
   } = useTableData<SMSMessage>({
     endpoint: selectedInstitute ? `/sms/message-history/${selectedInstitute.id}` : '',
-    autoLoad: false,
+    autoLoad: true, // Enable auto-loading from cache
     defaultParams: {
       recipientFilterType: recipientFilter || undefined,
       messageType: messageTypeFilter || undefined,

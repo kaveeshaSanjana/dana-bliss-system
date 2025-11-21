@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { homeworkSubmissionsApi, type HomeworkSubmissionCreateData } from '@/api/homeworkSubmissions.api';
 import { Upload, FileText, File, X, CalendarIcon } from 'lucide-react';
+import { uploadWithSignedUrl } from '@/utils/signedUploadHelper';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format } from 'date-fns';
@@ -38,6 +39,8 @@ const SubmitHomeworkForm = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadMessage, setUploadMessage] = useState('');
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   // Early return if homework is not provided
   if (!homework) {
@@ -107,8 +110,27 @@ const SubmitHomeworkForm = ({
       submissionDate: data.submissionDate
     });
     setIsSubmitting(true);
+    setIsUploading(true);
     try {
-      const result = await homeworkSubmissionsApi.submitHomework(homework.id, selectedFile);
+      // Step 1: Upload file and get relativePath using signed URL
+      const relativePath = await uploadWithSignedUrl(
+        selectedFile,
+        'homework-files',
+        (message, progress) => {
+          setUploadMessage(message);
+          setUploadProgress(progress);
+        }
+      );
+
+      // Step 2: Submit homework with relativePath as fileUrl
+      const result = await homeworkSubmissionsApi.submitHomework(
+        homework.id,
+        relativePath,
+        {
+          submissionDate: data.submissionDate,
+          remarks: data.remarks
+        }
+      );
       console.log('Homework submission result:', result);
       toast({
         title: "Success",
@@ -136,6 +158,7 @@ const SubmitHomeworkForm = ({
       });
     } finally {
       setIsSubmitting(false);
+      setIsUploading(false);
     }
   };
   return <div className="space-y-6">
@@ -209,7 +232,7 @@ const SubmitHomeworkForm = ({
           <Button type="submit" disabled={isSubmitting || !selectedFile} className="flex-1">
             {isSubmitting ? <>
                 <Upload className="h-4 w-4 mr-2 animate-spin" />
-                Submitting...
+                {uploadMessage || 'Submitting...'}
               </> : <>
                 <Upload className="h-4 w-4 mr-2" />
                 Submit Homework

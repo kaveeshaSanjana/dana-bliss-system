@@ -31,14 +31,14 @@ export const getApiHeaders = (): Record<string, string> => {
     'Content-Type': 'application/json'
   };
 
-  // Get token from storage for API calls
-  const token = localStorage.getItem('access_token') || sessionStorage.getItem('access_token');
+  // Always get token from localStorage for API calls
+  const token = localStorage.getItem('access_token');
   
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
     console.log('Authorization header added with token');
   } else {
-    console.warn('No access token found in storage');
+    console.warn('No access token found in localStorage');
   }
 
   return headers;
@@ -79,60 +79,58 @@ export const loginUser = async (credentials: LoginCredentials): Promise<ApiRespo
 
 export const validateToken = async (): Promise<User> => {
   const baseUrl = getBaseUrl();
-  const token = localStorage.getItem('access_token') || sessionStorage.getItem('access_token');
+  const token = localStorage.getItem('access_token');
 
   if (!token) {
+    console.warn('⚠️ No authentication token found in localStorage');
     throw new Error('No authentication token found');
   }
 
-  console.log('Validating token with backend...');
+  console.log('🔐 Validating token with backend...', { 
+    tokenExists: !!token,
+    tokenLength: token.length,
+    endpoint: `${baseUrl}/auth/me`
+  });
 
-  const tryEndpoint = async (path: string) => {
-    const res = await fetch(`${baseUrl}${path}`, {
+  try {
+    const response = await fetch(`${baseUrl}/auth/me`, {
       method: 'GET',
       headers: getApiHeaders()
     });
-    return res;
-  };
 
-  let response = await tryEndpoint('/v2/auth/me');
-  if (!response.ok) {
-    // Fallback to legacy endpoint
-    try {
-      const legacy = await tryEndpoint('/auth/me');
-      response = legacy;
-    } catch {
-      // keep original response
-    }
-  }
+    console.log('📡 Token validation response:', {
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok
+    });
 
-  if (!response.ok) {
-    const status = response.status;
-    if (status === 401 || status === 403) {
+    if (!response.ok) {
       // Clear invalid token
       localStorage.removeItem('access_token');
-      sessionStorage.removeItem('access_token');
-      console.log('Invalid token cleared from storage');
+      console.error('❌ Token validation failed, token cleared');
+      throw new Error(`Token validation failed: ${response.status} ${response.statusText}`);
     }
-    throw new Error(`Token validation failed (${status})`);
-  }
 
-  const userData = await response.json();
-  console.log('Token validation successful');
-  return userData;
+    const userData = await response.json();
+    console.log('✅ Token validation successful, user data:', {
+      userId: userData.id,
+      email: userData.email,
+      role: userData.role
+    });
+    return userData;
+  } catch (error) {
+    console.error('❌ Token validation error:', error);
+    localStorage.removeItem('access_token');
+    throw error;
+  }
 };
 
 export const logoutUser = async (): Promise<void> => {
-  // Clear all auth-related data from storage
+  // Clear all auth-related data from localStorage
   localStorage.removeItem('access_token');
   localStorage.removeItem('token');
   localStorage.removeItem('authToken');
   localStorage.removeItem('org_access_token');
-  
-  sessionStorage.removeItem('access_token');
-  sessionStorage.removeItem('token');
-  sessionStorage.removeItem('authToken');
-  sessionStorage.removeItem('org_access_token');
   
   // Clear any other user-related data
   localStorage.removeItem('selectedInstitute');
@@ -141,5 +139,5 @@ export const logoutUser = async (): Promise<void> => {
   localStorage.removeItem('selectedChild');
   localStorage.removeItem('selectedOrganization');
   
-  console.log('All auth tokens and user data cleared from storage');
+  console.log('All auth tokens and user data cleared from localStorage');
 };

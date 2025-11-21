@@ -1,4 +1,6 @@
 import { apiClient } from './client';
+import { enhancedCachedClient } from './enhancedCachedClient';
+import { CACHE_TTL } from '@/config/cacheTTL';
 
 export interface SubjectPayment {
   id: string;
@@ -94,9 +96,20 @@ class SubjectPaymentsApi {
     classId: string, 
     subjectId: string,
     page: number = 1,
-    limit: number = 50
+    limit: number = 50,
+    forceRefresh: boolean = false
   ): Promise<SubjectPaymentsResponse> {
-    return apiClient.get(`/institute-class-subject-payments/institute/${instituteId}/class/${classId}/subject/${subjectId}?page=${page}&limit=${limit}`);
+    return enhancedCachedClient.get(
+      `/institute-class-subject-payments/institute/${instituteId}/class/${classId}/subject/${subjectId}`,
+      { page, limit },
+      {
+        ttl: CACHE_TTL.SUBJECT_PAYMENTS,
+        forceRefresh,
+        instituteId,
+        classId,
+        subjectId
+      }
+    );
   }
 
   // Get student's subject payments
@@ -105,9 +118,20 @@ class SubjectPaymentsApi {
     classId: string, 
     subjectId: string,
     page: number = 1,
-    limit: number = 50
+    limit: number = 50,
+    forceRefresh: boolean = false
   ): Promise<SubjectPaymentsResponse> {
-    return apiClient.get(`/institute-class-subject-payments/institute/${instituteId}/class/${classId}/subject/${subjectId}/my-payments?page=${page}&limit=${limit}`);
+    return enhancedCachedClient.get(
+      `/institute-class-subject-payments/institute/${instituteId}/class/${classId}/subject/${subjectId}/my-payments`,
+      { page, limit },
+      {
+        ttl: CACHE_TTL.SUBJECT_PAYMENTS,
+        forceRefresh,
+        instituteId,
+        classId,
+        subjectId
+      }
+    );
   }
 
   // Get student's subject payment submissions
@@ -150,7 +174,13 @@ class SubjectPaymentsApi {
   }
 
   // Submit payment (for students)
-  async submitPayment(paymentId: string, formData: FormData): Promise<{
+  async submitPayment(paymentId: string, data: {
+    paymentDate: string;
+    transactionId: string;
+    submittedAmount: number;
+    notes?: string;
+    receiptUrl: string;
+  }): Promise<{
     success: boolean;
     message: string;
     data: {
@@ -159,7 +189,7 @@ class SubjectPaymentsApi {
       receiptFile: string;
     };
   }> {
-    return apiClient.post(`/institute-class-subject-payment-submissions/payment/${paymentId}/submit`, formData);
+    return apiClient.post(`/institute-class-subject-payment-submissions/payment/${paymentId}/submit`, data);
   }
 }
 

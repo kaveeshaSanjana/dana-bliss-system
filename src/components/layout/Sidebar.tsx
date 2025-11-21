@@ -3,6 +3,8 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAuth } from '@/contexts/AuthContext';
 import { useInstituteRole } from '@/hooks/useInstituteRole';
+import { useLocation, useNavigate, Link } from 'react-router-dom';
+import { extractPageFromUrl, buildSidebarUrl } from '@/utils/pageNavigation';
 import { AccessControl } from '@/utils/permissions';
 import {
   LayoutDashboard,
@@ -41,13 +43,16 @@ import surakshaLogoSidebar from '@/assets/suraksha-logo-sidebar.png';
 interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
-  currentPage: string;
-  onPageChange: (page: string) => void;
 }
 
-const Sidebar = ({ isOpen, onClose, currentPage, onPageChange }: SidebarProps) => {
+const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
   const { user, selectedInstitute, selectedClass, selectedSubject, selectedChild, selectedOrganization, selectedTransport, logout, setSelectedInstitute, setSelectedClass, setSelectedSubject, setSelectedChild, setSelectedOrganization, setSelectedTransport } = useAuth();
   const [isCollapsed, setIsCollapsed] = React.useState(false);
+  const location = useLocation();
+  const navigate = useNavigate();
+  
+  // Derive current page from URL
+  const currentPage = React.useMemo(() => extractPageFromUrl(location.pathname), [location.pathname]);
   
   // Broadcast collapse state to the app (for responsive grids)
   React.useEffect(() => {
@@ -1605,165 +1610,40 @@ const Sidebar = ({ isOpen, onClose, currentPage, onPageChange }: SidebarProps) =
   const handleItemClick = (itemId: string) => {
     console.log('Sidebar item clicked:', itemId);
     
-    // Helper function for Router-agnostic navigation
-    const navigateToRoute = (route: string) => {
-      try {
-        window.history.pushState({}, '', route);
-        window.dispatchEvent(new PopStateEvent('popstate'));
-      } catch (e) {
-        window.location.assign(route);
-      }
+    // Build context-aware URL
+    const context = {
+      instituteId: selectedInstitute?.id,
+      classId: selectedClass?.id,
+      subjectId: selectedSubject?.id,
+      childId: selectedChild?.id,
+      organizationId: selectedOrganization?.id,
+      transportId: selectedTransport?.id
     };
     
-    // Handle System Payment click - navigate to payments page
-    if (itemId === 'system-payment') {
-      navigateToRoute('/payments');
-      onPageChange('payments');
-      onClose();
-      return;
-    }
-    
-    // Handle Institute Payments click
-    if (itemId === 'institute-payments') {
-      navigateToRoute('/institute-payments');
-      onPageChange('institute-payments');
-      onClose();
-      return;
-    }
-
-    // Handle Institute Organizations click
-    if (itemId === 'institute-organizations') {
-      navigateToRoute('/institute-organizations');
-      onPageChange('institute-organizations');
-      onClose();
-      return;
-    }
-    
-    // Handle Subject Payments click
-    if (itemId === 'subject-payments') {
-      navigateToRoute('/subject-payments');
-      onPageChange('subject-payments');
-      onClose();
-      return;
-    }
-    
-    // Handle Subject Submissions click (for Students only)
-    if (itemId === 'subject-submissions') {
-      navigateToRoute('/subject-submissions');
-      onPageChange('subject-submissions');
-      onClose();
-      return;
-    }
-    
-    // Handle My Submissions click (for Students only)
-    if (itemId === 'my-submissions') {
-      navigateToRoute('/my-submissions');
-      onPageChange('my-submissions');
-      onClose();
-      return;
-    }
-    
-    // Handle Subject Pay Submission click (for Students only)
-    if (itemId === 'subject-pay-submission') {
-      navigateToRoute('/subject-pay-submission');
-      onPageChange('subject-pay-submission');
-      onClose();
-      return;
-    }
-    
-    // Handle SMS click
-    if (itemId === 'sms') {
-      navigateToRoute('/sms');
-      onPageChange('sms');
-      onClose();
-      return;
-    }
-
-    // Handle SMS History click
-    if (itemId === 'sms-history') {
-      navigateToRoute('/sms-history');
-      onPageChange('sms-history');
-      onClose();
-      return;
-    }
-
-    // Handle QR Attendance click
-    if (itemId === 'qr-attendance') {
-      navigateToRoute('/qr-attendance');
-      onPageChange('qr-attendance');
-      onClose();
-      return;
-    }
-
-    // Handle Institute Mark Attendance click
-    if (itemId === 'institute-mark-attendance') {
-      navigateToRoute('/institute-mark-attendance');
-      onPageChange('institute-mark-attendance');
-      onClose();
-      return;
-    }
-
-    // Handle Daily Attendance click
-    if (itemId === 'daily-attendance') {
-      navigateToRoute('/daily-attendance');
-      onPageChange('daily-attendance');
-      onClose();
-      return;
-    }
-
-    // Handle My Children click
-    if (itemId === 'my-children') {
-      // Clear child selection and go back to children selector
-      setSelectedChild(null);
-      navigateToRoute('/my-children');
-      onPageChange('my-children');
-      onClose();
-      return;
-    }
-
-    // Handle child-results, child-attendance, child-transport clicks (keep child selected)
-    if (itemId === 'child-results' || itemId === 'child-attendance' || itemId === 'child-transport') {
-      onPageChange(itemId);
-      onClose();
-      return;
-    }
-
-    // Handle child-specific navigation clicks
-    if (itemId.startsWith('child/:childId/')) {
-      // Find the item to get its path
-      const childItem = childItemsDisplay.find(item => item.id === itemId);
-      if (childItem && (childItem as any).path) {
-        navigateToRoute((childItem as any).path);
-        onPageChange(itemId);
-        onClose();
-        return;
-      }
-    }
-    
-    // Handle Enroll Class click (for Students only)
-    if (itemId === 'enroll-class') {
-      navigateToRoute('/enroll-class');
-      onPageChange('enroll-class');
-      onClose();
-      return;
-    }
-    
-    // Handle Enroll Subject click (for Students only) 
-    if (itemId === 'enroll-subject') {
-      navigateToRoute('/enroll-subject');
-      onPageChange('enroll-subject');
-      onClose();
-      return;
-    }
-    
-    // Handle Organizations click when no institute is selected - external link
+    // Handle special cases
+    if (itemId === 'system-payment') itemId = 'payments';
     if (itemId === 'organizations' && !selectedInstitute) {
       window.open('https://org.suraksha.lk/', '_blank');
       onClose();
       return;
     }
     
-    onPageChange(itemId);
+    // Handle my-children - clear child selection
+    if (itemId === 'my-children') {
+      setSelectedChild(null);
+      navigate('/my-children');
+      onClose();
+      return;
+    }
+    
+    // Build URL with context and preserve query params
+    const searchParams = new URLSearchParams(location.search);
+    const queryString = searchParams.toString();
+    const url = buildSidebarUrl(itemId, context);
+    const fullUrl = url + (queryString ? `?${queryString}` : '');
+    
+    console.log('🔗 [Sidebar] Navigating to:', fullUrl);
+    navigate(fullUrl);
     onClose();
   };
 
@@ -1773,27 +1653,27 @@ const Sidebar = ({ isOpen, onClose, currentPage, onPageChange }: SidebarProps) =
   };
 
   const handleBackNavigation = () => {
+    const searchParams = new URLSearchParams(location.search);
+    const queryString = searchParams.toString() ? `?${searchParams.toString()}` : '';
+    
     if (selectedTransport) {
-      // Go back from transport attendance to transport list
       setSelectedTransport(null);
-      window.history.pushState({}, '', '/transport');
-      window.dispatchEvent(new PopStateEvent('popstate'));
-      onPageChange('transport');
+      navigate(`/transport${queryString}`);
     } else if (selectedOrganization) {
-      // Go back from organization level to organization selection
       setSelectedOrganization(null);
+      navigate(`/organizations${queryString}`);
     } else if (selectedChild) {
-      // Go back from child level to children selection
       setSelectedChild(null);
+      navigate(`/my-children${queryString}`);
     } else if (selectedSubject) {
-      // Go back from subject level to class level
       setSelectedSubject(null);
+      navigate(`/institute/${selectedInstitute?.id}/class/${selectedClass?.id}/dashboard${queryString}`);
     } else if (selectedClass) {
-      // Go back from class level to institute level
       setSelectedClass(null);
+      navigate(`/institute/${selectedInstitute?.id}/dashboard${queryString}`);
     } else if (selectedInstitute) {
-      // Go back from institute level to institute selection
       setSelectedInstitute(null);
+      navigate(`/dashboard${queryString}`);
     }
   };
 

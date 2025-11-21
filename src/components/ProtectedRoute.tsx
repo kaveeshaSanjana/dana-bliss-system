@@ -77,7 +77,8 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     selectedChild,
     selectedOrganization,
     selectedTransport,
-    isLoading 
+    isLoading,
+    isInitialized
   } = useAuth();
   
   const location = useLocation();
@@ -87,6 +88,13 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   useEffect(() => {
     const validateAccess = async () => {
       try {
+        // Wait for auth initialization to complete
+        if (!isInitialized) {
+          console.log('⏳ Waiting for auth initialization...');
+          setIsValidating(true);
+          return;
+        }
+
         console.log('🔒 Validating route access:', {
           path: location.pathname,
           user: user?.email,
@@ -98,42 +106,15 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
           requireChild
         });
 
-        const ctx = (() => {
-          try {
-            const { parseContextIds } = require('@/utils/pageNavigation');
-            return parseContextIds(location.pathname);
-          } catch {
-            return {} as any;
-          }
-        })();
-
-        console.log('🌐 Route context from URL:', ctx);
-
-        // Token presence (for race conditions)
-        const token = localStorage.getItem('access_token') || sessionStorage.getItem('access_token');
-
         // Check 1: User authentication
         if (!user) {
-          if (token) {
-            console.log('⏳ Token present but user not loaded yet — awaiting context restoration');
-            // Keep validating; do not fail yet
-            return;
-          }
           console.warn('❌ Access denied: User not authenticated');
           setValidationError('User not authenticated');
           setIsValidating(false);
           return;
         }
 
-        // Check 2: Token validation (check if token exists)
-        if (!token) {
-          console.warn('❌ Access denied: No authentication token found');
-          setValidationError('Authentication token missing');
-          setIsValidating(false);
-          return;
-        }
-
-        // Check 3: Role-based access control
+        // Check 2: Role-based access control
         if (allowedRoles && allowedRoles.length > 0) {
           const userRole = user.role as UserRole;
           if (!allowedRoles.includes(userRole)) {
@@ -149,48 +130,48 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
         }
 
         // Check 4: Institute requirement
-        if (requireInstitute && !(selectedInstitute || (ctx as any).instituteId)) {
-          console.warn('❌ Access denied: Institute selection or URL context required');
+        if (requireInstitute && !selectedInstitute) {
+          console.warn('❌ Access denied: Institute selection required');
           setValidationError('Institute selection required');
           setIsValidating(false);
           return;
         }
 
         // Check 5: Class requirement
-        if (requireClass && !(selectedClass || (ctx as any).classId)) {
-          console.warn('❌ Access denied: Class selection or URL context required');
+        if (requireClass && !selectedClass) {
+          console.warn('❌ Access denied: Class selection required');
           setValidationError('Class selection required');
           setIsValidating(false);
           return;
         }
 
         // Check 6: Subject requirement
-        if (requireSubject && !(selectedSubject || (ctx as any).subjectId)) {
-          console.warn('❌ Access denied: Subject selection or URL context required');
+        if (requireSubject && !selectedSubject) {
+          console.warn('❌ Access denied: Subject selection required');
           setValidationError('Subject selection required');
           setIsValidating(false);
           return;
         }
 
         // Check 7: Child requirement (for parent routes)
-        if (requireChild && !(selectedChild || (ctx as any).childId)) {
-          console.warn('❌ Access denied: Child selection or URL context required');
+        if (requireChild && !selectedChild) {
+          console.warn('❌ Access denied: Child selection required');
           setValidationError('Child selection required');
           setIsValidating(false);
           return;
         }
 
         // Check 8: Organization requirement
-        if (requireOrganization && !(selectedOrganization || (ctx as any).organizationId)) {
-          console.warn('❌ Access denied: Organization selection or URL context required');
+        if (requireOrganization && !selectedOrganization) {
+          console.warn('❌ Access denied: Organization selection required');
           setValidationError('Organization selection required');
           setIsValidating(false);
           return;
         }
 
         // Check 9: Transport requirement
-        if (requireTransport && !(selectedTransport || (ctx as any).transportId)) {
-          console.warn('❌ Access denied: Transport selection or URL context required');
+        if (requireTransport && !selectedTransport) {
+          console.warn('❌ Access denied: Transport selection required');
           setValidationError('Transport selection required');
           setIsValidating(false);
           return;
@@ -217,6 +198,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
     validateAccess();
   }, [
+    isInitialized,
     user, 
     selectedInstitute, 
     selectedClass, 
@@ -249,21 +231,14 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
   // Redirect if validation failed
   if (validationError) {
-    console.log('🔄 Redirecting to login, preserving intended destination');
+    console.log('🔄 Redirecting to:', redirectTo, 'Reason:', validationError);
     
     // Preserve the intended destination for redirect after login
-    const targetPath = location.pathname !== '/login' ? location.pathname : '/';
-    
-    // Store redirect path in sessionStorage
-    if (targetPath !== '/') {
-      sessionStorage.setItem('login_redirect', targetPath);
-    }
-    
     return (
       <Navigate 
-        to="/login"
+        to={redirectTo} 
         state={{ 
-          from: targetPath,
+          from: location.pathname,
           error: validationError
         }} 
         replace 

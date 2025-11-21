@@ -36,6 +36,8 @@ import UserInfoDialog from '@/components/forms/UserInfoDialog';
 import UserOrganizationsDialog from '@/components/forms/UserOrganizationsDialog';
 import { getBaseUrl } from '@/contexts/utils/auth.api';
 import ImagePreviewModal from '@/components/ImagePreviewModal';
+import StudentDetailsDialog from '@/components/forms/StudentDetailsDialog';
+import { uploadWithSignedUrl } from '@/utils/signedUploadHelper';
 
 interface InstituteUserData {
   id: string;
@@ -52,6 +54,18 @@ interface InstituteUserData {
   fatherId?: string;
   motherId?: string;
   guardianId?: string;
+  studentId?: string;
+  emergencyContact?: string;
+  medicalConditions?: string;
+  allergies?: string;
+  father?: {
+    id: string;
+    name: string;
+    email?: string;
+    occupation?: string;
+    workPlace?: string;
+    children?: any[];
+  };
 }
 
 interface InstituteUsersResponse {
@@ -89,6 +103,7 @@ const InstituteUsers = () => {
   });
   const [uploadingUserId, setUploadingUserId] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
   const [orgDialogOpen, setOrgDialogOpen] = useState(false);
   const [selectedUserForOrg, setSelectedUserForOrg] = useState<{ id: string; name: string } | null>(null);
   const [imagePreview, setImagePreview] = useState<{ isOpen: boolean; url: string; title: string }>({
@@ -96,34 +111,39 @@ const InstituteUsers = () => {
     url: '',
     title: ''
   });
+  const [studentDetailsDialog, setStudentDetailsDialog] = useState<{ open: boolean; student: InstituteUserData | null }>({
+    open: false,
+    student: null
+  });
 
   // Table data management for each user type
   const studentsTable = useTableData<InstituteUserData>({
     endpoint: `/institute-users/institute/${currentInstituteId}/users/STUDENT`,
+    defaultParams: { parent: 'true' }, // Add parent=true parameter
     dependencies: [], // Remove dependencies to prevent auto-reloading
     pagination: { defaultLimit: 50, availableLimits: [25, 50, 100] },
-    autoLoad: false
+    autoLoad: true // Enable auto-loading from cache
   });
 
   const teachersTable = useTableData<InstituteUserData>({
     endpoint: `/institute-users/institute/${currentInstituteId}/users/TEACHER`,
     dependencies: [], // Remove dependencies to prevent auto-reloading
     pagination: { defaultLimit: 50, availableLimits: [25, 50, 100] },
-    autoLoad: false
+    autoLoad: true // Enable auto-loading from cache
   });
 
   const attendanceMarkersTable = useTableData<InstituteUserData>({
     endpoint: `/institute-users/institute/${currentInstituteId}/users/ATTENDANCE_MARKER`,
     dependencies: [], // Remove dependencies to prevent auto-reloading
     pagination: { defaultLimit: 50, availableLimits: [25, 50, 100] },
-    autoLoad: false
+    autoLoad: true // Enable auto-loading from cache
   });
 
   const instituteAdminsTable = useTableData<InstituteUserData>({
     endpoint: `/institute-users/institute/${currentInstituteId}/users/INSTITUTE_ADMIN`,
     dependencies: [], // Remove dependencies to prevent auto-reloading
     pagination: { defaultLimit: 50, availableLimits: [25, 50, 100] },
-    autoLoad: false
+    autoLoad: true // Enable auto-loading from cache
   });
 
   // Use API request hook for creating users with duplicate prevention
@@ -210,27 +230,53 @@ const InstituteUsers = () => {
   const handleImageUpload = async (userId: string) => {
     if (!selectedImage || !currentInstituteId) return;
 
-    const formData = new FormData();
-    formData.append('image', selectedImage);
-
+    setUploading(true);
     try {
+      // Step 1: Upload file using signed URL and get relativePath
+      console.log('Step 1: Getting signed URL and uploading file...');
+      const relativePath = await uploadWithSignedUrl(
+        selectedImage,
+        'institute-user-images',
+        (message, progress) => {
+          console.log(`Upload progress: ${progress}% - ${message}`);
+        }
+      );
+      console.log('Step 1 complete. RelativePath:', relativePath);
+
+      // Step 2: Send relativePath as imageUrl to backend
+      console.log('Step 2: Sending relativePath to backend...');
       const token = localStorage.getItem('access_token');
+      const requestBody = { imageUrl: relativePath };
+      console.log('Request body:', requestBody);
+      
       const response = await fetch(
         `${getBaseUrl()}/institute-users/institute/${currentInstituteId}/users/${userId}/upload-image`,
         {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${token}`
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
           },
-          body: formData
+          body: JSON.stringify(requestBody)
         }
       );
 
+      console.log('Response status:', response.status);
+      
       if (!response.ok) {
-        throw new Error('Failed to upload image');
+        const errorText = await response.text();
+        console.error('Error response:', errorText);
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch {
+          errorData = { message: errorText };
+        }
+        throw new Error(errorData.message || `Server error: ${response.status}`);
       }
 
       const result = await response.json();
+      console.log('Success response:', result);
       
       toast({
         title: "Success",
@@ -241,14 +287,16 @@ const InstituteUsers = () => {
       setUploadingUserId(null);
       setSelectedImage(null);
       getCurrentTable().actions.refresh();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error uploading image:', error);
       toast({
         title: "Error",
-        description: "Failed to upload image",
+        description: error.message || "Failed to upload image",
         variant: "destructive",
         duration: 1500
       });
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -645,7 +693,7 @@ const InstituteUsers = () => {
                 <TableCell>Name</TableCell>
                 <TableCell>Email</TableCell>
                 <TableCell>Phone Number</TableCell>
-                <TableCell>Status</TableCell>
+                <TableCell>Institute ID</TableCell>
                 <TableCell>Org</TableCell>
                 <TableCell>Upload</TableCell>
                 {activeTab === 'STUDENT' && <TableCell>Parent</TableCell>}
@@ -660,7 +708,7 @@ const InstituteUsers = () => {
                 <TableRow hover role="checkbox" tabIndex={-1} key={userData.id}>
                   <TableCell>
                     <div 
-                      className="cursor-pointer" 
+                      className="cursor-pointer flex justify-center"
                       onClick={() => {
                         if (userData.imageUrl) {
                           setImagePreview({ 
@@ -671,9 +719,9 @@ const InstituteUsers = () => {
                         }
                       }}
                     >
-                      <Avatar className="h-10 w-10 hover:opacity-80 transition-opacity">
-                        <AvatarImage src={userData.imageUrl || ''} alt={userData.name} />
-                        <AvatarFallback>
+                      <Avatar className="h-10 w-10 md:h-12 md:w-12 lg:h-14 lg:w-14 hover:opacity-80 transition-opacity border-2 border-border">
+                        <AvatarImage src={userData.imageUrl || ''} alt={userData.name} className="object-cover" />
+                        <AvatarFallback className="bg-muted">
                           {userData.name.split(' ').map(n => n.charAt(0)).join('').slice(0, 2)}
                         </AvatarFallback>
                       </Avatar>
@@ -683,12 +731,7 @@ const InstituteUsers = () => {
                     <span className="font-mono text-sm">{userData.id}</span>
                   </TableCell>
                   <TableCell>
-                    <div>
-                      <div className="font-medium">{userData.name}</div>
-                      <div className="text-sm text-gray-500">
-                        {userData.userIdByInstitute ? `Institute ID: ${userData.userIdByInstitute}` : 'No Institute ID'}
-                      </div>
-                    </div>
+                    <div className="font-medium">{userData.name}</div>
                   </TableCell>
                   <TableCell>
                     <span className="text-sm">{userData.email || 'Not provided'}</span>
@@ -697,9 +740,7 @@ const InstituteUsers = () => {
                     <span className="text-sm">{userData.phoneNumber || 'Not provided'}</span>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={userData.verifiedBy ? "default" : "secondary"}>
-                      {userData.verifiedBy ? 'Verified' : 'Unverified'}
-                    </Badge>
+                    <span className="font-mono text-sm">{userData.userIdByInstitute || 'Not assigned'}</span>
                   </TableCell>
                   <TableCell>
                     <Button
@@ -749,14 +790,26 @@ const InstituteUsers = () => {
                     </TableCell>
                   )}
                   <TableCell>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleViewUser(userData)}
-                    >
-                      <Eye className="h-4 w-4 mr-1" />
-                      View
-                    </Button>
+                    <div className="flex gap-2">
+                      {activeTab === 'STUDENT' && (
+                        <Button
+                          size="sm"
+                          variant="default"
+                          onClick={() => setStudentDetailsDialog({ open: true, student: userData })}
+                        >
+                          <Eye className="h-4 w-4 mr-1" />
+                          View
+                        </Button>
+                      )}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleViewUser(userData)}
+                      >
+                        <Eye className="h-4 w-4 mr-1" />
+                        Info
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -1076,11 +1129,11 @@ const InstituteUsers = () => {
             <div className="flex gap-2">
               <Button
                 onClick={() => uploadingUserId && handleImageUpload(uploadingUserId)}
-                disabled={!selectedImage}
+                disabled={!selectedImage || uploading}
                 className="flex-1"
               >
                 <Upload className="h-4 w-4 mr-2" />
-                Upload Image
+                {uploading ? 'Uploading...' : 'Upload Image'}
               </Button>
               <Button
                 variant="outline"
@@ -1099,6 +1152,13 @@ const InstituteUsers = () => {
         onClose={() => setImagePreview({ isOpen: false, url: '', title: '' })}
         imageUrl={imagePreview.url}
         title={imagePreview.title}
+      />
+
+      {/* Student Details Dialog */}
+      <StudentDetailsDialog
+        open={studentDetailsDialog.open}
+        onOpenChange={(open) => setStudentDetailsDialog({ open, student: null })}
+        student={studentDetailsDialog.student}
       />
     </div>
   );

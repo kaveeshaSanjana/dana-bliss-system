@@ -73,7 +73,7 @@ const Subjects = () => {
       defaultLimit: 50,
       availableLimits: [25, 50, 100]
     },
-    autoLoad: false // DISABLE AUTO-LOADING
+    autoLoad: true, // Enable auto-loading from cache // DISABLE AUTO-LOADING
   });
   const {
     state: {

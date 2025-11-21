@@ -15,8 +15,14 @@ import MUITable from '@/components/ui/mui-table';
 const ExamResults = () => {
   const navigate = useNavigate();
   const {
+    instituteId,
+    classId,
+    subjectId,
     examId
   } = useParams<{
+    instituteId: string;
+    classId: string;
+    subjectId: string;
     examId: string;
   }>();
   const [examDetails, setExamDetails] = useState<{
@@ -50,6 +56,11 @@ const ExamResults = () => {
     execute: fetchResults,
     loading
   } = useApiRequest(examResultsApi.getExamResults);
+
+  // Track current context to prevent unnecessary reloads
+  const contextKey = `${currentInstituteId}-${currentClassId}-${currentSubjectId}-${examId}`;
+  const [lastLoadedContext, setLastLoadedContext] = useState<string>('');
+
   const loadExamResults = async (page = currentPage) => {
     if (!currentInstituteId || !currentClassId || !currentSubjectId) {
       toast({
@@ -101,15 +112,16 @@ const ExamResults = () => {
     }
   };
   useEffect(() => {
-    if (currentInstituteId && currentClassId && currentSubjectId && examId) {
+    if (currentInstituteId && currentClassId && currentSubjectId && examId && contextKey !== lastLoadedContext) {
+      setLastLoadedContext(contextKey);
       loadExamResults(1);
     }
-  }, [currentInstituteId, currentClassId, currentSubjectId, examId]);
+  }, [contextKey]);
   const handlePageChange = (newPage: number) => {
     loadExamResults(newPage);
   };
   const handleGoBack = () => {
-    navigate('/exams');
+    navigate(`/institute/${instituteId}/class/${classId}/subject/${subjectId}/exams`);
   };
   const getContextBreadcrumb = () => {
     const parts = [];

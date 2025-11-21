@@ -426,6 +426,15 @@ const ClassSelector = () => {
     }
     setFilteredClasses(filtered);
   }, [classesData, searchTerm, gradeFilter, specialtyFilter, classTypeFilter, academicYearFilter, statusFilter]);
+
+  // Auto-load classes when institute changes (uses cache if available)
+  useEffect(() => {
+    if (currentInstituteId && !dataLoaded) {
+      console.log('Auto-loading classes from cache for institute:', currentInstituteId);
+      fetchClassesByRole(1, pageSize, false);
+    }
+  }, [currentInstituteId]);
+
   const handleSelectClass = (classData: ClassCardData) => {
     console.log('Selecting class - no additional API calls will be made:', classData);
 
@@ -733,20 +742,7 @@ const ClassSelector = () => {
           </CardContent>
         </Card>}
 
-      {!dataLoaded ? <div className="text-center py-8 sm:py-12 px-4">
-          <p className="text-gray-600 dark:text-gray-400 mb-6 text-sm sm:text-base">
-            Click the load button to view your enrolled classes
-          </p>
-          <Button onClick={handleLoadDataClick} disabled={isLoading} className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto">
-            {isLoading ? <>
-                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                Loading Classes...
-              </> : <>
-                <School className="h-4 w-4 mr-2" />
-                Load My Classes
-              </>}
-          </Button>
-        </div> : filteredClasses.length === 0 ? <div className="text-center py-8 sm:py-12 px-4">
+      {filteredClasses.length === 0 && !isLoading ? <div className="text-center py-8 sm:py-12 px-4">
           <p className="text-gray-600 dark:text-gray-400 text-sm sm:text-base">
             {searchTerm || gradeFilter !== 'all' || specialtyFilter !== 'all' || classTypeFilter !== 'all' || academicYearFilter !== 'all' || statusFilter !== 'all' ? 'No classes match your current filters.' : 'No enrolled classes found.'}
           </p>

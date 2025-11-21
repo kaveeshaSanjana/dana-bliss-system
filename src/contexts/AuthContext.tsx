@@ -1,5 +1,5 @@
 
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useContext } from 'react';
 import { 
   User, 
   Institute, 
@@ -15,15 +15,6 @@ import { mapUserData } from './utils/user.utils';
 import { Institute as ApiInstitute } from '@/api/institute.api';
 import { cachedApiClient } from '@/api/cachedClient';
 import { apiCache } from '@/utils/apiCache';
-import { 
-  storeAuthToken, 
-  getAuthToken, 
-  isTokenValid, 
-  clearAuthToken,
-  storeUserSession,
-  getUserSession,
-  clearUserSession
-} from '@/utils/tokenManager';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -49,8 +40,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [selectedTransport, setSelectedTransportState] = useState<{ id: string; vehicleNumber: string; bookhireId: string } | null>(null);
   const [selectedInstituteType, setSelectedInstituteType] = useState<string | null>(null);
   const [selectedClassGrade, setSelectedClassGrade] = useState<number | null>(null);
-  const [isLoading, setIsLoading] = useState(true); // Start with true for session restoration
-  const [isRestoringSession, setIsRestoringSession] = useState(true);
+  const [isLoading, setIsLoading] = useState(true); // Start with true to show loading on init
+  const [isInitialized, setIsInitialized] = useState(false);
 
   // Public variables for current IDs - no localStorage sync
   const [currentInstituteId, setCurrentInstituteId] = useState<string | null>(null);
@@ -93,6 +84,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         userRole: institute.instituteUserType, // Keep for backward compatibility
         userIdByInstitute: institute.userIdByInstitute,
         shortName: institute.instituteShortName || institute.name || 'Unknown Institute',
+        instituteUserImageUrl: institute.instituteUserImageUrl || institute.userImageUrl || institute.imageUrl || '',
         logo: institute.logoUrl || institute.instituteLogo || ''
       }));
 
@@ -104,33 +96,28 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  const login = async (credentials: LoginCredentials & { rememberMe?: boolean }) => {
+  const login = async (credentials: LoginCredentials) => {
     setIsLoading(true);
     try {
-      console.log('🔐 Starting login process...', { email: credentials.email, rememberMe: credentials.rememberMe });
+      console.log('Starting login process...');
       
       const data = await loginUser(credentials);
-      console.log('✅ Login response received');
+      console.log('Login response received:', data);
 
-      // Store token securely with expiry
-      if (data.access_token && data.user?.id) {
-        // Use new secure token manager
-        storeAuthToken(data.access_token, data.user.id, credentials.rememberMe || false);
-        
-        // Keep legacy storage for backward compatibility
+      // Ensure token is properly stored
+      if (data.access_token) {
         localStorage.setItem('access_token', data.access_token);
-        console.log('✅ Access token stored securely');
+        console.log('Access token stored successfully');
       }
 
-      // Map user data without fetching institutes automatically
-      const mappedUser = mapUserData(data.user, []);
-      console.log('✅ User mapped successfully:', mappedUser);
+      // Map user data and automatically fetch institutes
+      console.log('🏢 Fetching user institutes after login...');
+      const institutes = await fetchUserInstitutes(data.user.id, true);
+      const mappedUser = mapUserData(data.user, institutes);
+      console.log('✅ User logged in with', institutes.length, 'institutes');
       setUser(mappedUser);
-      
-      // Store user session
-      storeUserSession(mappedUser);
     } catch (error) {
-      console.error('❌ Login error:', error);
+      console.error('Login error:', error);
       throw error;
     } finally {
       setIsLoading(false);
@@ -161,18 +148,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const logout = async () => {
-    console.log('🚪 Logging out user...');
+    console.log('Logging out user...');
+    
+    // Get current userId before clearing state
+    const currentUserId = user?.id;
     
     // Clear backend session and localStorage
     await logoutUser();
     
-    // 🧹 CLEAR SECURE TOKEN STORAGE
-    clearAuthToken();
-    clearUserSession();
-    
     // 🧹 ALWAYS CLEAR ALL CACHE ON LOGOUT (Security & Fresh Start)
     console.log('🧹 Clearing ALL cache on logout...');
     await apiCache.clearAllCache();
+    
+    // Clear secureCache (IndexedDB) used by enhancedCachedClient
+    const { secureCache } = await import('@/utils/secureCache');
+    await secureCache.clearAllCache();
+    console.log('✅ SecureCache (IndexedDB) cleared');
     
     // Clear attendance duplicate records
     const { attendanceDuplicateChecker } = await import('@/utils/attendanceDuplicateCheck');
@@ -205,7 +196,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setCurrentOrganizationId(null);
     setCurrentTransportId(null);
     
-    console.log('✅ User logged out successfully and all data cleared');
+    console.log('✅ User logged out successfully and cache cleared');
   };
 
   const setSelectedInstitute = (institute: Institute | any | null) => {
@@ -235,6 +226,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           shortName:
             institute.shortName || institute.instituteShortName || institute.name || 'Unknown',
           // CRITICAL: prefer logoUrl over imageUrl (imageUrl is NOT profile image)
+          instituteUserImageUrl: institute.instituteUserImageUrl || institute.userImageUrl || institute.imageUrl || '',
           logo: institute.logo || institute.logoUrl || institute.instituteLogo || ''
         }
       : null;
@@ -330,64 +322,61 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  // 🔄 SESSION RESTORATION - Restore session on app load
-  useEffect(() => {
-    const restoreSession = () => {
-      console.log('🔄 Attempting session restoration...');
-      setIsRestoringSession(true);
-
-      try {
-        // Check if valid token exists
-        const tokenData = getAuthToken();
-
-        if (!tokenData) {
-          console.log('⚠️ No valid token found, session restoration skipped');
-          setIsRestoringSession(false);
-          setIsLoading(false);
-          return;
-        }
-
-        console.log('✅ Token found, restoring session optimistically...');
-
-        // Try to restore user session from cache first (no blocking)
-        const cachedUser = getUserSession();
-        if (cachedUser && cachedUser.id === tokenData.userId) {
-          setUser(cachedUser);
-          console.log('✅ Optimistically restored user from cached session:', cachedUser.email);
-        }
-
-        // Background validate token and refresh user data
-        (async () => {
-          try {
-            const userData = await validateToken();
-            const mappedUser = mapUserData(userData, []);
-            setUser(mappedUser);
-            storeUserSession(mappedUser);
-            console.log('✅ Session validated and refreshed from backend');
-          } catch (error) {
-            console.warn('⚠️ Backend validation failed; keeping cached session if available:', error);
-            // If no cached user, clear state fully
-            if (!cachedUser) {
-              clearAuthToken();
-              clearUserSession();
-              setUser(null);
-              console.log('🧹 Cleared session due to failed validation and no cached user');
-            }
-          } finally {
-            setIsRestoringSession(false);
-            setIsLoading(false);
-          }
-        })();
-      } catch (error) {
-        console.error('❌ Error during session restoration:', error);
-        clearAuthToken();
-        clearUserSession();
-        setIsRestoringSession(false);
+  // 🔐 CRITICAL: Auto-restore session on mount
+  React.useEffect(() => {
+    const initializeAuth = async () => {
+      console.log('🔐 ========================================');
+      console.log('🔐 INITIALIZING AUTHENTICATION...');
+      console.log('🔐 ========================================');
+      
+      const token = localStorage.getItem('access_token');
+      console.log('🔑 Token check:', {
+        tokenExists: !!token,
+        tokenLength: token?.length || 0,
+        tokenPreview: token ? `${token.substring(0, 20)}...` : 'none'
+      });
+      
+      if (!token) {
+        console.log('⚠️ No token found - user needs to login');
         setIsLoading(false);
+        setIsInitialized(true);
+        return;
+      }
+      
+      try {
+        console.log('🔍 Token found - validating with backend...');
+        const userData = await validateToken();
+        console.log('📦 User data received:', {
+          id: userData.id,
+          email: userData.email,
+          role: userData.role
+        });
+        
+        // Automatically fetch institutes after token validation
+        console.log('🏢 Fetching user institutes after token validation...');
+        const institutes = await fetchUserInstitutes(userData.id, true);
+        const mappedUser = mapUserData(userData, institutes);
+        console.log('👤 User restored with', institutes.length, 'institutes');
+        setUser(mappedUser);
+        console.log('✅ ========================================');
+        console.log('✅ SESSION RESTORED SUCCESSFULLY!');
+        console.log('✅ ========================================');
+      } catch (error) {
+        console.error('❌ ========================================');
+        console.error('❌ SESSION RESTORATION FAILED!');
+        console.error('❌ Error:', error);
+        console.error('❌ ========================================');
+        // Clear invalid token
+        localStorage.removeItem('access_token');
+        console.log('🧹 Invalid token cleared from localStorage');
+      } finally {
+        setIsLoading(false);
+        setIsInitialized(true);
+        console.log('🏁 Auth initialization complete');
       }
     };
-
-    restoreSession();
+    
+    initializeAuth();
   }, []); // Run once on mount
 
   const value = {
@@ -418,8 +407,23 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     refreshUserData,
     validateUserToken,
     isAuthenticated: !!user,
-    isLoading: isLoading || isRestoringSession
+    isLoading,
+    isInitialized
   };
+
+  // Show loading state during initialization
+  if (!isInitialized) {
+    return (
+      <AuthContext.Provider value={value}>
+        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading...</p>
+          </div>
+        </div>
+      </AuthContext.Provider>
+    );
+  }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

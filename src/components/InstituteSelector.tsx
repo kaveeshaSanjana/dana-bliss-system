@@ -196,7 +196,8 @@ const InstituteSelector = ({
       userRole: (institute as any).instituteUserType || '',
       userIdByInstitute: (institute as any).userIdByInstitute || '',
       shortName: institute.shortName || institute.name,
-      logo: institute.logoUrl || ''
+      logo: institute.logoUrl || '',
+      instituteUserImageUrl: institute.userImageUrl || institute.imageUrl || ''
     };
     setSelectedInstitute(selectedInstitute);
     toast({
