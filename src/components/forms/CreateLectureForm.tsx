@@ -7,21 +7,24 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Upload, X } from "lucide-react";
+import { CalendarIcon, X } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { createLectureWithDocuments } from "@/services/api";
+import { createLectureWithDocuments, type LectureDocument } from "@/services/api";
 import { useS3Upload } from "@/hooks/useS3Upload";
-import { validateFile, FILE_CONSTRAINTS } from "@/utils/fileValidation";
 import { Progress } from "@/components/ui/progress";
-import type { DocumentType } from "@/types/upload";
-import { useUserRole } from "@/hooks/useUserRole";
 
 interface CreateLectureFormProps {
   causeId: string;
   onSuccess: () => void;
   onCancel: () => void;
+}
+
+interface DocumentFile {
+  file: File;
+  title: string;
+  description: string;
 }
 
 export const CreateLectureForm = ({ causeId, onSuccess, onCancel }: CreateLectureFormProps) => {
@@ -39,39 +42,29 @@ export const CreateLectureForm = ({ causeId, onSuccess, onCancel }: CreateLectur
   const [liveMode, setLiveMode] = useState("meet");
   const [recordingUrl, setRecordingUrl] = useState("");
   const [isPublic, setIsPublic] = useState(true);
-  const [documents, setDocuments] = useState<File[]>([]);
-  const [documentTypes, setDocumentTypes] = useState<DocumentType[]>([]);
+  const [documents, setDocuments] = useState<DocumentFile[]>([]);
   const { uploadFile, uploading, progress } = useS3Upload();
-  const backendUrl = useUserRole((state) => state.backendUrl);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      const newFiles = Array.from(e.target.files);
-      
-      // Validate each file
-      for (const file of newFiles) {
-        const validation = validateFile(file, FILE_CONSTRAINTS.LECTURE_DOCUMENT);
-        if (!validation.valid) {
-          toast.error(`${file.name}: ${validation.errors.join(', ')}`);
-          return;
-        }
-      }
-      
+      const newFiles = Array.from(e.target.files).map(file => ({
+        file,
+        title: file.name.replace(/\.[^/.]+$/, ""),
+        description: "",
+      }));
       setDocuments(prev => [...prev, ...newFiles]);
-      setDocumentTypes(prev => [...prev, ...newFiles.map(() => 'OTHER' as DocumentType)]);
     }
   };
 
   const removeFile = (index: number) => {
     setDocuments(prev => prev.filter((_, i) => i !== index));
-    setDocumentTypes(prev => prev.filter((_, i) => i !== index));
   };
 
-  const updateDocumentType = (index: number, type: DocumentType) => {
-    setDocumentTypes(prev => {
-      const newTypes = [...prev];
-      newTypes[index] = type;
-      return newTypes;
+  const updateDocumentTitle = (index: number, newTitle: string) => {
+    setDocuments(prev => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], title: newTitle };
+      return updated;
     });
   };
 
@@ -85,7 +78,6 @@ export const CreateLectureForm = ({ causeId, onSuccess, onCancel }: CreateLectur
 
     setLoading(true);
     try {
-      // Combine date and time for start and end
       const [startHours, startMinutes] = startTime.split(':').map(Number);
       const startDateTime = new Date(startDate);
       startDateTime.setHours(startHours, startMinutes, 0, 0);
@@ -94,16 +86,18 @@ export const CreateLectureForm = ({ causeId, onSuccess, onCancel }: CreateLectur
       const endDateTime = new Date(endDate);
       endDateTime.setHours(endHours, endMinutes, 0, 0);
 
+<<<<<<< HEAD
       // Step 1: Upload documents to S3 first (if any)
       const uploadedDocuments: Array<{ title: string; description: string; docUrl: string }> = [];
+=======
+      // Step 1: Upload documents to S3 first
+      const uploadedDocs: LectureDocument[] = [];
+>>>>>>> 98b153f90a29b5b5c4872851fa242389a485ab27
       
       if (documents.length > 0) {
-        for (let i = 0; i < documents.length; i++) {
-          const file = documents[i];
-          const docType = documentTypes[i] || 'OTHER';
-          const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
-
+        for (const doc of documents) {
           try {
+<<<<<<< HEAD
             // Upload to S3 and get publicUrl
             const uploadResult = await uploadFile(
               file,
@@ -126,12 +120,27 @@ export const CreateLectureForm = ({ causeId, onSuccess, onCancel }: CreateLectur
             console.error(`Failed to upload ${file.name}:`, uploadError);
             toast.error(`Failed to upload ${file.name}`);
             throw uploadError; // Stop if upload fails
+=======
+            const fileUrl = await uploadFile(doc.file, 'lecture-documents');
+            uploadedDocs.push({
+              title: doc.title || doc.file.name,
+              description: doc.description,
+              docUrl: fileUrl,
+            });
+          } catch (uploadError) {
+            console.error(`Failed to upload ${doc.file.name}:`, uploadError);
+            toast.error(`Failed to upload ${doc.file.name}`);
+>>>>>>> 98b153f90a29b5b5c4872851fa242389a485ab27
           }
         }
       }
 
       // Step 2: Create lecture with document URLs as JSON
+<<<<<<< HEAD
       const lectureData = {
+=======
+      await createLectureWithDocuments(causeId, {
+>>>>>>> 98b153f90a29b5b5c4872851fa242389a485ab27
         title,
         description,
         content,
@@ -139,6 +148,7 @@ export const CreateLectureForm = ({ causeId, onSuccess, onCancel }: CreateLectur
         mode,
         timeStart: startDateTime.toISOString(),
         timeEnd: endDateTime.toISOString(),
+<<<<<<< HEAD
         liveLink: liveLink || undefined,
         liveMode: liveMode || undefined,
         recordingUrl: recordingUrl.trim() || undefined,
@@ -147,6 +157,14 @@ export const CreateLectureForm = ({ causeId, onSuccess, onCancel }: CreateLectur
       };
 
       await createLectureWithDocuments(causeId, lectureData);
+=======
+        liveLink,
+        liveMode,
+        recordingUrl: recordingUrl.trim() || undefined,
+        isPublic,
+        documents: uploadedDocs.length > 0 ? uploadedDocs : undefined,
+      });
+>>>>>>> 98b153f90a29b5b5c4872851fa242389a485ab27
 
       toast.success("Lecture created successfully!");
       onSuccess();
@@ -341,10 +359,10 @@ export const CreateLectureForm = ({ causeId, onSuccess, onCancel }: CreateLectur
           />
           {documents.length > 0 && (
             <div className="space-y-2">
-              {documents.map((file, index) => (
+              {documents.map((doc, index) => (
                 <div key={index} className="space-y-2 p-3 bg-muted rounded">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm truncate flex-1">{file.name}</span>
+                    <span className="text-sm truncate flex-1 text-muted-foreground">{doc.file.name}</span>
                     <Button
                       type="button"
                       variant="ghost"
@@ -354,22 +372,11 @@ export const CreateLectureForm = ({ causeId, onSuccess, onCancel }: CreateLectur
                       <X className="h-4 w-4" />
                     </Button>
                   </div>
-                  <Select
-                    value={documentTypes[index]}
-                    onValueChange={(value) => updateDocumentType(index, value as DocumentType)}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select document type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="PRESENTATION">Presentation</SelectItem>
-                      <SelectItem value="ASSIGNMENT">Assignment</SelectItem>
-                      <SelectItem value="READING_MATERIAL">Reading Material</SelectItem>
-                      <SelectItem value="VIDEO">Video</SelectItem>
-                      <SelectItem value="AUDIO">Audio</SelectItem>
-                      <SelectItem value="OTHER">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Input
+                    placeholder="Document title"
+                    value={doc.title}
+                    onChange={(e) => updateDocumentTitle(index, e.target.value)}
+                  />
                 </div>
               ))}
             </div>
