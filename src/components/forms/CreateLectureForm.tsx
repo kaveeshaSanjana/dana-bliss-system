@@ -101,7 +101,6 @@ export const CreateLectureForm = ({ causeId, onSuccess, onCancel }: CreateLectur
           } catch (uploadError) {
             console.error(`Failed to upload ${doc.file.name}:`, uploadError);
             toast.error(`Failed to upload ${doc.file.name}`);
-            throw uploadError;
           }
         }
       }
@@ -126,7 +125,7 @@ export const CreateLectureForm = ({ causeId, onSuccess, onCancel }: CreateLectur
       onSuccess();
     } catch (error) {
       console.error("Error creating lecture:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to create lecture");
+      toast.error("Failed to create lecture");
     } finally {
       setLoading(false);
     }

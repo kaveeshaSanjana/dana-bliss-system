@@ -11,11 +11,7 @@ import { CalendarIcon, X } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-<<<<<<< HEAD
-import { updateLectureWithDocuments } from "@/services/api";
-=======
 import { updateLectureWithDocuments, type LectureDocument } from "@/services/api";
->>>>>>> 98b153f90a29b5b5c4872851fa242389a485ab27
 import { useS3Upload } from "@/hooks/useS3Upload";
 import { Progress } from "@/components/ui/progress";
 
@@ -61,11 +57,7 @@ export const UpdateLectureForm = ({ lecture, onSuccess, onCancel }: UpdateLectur
   const [liveMode, setLiveMode] = useState(lecture.liveMode || "meet");
   const [recordingUrl, setRecordingUrl] = useState(lecture.recordingUrl || "");
   const [isPublic, setIsPublic] = useState(lecture.isPublic);
-<<<<<<< HEAD
-  const [documents, setDocuments] = useState<File[]>([]);
-=======
   const [documents, setDocuments] = useState<DocumentFile[]>([]);
->>>>>>> 98b153f90a29b5b5c4872851fa242389a485ab27
   const { uploadFile, uploading, progress } = useS3Upload();
 
   useEffect(() => {
@@ -116,59 +108,6 @@ export const UpdateLectureForm = ({ lecture, onSuccess, onCancel }: UpdateLectur
       const endDateTime = new Date(endDate);
       endDateTime.setHours(endHours, endMinutes, 0, 0);
 
-<<<<<<< HEAD
-      // Step 1: Upload new documents to S3 first (if any)
-      const uploadedDocuments: Array<{ title: string; description: string; docUrl: string }> = [];
-      
-      if (documents.length > 0) {
-        for (const file of documents) {
-          const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
-
-          try {
-            // Upload to S3 and get publicUrl
-            const uploadResult = await uploadFile(
-              file,
-              '/organization/api/v1/signed-urls/lecture',
-              {
-                lectureId: lecture.lectureId,
-                documentType: 'OTHER',
-                fileExtension,
-                contentType: file.type,
-              }
-            );
-
-            // Store the publicUrl (not uploadUrl!) for backend
-            uploadedDocuments.push({
-              title: file.name.replace(fileExtension, ''),
-              description: 'Updated document',
-              docUrl: uploadResult.publicUrl,
-            });
-          } catch (uploadError) {
-            console.error(`Failed to upload ${file.name}:`, uploadError);
-            toast.error(`Failed to upload ${file.name}`);
-            throw uploadError; // Stop if upload fails
-          }
-        }
-      }
-
-      // Step 2: Update lecture with document URLs as JSON
-      const lectureData = {
-        title,
-        description,
-        content,
-        venue,
-        mode,
-        timeStart: startDateTime.toISOString(),
-        timeEnd: endDateTime.toISOString(),
-        liveLink: liveLink || undefined,
-        liveMode: liveMode || undefined,
-        recordingUrl: recordingUrl.trim() || undefined,
-        isPublic,
-        documents: uploadedDocuments.length > 0 ? uploadedDocuments : undefined,
-      };
-
-      await updateLectureWithDocuments(lecture.lectureId, lectureData);
-=======
       // Upload new documents to S3
       const uploadedDocs: LectureDocument[] = [];
       
@@ -204,12 +143,11 @@ export const UpdateLectureForm = ({ lecture, onSuccess, onCancel }: UpdateLectur
         documents: uploadedDocs.length > 0 ? uploadedDocs : undefined,
       });
 
->>>>>>> 98b153f90a29b5b5c4872851fa242389a485ab27
       toast.success("Lecture updated successfully!");
       onSuccess();
     } catch (error) {
       console.error("Error updating lecture:", error);
-      toast.error(error instanceof Error ? error.message : "Failed to update lecture");
+      toast.error("Failed to update lecture");
     } finally {
       setLoading(false);
     }

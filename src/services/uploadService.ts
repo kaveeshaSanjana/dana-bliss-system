@@ -24,15 +24,11 @@ export class UploadService {
     return state.accessToken;
   }
 
-  /**
-   * Step 1: Request signed upload URL from backend
-   * Generic endpoint for all file uploads
-   */
   async getSignedUrl(data: SignedUrlRequest): Promise<SignedUrlResponse> {
     const token = this.getToken();
     const baseUrl = this.getBaseUrl();
     
-    const response = await fetch(`${baseUrl}/organization/api/v1/signed-urls/generate`, {
+    const response = await fetch(`${baseUrl}/organization/api/v1/signed-url/generate-upload-url`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -49,10 +45,6 @@ export class UploadService {
     return response.json();
   }
 
-  /**
-   * Step 2: Upload file directly to S3 using PUT method
-   * IMPORTANT: Use uploadUrl and send raw file with correct Content-Type
-   */
   async uploadToS3(file: File, uploadUrl: string): Promise<void> {
     const response = await fetch(uploadUrl, {
       method: 'PUT',
@@ -67,12 +59,6 @@ export class UploadService {
     }
   }
 
-  /**
-   * Complete 3-step upload flow:
-   * 1. Request signed URL
-   * 2. Upload to S3
-   * 3. Return fileUrl for use in API calls
-   */
   async uploadFile(
     file: File,
     folder: string,

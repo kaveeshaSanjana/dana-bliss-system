@@ -7,16 +7,17 @@ export interface SignedUrlRequest {
   documentType?: DocumentType;
   fileExtension: string;
   fileName?: string;
-  folder?: string;
-  contentType?: string;
-  maxSizeBytes?: number;
 }
 
 export interface SignedUrlResponse {
-  uploadUrl: string;
-  publicUrl: string;
+  signedUrl: {
+    url: string;
+    fields: Record<string, string>;
+  };
   uploadToken: string;
   expiresIn: number;
+  maxFileSizeBytes: number;
+  publicUrl: string;
 }
 
 export interface VerifyUploadRequest {

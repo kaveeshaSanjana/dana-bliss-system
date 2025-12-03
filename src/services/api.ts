@@ -87,12 +87,6 @@ export const createParent = async (parentData: any) => {
   return response.json();
 };
 
-<<<<<<< HEAD
-// Create lecture with documents API
-// IMPORTANT: Send JSON with document URLs (not multipart/form-data)
-// Documents must be uploaded to S3 first, then URLs sent here
-export const createLectureWithDocuments = async (causeId: string, lectureData: {
-=======
 // Create lecture with documents API (JSON body with S3 URLs)
 export interface LectureDocument {
   title: string;
@@ -101,34 +95,17 @@ export interface LectureDocument {
 }
 
 export interface CreateLectureData {
->>>>>>> 98b153f90a29b5b5c4872851fa242389a485ab27
   title: string;
   description: string;
   content?: string;
   venue?: string;
-<<<<<<< HEAD
-  mode: string;
-=======
   mode?: string;
->>>>>>> 98b153f90a29b5b5c4872851fa242389a485ab27
   timeStart: string;
   timeEnd: string;
   liveLink?: string;
   liveMode?: string;
   recordingUrl?: string;
   isPublic: boolean;
-<<<<<<< HEAD
-  documents?: Array<{
-    title: string;
-    description?: string;
-    docUrl: string;
-  }>;
-}) => {
-  const response = await fetch(`${getBaseUrl()}/organization/api/v1/lectures/with-documents/${causeId}`, {
-    method: 'POST',
-    headers: getHeaders(),
-    body: JSON.stringify(lectureData),
-=======
   documents?: LectureDocument[];
 }
 
@@ -137,53 +114,19 @@ export const createLectureWithDocuments = async (causeId: string, data: CreateLe
     method: 'POST',
     headers: getHeaders(),
     body: JSON.stringify(data),
->>>>>>> 98b153f90a29b5b5c4872851fa242389a485ab27
   });
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || 'Failed to create lecture');
-  }
+  if (!response.ok) throw new Error('Failed to create lecture');
   return response.json();
 };
 
-<<<<<<< HEAD
-// Update lecture with documents API
-// IMPORTANT: Send JSON with document URLs (not multipart/form-data)
-export const updateLectureWithDocuments = async (lectureId: string, lectureData: {
-  title?: string;
-  description?: string;
-  content?: string;
-  venue?: string;
-  mode?: string;
-  timeStart?: string;
-  timeEnd?: string;
-  liveLink?: string;
-  liveMode?: string;
-  recordingUrl?: string;
-  isPublic?: boolean;
-  documents?: Array<{
-    title: string;
-    description?: string;
-    docUrl: string;
-  }>;
-}) => {
-  const response = await fetch(`${getBaseUrl()}/organization/api/v1/lectures/${lectureId}/with-documents`, {
-    method: 'PUT',
-    headers: getHeaders(),
-    body: JSON.stringify(lectureData),
-=======
 // Update lecture with documents API (JSON body with S3 URLs)
 export const updateLectureWithDocuments = async (lectureId: string, data: Partial<CreateLectureData>) => {
   const response = await fetch(`${getBaseUrl()}/organization/api/v1/lectures/${lectureId}/with-documents`, {
     method: 'PUT',
     headers: getHeaders(),
     body: JSON.stringify(data),
->>>>>>> 98b153f90a29b5b5c4872851fa242389a485ab27
   });
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || 'Failed to update lecture');
-  }
+  if (!response.ok) throw new Error('Failed to update lecture');
   return response.json();
 };
 
