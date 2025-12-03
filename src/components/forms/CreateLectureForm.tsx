@@ -94,26 +94,9 @@ export const CreateLectureForm = ({ causeId, onSuccess, onCancel }: CreateLectur
       const endDateTime = new Date(endDate);
       endDateTime.setHours(endHours, endMinutes, 0, 0);
 
-      // Step 1: Create lecture without documents first
-      const formData = new FormData();
-      formData.append("title", title);
-      formData.append("description", description);
-      formData.append("content", content);
-      formData.append("venue", venue);
-      formData.append("mode", mode);
-      formData.append("timeStart", startDateTime.toISOString());
-      formData.append("timeEnd", endDateTime.toISOString());
-      formData.append("liveLink", liveLink);
-      formData.append("liveMode", liveMode);
-      if (recordingUrl.trim()) {
-        formData.append("recordingUrl", recordingUrl);
-      }
-      formData.append("isPublic", isPublic.toString());
-
-      const lectureResponse = await createLectureWithDocuments(causeId, formData);
-      const lectureId = lectureResponse.id;
-
-      // Step 2: Upload documents to S3 if any
+      // Step 1: Upload documents to S3 first (if any)
+      const uploadedDocuments: Array<{ title: string; description: string; docUrl: string }> = [];
+      
       if (documents.length > 0) {
         for (let i = 0; i < documents.length; i++) {
           const file = documents[i];
@@ -121,28 +104,55 @@ export const CreateLectureForm = ({ causeId, onSuccess, onCancel }: CreateLectur
           const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
 
           try {
-            await uploadFile(
+            // Upload to S3 and get publicUrl
+            const uploadResult = await uploadFile(
               file,
-              '/organization/api/v1/signed-urls/lecture/document',
+              '/organization/api/v1/signed-urls/lecture',
               {
-                lectureId: lectureId.toString(),
+                lectureId: '0', // Temporary ID since lecture doesn't exist yet
                 documentType: docType,
                 fileExtension,
-                fileName: file.name
+                contentType: file.type,
               }
             );
+
+            // Store the publicUrl (not uploadUrl!) for backend
+            uploadedDocuments.push({
+              title: file.name.replace(fileExtension, ''),
+              description: `${docType} document`,
+              docUrl: uploadResult.publicUrl,
+            });
           } catch (uploadError) {
             console.error(`Failed to upload ${file.name}:`, uploadError);
             toast.error(`Failed to upload ${file.name}`);
+            throw uploadError; // Stop if upload fails
           }
         }
       }
+
+      // Step 2: Create lecture with document URLs as JSON
+      const lectureData = {
+        title,
+        description,
+        content,
+        venue,
+        mode,
+        timeStart: startDateTime.toISOString(),
+        timeEnd: endDateTime.toISOString(),
+        liveLink: liveLink || undefined,
+        liveMode: liveMode || undefined,
+        recordingUrl: recordingUrl.trim() || undefined,
+        isPublic,
+        documents: uploadedDocuments.length > 0 ? uploadedDocuments : undefined,
+      };
+
+      await createLectureWithDocuments(causeId, lectureData);
 
       toast.success("Lecture created successfully!");
       onSuccess();
     } catch (error) {
       console.error("Error creating lecture:", error);
-      toast.error("Failed to create lecture");
+      toast.error(error instanceof Error ? error.message : "Failed to create lecture");
     } finally {
       setLoading(false);
     }

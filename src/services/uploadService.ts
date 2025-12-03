@@ -17,6 +17,10 @@ export class UploadService {
     return state.accessToken;
   }
 
+  /**
+   * Step 1: Request signed upload URL from backend
+   * Use specific endpoints like /signed-urls/lecture or generic /signed-urls/generate
+   */
   async getSignedUrl(
     endpoint: string,
     data: SignedUrlRequest
@@ -40,23 +44,21 @@ export class UploadService {
     return response.json();
   }
 
+  /**
+   * Step 2: Upload file directly to S3 using PUT method
+   * IMPORTANT: Use uploadUrl (not publicUrl) and send raw file with correct Content-Type
+   */
   async uploadToS3(
     file: File,
-    signedUrl: SignedUrlResponse['signedUrl']
+    uploadUrl: string,
+    contentType?: string
   ): Promise<void> {
-    const formData = new FormData();
-
-    // Add all fields from signedUrl.fields in order
-    Object.entries(signedUrl.fields).forEach(([key, value]) => {
-      formData.append(key, value);
-    });
-
-    // Add file LAST
-    formData.append('file', file);
-
-    const response = await fetch(signedUrl.url, {
-      method: 'POST',
-      body: formData,
+    const response = await fetch(uploadUrl, {
+      method: 'PUT',
+      body: file,
+      headers: {
+        'Content-Type': contentType || file.type,
+      },
     });
 
     if (!response.ok) {
@@ -65,7 +67,12 @@ export class UploadService {
     }
   }
 
-
+  /**
+   * Complete 3-step upload flow:
+   * 1. Request signed URL
+   * 2. Upload to S3
+   * 3. Return publicUrl for use in API calls
+   */
   async uploadFile(
     file: File,
     endpoint: string,
@@ -77,20 +84,13 @@ export class UploadService {
       onProgress?.(10);
       const signedResponse = await this.getSignedUrl(endpoint, requestData);
 
-      // Step 2: Validate file size
-      if (file.size > signedResponse.maxFileSizeBytes) {
-        throw new Error(
-          `File size exceeds limit of ${(signedResponse.maxFileSizeBytes / (1024 * 1024)).toFixed(0)}MB`
-        );
-      }
-
       onProgress?.(30);
 
-      // Step 3: Upload to S3
-      await this.uploadToS3(file, signedResponse.signedUrl);
+      // Step 2: Upload to S3 using PUT method
+      await this.uploadToS3(file, signedResponse.uploadUrl, requestData.contentType || file.type);
       onProgress?.(100);
 
-      // Return public URL directly without verification
+      // Step 3: Return publicUrl (not uploadUrl!) for backend API calls
       return {
         publicUrl: signedResponse.publicUrl,
         metadata: {

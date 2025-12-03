@@ -88,30 +88,67 @@ export const createParent = async (parentData: any) => {
 };
 
 // Create lecture with documents API
-export const createLectureWithDocuments = async (causeId: string, formData: FormData) => {
-  const token = getAuthToken();
+// IMPORTANT: Send JSON with document URLs (not multipart/form-data)
+// Documents must be uploaded to S3 first, then URLs sent here
+export const createLectureWithDocuments = async (causeId: string, lectureData: {
+  title: string;
+  description: string;
+  content?: string;
+  venue?: string;
+  mode: string;
+  timeStart: string;
+  timeEnd: string;
+  liveLink?: string;
+  liveMode?: string;
+  recordingUrl?: string;
+  isPublic: boolean;
+  documents?: Array<{
+    title: string;
+    description?: string;
+    docUrl: string;
+  }>;
+}) => {
   const response = await fetch(`${getBaseUrl()}/organization/api/v1/lectures/with-documents/${causeId}`, {
     method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-    },
-    body: formData,
+    headers: getHeaders(),
+    body: JSON.stringify(lectureData),
   });
-  if (!response.ok) throw new Error('Failed to create lecture');
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || 'Failed to create lecture');
+  }
   return response.json();
 };
 
 // Update lecture with documents API
-export const updateLectureWithDocuments = async (lectureId: string, formData: FormData) => {
-  const token = getAuthToken();
+// IMPORTANT: Send JSON with document URLs (not multipart/form-data)
+export const updateLectureWithDocuments = async (lectureId: string, lectureData: {
+  title?: string;
+  description?: string;
+  content?: string;
+  venue?: string;
+  mode?: string;
+  timeStart?: string;
+  timeEnd?: string;
+  liveLink?: string;
+  liveMode?: string;
+  recordingUrl?: string;
+  isPublic?: boolean;
+  documents?: Array<{
+    title: string;
+    description?: string;
+    docUrl: string;
+  }>;
+}) => {
   const response = await fetch(`${getBaseUrl()}/organization/api/v1/lectures/${lectureId}/with-documents`, {
     method: 'PUT',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-    },
-    body: formData,
+    headers: getHeaders(),
+    body: JSON.stringify(lectureData),
   });
-  if (!response.ok) throw new Error('Failed to update lecture');
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || 'Failed to update lecture');
+  }
   return response.json();
 };
 

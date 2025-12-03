@@ -12,6 +12,8 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { updateLectureWithDocuments } from "@/services/api";
+import { useS3Upload } from "@/hooks/useS3Upload";
+import { Progress } from "@/components/ui/progress";
 
 interface Lecture {
   lectureId: string;
@@ -50,6 +52,7 @@ export const UpdateLectureForm = ({ lecture, onSuccess, onCancel }: UpdateLectur
   const [recordingUrl, setRecordingUrl] = useState(lecture.recordingUrl || "");
   const [isPublic, setIsPublic] = useState(lecture.isPublic);
   const [documents, setDocuments] = useState<File[]>([]);
+  const { uploadFile, uploading, progress } = useS3Upload();
 
   useEffect(() => {
     // Extract time from the datetime
@@ -80,7 +83,6 @@ export const UpdateLectureForm = ({ lecture, onSuccess, onCancel }: UpdateLectur
 
     setLoading(true);
     try {
-      const formData = new FormData();
       // Combine date and time for start and end
       const [startHours, startMinutes] = startTime.split(':').map(Number);
       const startDateTime = new Date(startDate);
@@ -90,30 +92,62 @@ export const UpdateLectureForm = ({ lecture, onSuccess, onCancel }: UpdateLectur
       const endDateTime = new Date(endDate);
       endDateTime.setHours(endHours, endMinutes, 0, 0);
 
-      formData.append("title", title);
-      formData.append("description", description);
-      formData.append("content", content);
-      formData.append("venue", venue);
-      formData.append("mode", mode);
-      formData.append("timeStart", startDateTime.toISOString());
-      formData.append("timeEnd", endDateTime.toISOString());
-      formData.append("liveLink", liveLink);
-      formData.append("liveMode", liveMode);
-      if (recordingUrl.trim()) {
-        formData.append("recordingUrl", recordingUrl);
-      }
-      formData.append("isPublic", isPublic.toString());
+      // Step 1: Upload new documents to S3 first (if any)
+      const uploadedDocuments: Array<{ title: string; description: string; docUrl: string }> = [];
       
-      documents.forEach((file) => {
-        formData.append("uploadedDocuments", file);
-      });
+      if (documents.length > 0) {
+        for (const file of documents) {
+          const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
 
-      await updateLectureWithDocuments(lecture.lectureId, formData);
+          try {
+            // Upload to S3 and get publicUrl
+            const uploadResult = await uploadFile(
+              file,
+              '/organization/api/v1/signed-urls/lecture',
+              {
+                lectureId: lecture.lectureId,
+                documentType: 'OTHER',
+                fileExtension,
+                contentType: file.type,
+              }
+            );
+
+            // Store the publicUrl (not uploadUrl!) for backend
+            uploadedDocuments.push({
+              title: file.name.replace(fileExtension, ''),
+              description: 'Updated document',
+              docUrl: uploadResult.publicUrl,
+            });
+          } catch (uploadError) {
+            console.error(`Failed to upload ${file.name}:`, uploadError);
+            toast.error(`Failed to upload ${file.name}`);
+            throw uploadError; // Stop if upload fails
+          }
+        }
+      }
+
+      // Step 2: Update lecture with document URLs as JSON
+      const lectureData = {
+        title,
+        description,
+        content,
+        venue,
+        mode,
+        timeStart: startDateTime.toISOString(),
+        timeEnd: endDateTime.toISOString(),
+        liveLink: liveLink || undefined,
+        liveMode: liveMode || undefined,
+        recordingUrl: recordingUrl.trim() || undefined,
+        isPublic,
+        documents: uploadedDocuments.length > 0 ? uploadedDocuments : undefined,
+      };
+
+      await updateLectureWithDocuments(lecture.lectureId, lectureData);
       toast.success("Lecture updated successfully!");
       onSuccess();
     } catch (error) {
       console.error("Error updating lecture:", error);
-      toast.error("Failed to update lecture");
+      toast.error(error instanceof Error ? error.message : "Failed to update lecture");
     } finally {
       setLoading(false);
     }
@@ -324,10 +358,17 @@ export const UpdateLectureForm = ({ lecture, onSuccess, onCancel }: UpdateLectur
         <Button type="button" variant="outline" onClick={onCancel}>
           Cancel
         </Button>
-        <Button type="submit" disabled={loading}>
-          {loading ? "Updating..." : "Update Lecture"}
+        <Button type="submit" disabled={loading || uploading}>
+          {uploading ? `Uploading... ${progress}%` : loading ? "Updating..." : "Update Lecture"}
         </Button>
       </div>
+
+      {uploading && (
+        <div className="mt-4">
+          <Progress value={progress} className="h-2" />
+          <p className="text-sm text-muted-foreground mt-2">Uploading documents... {progress}%</p>
+        </div>
+      )}
     </form>
   );
 };
