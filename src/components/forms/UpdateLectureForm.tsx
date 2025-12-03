@@ -108,10 +108,6 @@ export const UpdateLectureForm = ({ lecture, onSuccess, onCancel }: UpdateLectur
 
     setLoading(true);
     try {
-<<<<<<< HEAD
-      // Combine date and time for start and end
-=======
->>>>>>> 98b153f90a29b5b5c4872851fa242389a485ab27
       const [startHours, startMinutes] = startTime.split(':').map(Number);
       const startDateTime = new Date(startDate);
       startDateTime.setHours(startHours, startMinutes, 0, 0);

@@ -24,22 +24,15 @@ export class UploadService {
     return state.accessToken;
   }
 
-<<<<<<< HEAD
   /**
    * Step 1: Request signed upload URL from backend
-   * Use specific endpoints like /signed-urls/lecture or generic /signed-urls/generate
+   * Generic endpoint for all file uploads
    */
-  async getSignedUrl(
-    endpoint: string,
-    data: SignedUrlRequest
-  ): Promise<SignedUrlResponse> {
-=======
   async getSignedUrl(data: SignedUrlRequest): Promise<SignedUrlResponse> {
->>>>>>> 98b153f90a29b5b5c4872851fa242389a485ab27
     const token = this.getToken();
     const baseUrl = this.getBaseUrl();
     
-    const response = await fetch(`${baseUrl}/organization/api/v1/signed-url/generate-upload-url`, {
+    const response = await fetch(`${baseUrl}/organization/api/v1/signed-urls/generate`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -56,28 +49,16 @@ export class UploadService {
     return response.json();
   }
 
-<<<<<<< HEAD
   /**
    * Step 2: Upload file directly to S3 using PUT method
-   * IMPORTANT: Use uploadUrl (not publicUrl) and send raw file with correct Content-Type
+   * IMPORTANT: Use uploadUrl and send raw file with correct Content-Type
    */
-  async uploadToS3(
-    file: File,
-    uploadUrl: string,
-    contentType?: string
-  ): Promise<void> {
-=======
   async uploadToS3(file: File, uploadUrl: string): Promise<void> {
->>>>>>> 98b153f90a29b5b5c4872851fa242389a485ab27
     const response = await fetch(uploadUrl, {
       method: 'PUT',
       body: file,
       headers: {
-<<<<<<< HEAD
-        'Content-Type': contentType || file.type,
-=======
         'Content-Type': file.type,
->>>>>>> 98b153f90a29b5b5c4872851fa242389a485ab27
       },
     });
 
@@ -86,15 +67,12 @@ export class UploadService {
     }
   }
 
-<<<<<<< HEAD
   /**
    * Complete 3-step upload flow:
    * 1. Request signed URL
    * 2. Upload to S3
-   * 3. Return publicUrl for use in API calls
+   * 3. Return fileUrl for use in API calls
    */
-=======
->>>>>>> 98b153f90a29b5b5c4872851fa242389a485ab27
   async uploadFile(
     file: File,
     folder: string,
@@ -103,25 +81,6 @@ export class UploadService {
     try {
       // Step 1: Get signed URL
       onProgress?.(10);
-<<<<<<< HEAD
-      const signedResponse = await this.getSignedUrl(endpoint, requestData);
-
-      onProgress?.(30);
-
-      // Step 2: Upload to S3 using PUT method
-      await this.uploadToS3(file, signedResponse.uploadUrl, requestData.contentType || file.type);
-      onProgress?.(100);
-
-      // Step 3: Return publicUrl (not uploadUrl!) for backend API calls
-      return {
-        publicUrl: signedResponse.publicUrl,
-        metadata: {
-          fileSize: file.size,
-          contentType: file.type,
-          uploadedAt: new Date().toISOString(),
-        }
-      };
-=======
       const signedResponse = await this.getSignedUrl({
         fileName: file.name,
         fileType: file.type,
@@ -136,7 +95,6 @@ export class UploadService {
 
       // Return the public fileUrl
       return signedResponse.fileUrl;
->>>>>>> 98b153f90a29b5b5c4872851fa242389a485ab27
     } catch (error) {
       throw error instanceof Error ? error : new Error('Upload failed');
     }
