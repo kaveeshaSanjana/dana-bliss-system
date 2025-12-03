@@ -93,16 +93,7 @@ export const CreateCourseForm = ({ organizationId, onSuccess, onCancel }: Create
       let imageUrl = '';
 
       if (image) {
-        const fileExtension = '.' + image.name.split('.').pop()?.toLowerCase();
-        const uploadResult = await uploadFile(
-          image,
-          '/organization/api/v1/signed-urls/cause',
-          {
-            causeId: organizationId.toString(),
-            fileExtension
-          }
-        );
-        imageUrl = uploadResult.publicUrl;
+        imageUrl = await uploadFile(image, 'cause-images');
       }
 
       await createCourseWithImage({
