@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { uploadService } from '@/services/uploadService';
-import type { SignedUrlRequest, VerifyUploadResponse } from '@/types/upload';
 
 export const useS3Upload = () => {
   const [uploading, setUploading] = useState(false);
@@ -9,22 +8,20 @@ export const useS3Upload = () => {
 
   const uploadFile = async (
     file: File,
-    endpoint: string,
-    requestData: SignedUrlRequest
-  ): Promise<VerifyUploadResponse> => {
+    folder: string
+  ): Promise<string> => {
     try {
       setUploading(true);
       setError(null);
       setProgress(0);
 
-      const result = await uploadService.uploadFile(
+      const fileUrl = await uploadService.uploadFile(
         file,
-        endpoint,
-        requestData,
+        folder,
         (p) => setProgress(p)
       );
 
-      return result;
+      return fileUrl;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Upload failed';
       setError(errorMessage);

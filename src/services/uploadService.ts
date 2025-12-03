@@ -1,10 +1,17 @@
-import type { 
-  SignedUrlRequest, 
-  SignedUrlResponse, 
-  VerifyUploadRequest,
-  VerifyUploadResponse 
-} from '../types/upload';
 import { useUserRole } from '@/hooks/useUserRole';
+
+export interface SignedUrlRequest {
+  fileName: string;
+  fileType: string;
+  folder: string;
+}
+
+export interface SignedUrlResponse {
+  uploadUrl: string;
+  fileUrl: string;
+  fileName: string;
+  expiresIn: number;
+}
 
 export class UploadService {
   private getBaseUrl(): string {
@@ -17,13 +24,11 @@ export class UploadService {
     return state.accessToken;
   }
 
-  async getSignedUrl(
-    endpoint: string,
-    data: SignedUrlRequest
-  ): Promise<SignedUrlResponse> {
+  async getSignedUrl(data: SignedUrlRequest): Promise<SignedUrlResponse> {
     const token = this.getToken();
     const baseUrl = this.getBaseUrl();
-    const response = await fetch(`${baseUrl}${endpoint}`, {
+    
+    const response = await fetch(`${baseUrl}/organization/api/v1/signed-url/generate-upload-url`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -33,72 +38,49 @@ export class UploadService {
     });
 
     if (!response.ok) {
-      const error = await response.json();
+      const error = await response.json().catch(() => ({ message: 'Failed to get signed URL' }));
       throw new Error(error.message || 'Failed to get signed URL');
     }
 
     return response.json();
   }
 
-  async uploadToS3(
-    file: File,
-    signedUrl: SignedUrlResponse['signedUrl']
-  ): Promise<void> {
-    const formData = new FormData();
-
-    // Add all fields from signedUrl.fields in order
-    Object.entries(signedUrl.fields).forEach(([key, value]) => {
-      formData.append(key, value);
-    });
-
-    // Add file LAST
-    formData.append('file', file);
-
-    const response = await fetch(signedUrl.url, {
-      method: 'POST',
-      body: formData,
+  async uploadToS3(file: File, uploadUrl: string): Promise<void> {
+    const response = await fetch(uploadUrl, {
+      method: 'PUT',
+      body: file,
+      headers: {
+        'Content-Type': file.type,
+      },
     });
 
     if (!response.ok) {
-      const text = await response.text();
-      throw new Error(`S3 upload failed: ${text}`);
+      throw new Error('Failed to upload file to S3');
     }
   }
 
-
   async uploadFile(
     file: File,
-    endpoint: string,
-    requestData: SignedUrlRequest,
+    folder: string,
     onProgress?: (progress: number) => void
-  ): Promise<VerifyUploadResponse> {
+  ): Promise<string> {
     try {
       // Step 1: Get signed URL
       onProgress?.(10);
-      const signedResponse = await this.getSignedUrl(endpoint, requestData);
-
-      // Step 2: Validate file size
-      if (file.size > signedResponse.maxFileSizeBytes) {
-        throw new Error(
-          `File size exceeds limit of ${(signedResponse.maxFileSizeBytes / (1024 * 1024)).toFixed(0)}MB`
-        );
-      }
+      const signedResponse = await this.getSignedUrl({
+        fileName: file.name,
+        fileType: file.type,
+        folder,
+      });
 
       onProgress?.(30);
 
-      // Step 3: Upload to S3
-      await this.uploadToS3(file, signedResponse.signedUrl);
+      // Step 2: Upload to S3
+      await this.uploadToS3(file, signedResponse.uploadUrl);
       onProgress?.(100);
 
-      // Return public URL directly without verification
-      return {
-        publicUrl: signedResponse.publicUrl,
-        metadata: {
-          fileSize: file.size,
-          contentType: file.type,
-          uploadedAt: new Date().toISOString(),
-        }
-      };
+      // Return the public fileUrl
+      return signedResponse.fileUrl;
     } catch (error) {
       throw error instanceof Error ? error : new Error('Upload failed');
     }

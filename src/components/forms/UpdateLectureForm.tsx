@@ -11,7 +11,9 @@ import { CalendarIcon, X } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { updateLectureWithDocuments } from "@/services/api";
+import { updateLectureWithDocuments, type LectureDocument } from "@/services/api";
+import { useS3Upload } from "@/hooks/useS3Upload";
+import { Progress } from "@/components/ui/progress";
 
 interface Lecture {
   lectureId: string;
@@ -34,6 +36,12 @@ interface UpdateLectureFormProps {
   onCancel: () => void;
 }
 
+interface DocumentFile {
+  file: File;
+  title: string;
+  description: string;
+}
+
 export const UpdateLectureForm = ({ lecture, onSuccess, onCancel }: UpdateLectureFormProps) => {
   const [loading, setLoading] = useState(false);
   const [title, setTitle] = useState(lecture.title);
@@ -49,10 +57,10 @@ export const UpdateLectureForm = ({ lecture, onSuccess, onCancel }: UpdateLectur
   const [liveMode, setLiveMode] = useState(lecture.liveMode || "meet");
   const [recordingUrl, setRecordingUrl] = useState(lecture.recordingUrl || "");
   const [isPublic, setIsPublic] = useState(lecture.isPublic);
-  const [documents, setDocuments] = useState<File[]>([]);
+  const [documents, setDocuments] = useState<DocumentFile[]>([]);
+  const { uploadFile, uploading, progress } = useS3Upload();
 
   useEffect(() => {
-    // Extract time from the datetime
     const start = new Date(lecture.timeStart);
     const end = new Date(lecture.timeEnd);
     setStartTime(`${String(start.getHours()).padStart(2, '0')}:${String(start.getMinutes()).padStart(2, '0')}`);
@@ -61,13 +69,25 @@ export const UpdateLectureForm = ({ lecture, onSuccess, onCancel }: UpdateLectur
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      const newFiles = Array.from(e.target.files);
+      const newFiles = Array.from(e.target.files).map(file => ({
+        file,
+        title: file.name.replace(/\.[^/.]+$/, ""),
+        description: "",
+      }));
       setDocuments(prev => [...prev, ...newFiles]);
     }
   };
 
   const removeFile = (index: number) => {
     setDocuments(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const updateDocumentTitle = (index: number, newTitle: string) => {
+    setDocuments(prev => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], title: newTitle };
+      return updated;
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -80,8 +100,6 @@ export const UpdateLectureForm = ({ lecture, onSuccess, onCancel }: UpdateLectur
 
     setLoading(true);
     try {
-      const formData = new FormData();
-      // Combine date and time for start and end
       const [startHours, startMinutes] = startTime.split(':').map(Number);
       const startDateTime = new Date(startDate);
       startDateTime.setHours(startHours, startMinutes, 0, 0);
@@ -90,25 +108,41 @@ export const UpdateLectureForm = ({ lecture, onSuccess, onCancel }: UpdateLectur
       const endDateTime = new Date(endDate);
       endDateTime.setHours(endHours, endMinutes, 0, 0);
 
-      formData.append("title", title);
-      formData.append("description", description);
-      formData.append("content", content);
-      formData.append("venue", venue);
-      formData.append("mode", mode);
-      formData.append("timeStart", startDateTime.toISOString());
-      formData.append("timeEnd", endDateTime.toISOString());
-      formData.append("liveLink", liveLink);
-      formData.append("liveMode", liveMode);
-      if (recordingUrl.trim()) {
-        formData.append("recordingUrl", recordingUrl);
-      }
-      formData.append("isPublic", isPublic.toString());
+      // Upload new documents to S3
+      const uploadedDocs: LectureDocument[] = [];
       
-      documents.forEach((file) => {
-        formData.append("uploadedDocuments", file);
+      if (documents.length > 0) {
+        for (const doc of documents) {
+          try {
+            const fileUrl = await uploadFile(doc.file, 'lecture-documents');
+            uploadedDocs.push({
+              title: doc.title || doc.file.name,
+              description: doc.description,
+              docUrl: fileUrl,
+            });
+          } catch (uploadError) {
+            console.error(`Failed to upload ${doc.file.name}:`, uploadError);
+            toast.error(`Failed to upload ${doc.file.name}`);
+          }
+        }
+      }
+
+      // Update lecture with JSON body
+      await updateLectureWithDocuments(lecture.lectureId, {
+        title,
+        description,
+        content,
+        venue,
+        mode,
+        timeStart: startDateTime.toISOString(),
+        timeEnd: endDateTime.toISOString(),
+        liveLink,
+        liveMode,
+        recordingUrl: recordingUrl.trim() || undefined,
+        isPublic,
+        documents: uploadedDocs.length > 0 ? uploadedDocs : undefined,
       });
 
-      await updateLectureWithDocuments(lecture.lectureId, formData);
       toast.success("Lecture updated successfully!");
       onSuccess();
     } catch (error) {
@@ -302,17 +336,24 @@ export const UpdateLectureForm = ({ lecture, onSuccess, onCancel }: UpdateLectur
           />
           {documents.length > 0 && (
             <div className="space-y-2">
-              {documents.map((file, index) => (
-                <div key={index} className="flex items-center justify-between p-2 border rounded">
-                  <span className="text-sm truncate flex-1">{file.name}</span>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => removeFile(index)}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
+              {documents.map((doc, index) => (
+                <div key={index} className="space-y-2 p-3 bg-muted rounded">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm truncate flex-1 text-muted-foreground">{doc.file.name}</span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeFile(index)}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <Input
+                    placeholder="Document title"
+                    value={doc.title}
+                    onChange={(e) => updateDocumentTitle(index, e.target.value)}
+                  />
                 </div>
               ))}
             </div>
@@ -324,10 +365,17 @@ export const UpdateLectureForm = ({ lecture, onSuccess, onCancel }: UpdateLectur
         <Button type="button" variant="outline" onClick={onCancel}>
           Cancel
         </Button>
-        <Button type="submit" disabled={loading}>
-          {loading ? "Updating..." : "Update Lecture"}
+        <Button type="submit" disabled={loading || uploading}>
+          {uploading ? `Uploading... ${progress}%` : loading ? "Updating..." : "Update Lecture"}
         </Button>
       </div>
+
+      {uploading && (
+        <div className="mt-4">
+          <Progress value={progress} className="h-2" />
+          <p className="text-sm text-muted-foreground mt-2">Uploading documents... {progress}%</p>
+        </div>
+      )}
     </form>
   );
 };

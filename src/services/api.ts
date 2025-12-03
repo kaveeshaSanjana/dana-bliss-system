@@ -87,29 +87,44 @@ export const createParent = async (parentData: any) => {
   return response.json();
 };
 
-// Create lecture with documents API
-export const createLectureWithDocuments = async (causeId: string, formData: FormData) => {
-  const token = getAuthToken();
+// Create lecture with documents API (JSON body with S3 URLs)
+export interface LectureDocument {
+  title: string;
+  description?: string;
+  docUrl: string;
+}
+
+export interface CreateLectureData {
+  title: string;
+  description: string;
+  content?: string;
+  venue?: string;
+  mode?: string;
+  timeStart: string;
+  timeEnd: string;
+  liveLink?: string;
+  liveMode?: string;
+  recordingUrl?: string;
+  isPublic: boolean;
+  documents?: LectureDocument[];
+}
+
+export const createLectureWithDocuments = async (causeId: string, data: CreateLectureData) => {
   const response = await fetch(`${getBaseUrl()}/organization/api/v1/lectures/with-documents/${causeId}`, {
     method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-    },
-    body: formData,
+    headers: getHeaders(),
+    body: JSON.stringify(data),
   });
   if (!response.ok) throw new Error('Failed to create lecture');
   return response.json();
 };
 
-// Update lecture with documents API
-export const updateLectureWithDocuments = async (lectureId: string, formData: FormData) => {
-  const token = getAuthToken();
+// Update lecture with documents API (JSON body with S3 URLs)
+export const updateLectureWithDocuments = async (lectureId: string, data: Partial<CreateLectureData>) => {
   const response = await fetch(`${getBaseUrl()}/organization/api/v1/lectures/${lectureId}/with-documents`, {
     method: 'PUT',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-    },
-    body: formData,
+    headers: getHeaders(),
+    body: JSON.stringify(data),
   });
   if (!response.ok) throw new Error('Failed to update lecture');
   return response.json();
