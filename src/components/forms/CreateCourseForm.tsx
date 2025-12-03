@@ -1,312 +1,235 @@
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import { X } from "lucide-react";
+import { toast } from "sonner";
+import { createCourseWithImage } from "@/services/api";
+import { useS3Upload } from "@/hooks/useS3Upload";
+import { validateFile, FILE_CONSTRAINTS } from "@/utils/fileValidation";
+import { Progress } from "@/components/ui/progress";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 
-import React, { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
-import { organizationApi } from '@/api/organization.api';
-import { useToast } from '@/hooks/use-toast';
-import { useInstituteRole } from '@/hooks/useInstituteRole';
-import { ArrowLeft, BookOpen } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
-import { getBaseUrl2 } from '@/contexts/utils/auth.api';
-
-const createCourseSchema = z.object({
-  title: z.string().min(1, 'Title is required').max(100, 'Title must be less than 100 characters'),
-  description: z.string().min(1, 'Description is required').max(500, 'Description must be less than 500 characters'),
-  organizationId: z.string().min(1, 'Organization is required'),
-  introVideoUrl: z.string().url('Must be a valid URL').optional().or(z.literal('')),
-  isPublic: z.boolean(),
-  image: z.any().optional(),
+const courseSchema = z.object({
+  title: z.string().min(3, "Title must be at least 3 characters").max(200, "Title must be less than 200 characters"),
+  description: z.string().refine(
+    (val) => val === "" || (val.length >= 10 && val.length <= 5000),
+    { message: "Description must be 10-5000 characters if provided" }
+  ),
+  introVideoUrl: z.string().refine(
+    (val) => val === "" || /^https?:\/\//.test(val),
+    { message: "URL must start with http:// or https://" }
+  ),
+  isPublic: z.boolean().optional().default(true),
 });
 
-type CreateCourseFormData = z.infer<typeof createCourseSchema>;
+type CourseFormValues = z.infer<typeof courseSchema>;
 
 interface CreateCourseFormProps {
-  onSuccess: (course: any) => void;
+  organizationId: string;
+  onSuccess: () => void;
   onCancel: () => void;
 }
 
-const CreateCourseForm = ({ onSuccess, onCancel }: CreateCourseFormProps) => {
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [organizations, setOrganizations] = useState<any[]>([]);
-  const [loadingOrganizations, setLoadingOrganizations] = useState(true);
-  const [selectedImage, setSelectedImage] = useState<File | null>(null);
-  const { toast } = useToast();
-  const { user } = useAuth();
-  const userRole = useInstituteRole();
+export const CreateCourseForm = ({ organizationId, onSuccess, onCancel }: CreateCourseFormProps) => {
+  const [loading, setLoading] = useState(false);
+  const [image, setImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string>("");
+  const { uploadFile, uploading, progress } = useS3Upload();
 
-  const form = useForm<CreateCourseFormData>({
-    resolver: zodResolver(createCourseSchema),
+  const form = useForm<CourseFormValues>({
+    resolver: zodResolver(courseSchema),
     defaultValues: {
-      title: '',
-      description: '',
-      organizationId: '',
-      introVideoUrl: '',
+      title: "",
+      description: "",
+      introVideoUrl: "",
       isPublic: true,
     },
   });
 
-  // Fetch organizations on component mount
-  React.useEffect(() => {
-    const fetchOrganizations = async () => {
-      try {
-        const response = await organizationApi.getOrganizations({
-          userId: user?.id,
-          role: userRole || 'User'
-        });
-        setOrganizations(response.data);
-      } catch (error) {
-        console.error('Error fetching organizations:', error);
-        toast({
-          title: "Error",
-          description: "Failed to load organizations",
-          variant: "destructive",
-        });
-      } finally {
-        setLoadingOrganizations(false);
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      
+      const validation = validateFile(file, FILE_CONSTRAINTS.CAUSE_IMAGE);
+      if (!validation.valid) {
+        toast.error(validation.errors.join(', '));
+        return;
       }
-    };
 
-    fetchOrganizations();
-  }, []);
+      setImage(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
-  const onSubmit = async (data: CreateCourseFormData) => {
+  const removeImage = () => {
+    setImage(null);
+    setImagePreview("");
+  };
+
+  const onSubmit = async (values: CourseFormValues) => {
+    if (!organizationId || !/^\d+$/.test(organizationId)) {
+      toast.error("Invalid organization ID");
+      return;
+    }
+
+    setLoading(true);
     try {
-      setIsSubmitting(true);
+      let imageUrl = '';
 
-      // Use the organization API endpoint for OrganizationManager with new endpoint
-      const baseUrl2 = getBaseUrl2();
-      if (!baseUrl2) {
-        throw new Error('Organization base URL not configured');
+      if (image) {
+        const fileExtension = '.' + image.name.split('.').pop()?.toLowerCase();
+        const uploadResult = await uploadFile(
+          image,
+          '/organization/api/v1/signed-urls/cause',
+          {
+            causeId: organizationId.toString(),
+            fileExtension
+          }
+        );
+        imageUrl = uploadResult.publicUrl;
       }
 
-      // Create FormData for multipart/form-data request
-      const formData = new FormData();
-      formData.append('organizationId', data.organizationId);
-      formData.append('title', data.title);
-      formData.append('description', data.description);
-      if (data.introVideoUrl) {
-        formData.append('introVideoUrl', data.introVideoUrl);
-      }
-      formData.append('isPublic', data.isPublic.toString());
-      if (selectedImage) {
-        formData.append('image', selectedImage);
-      }
-
-      const response = await fetch(`${baseUrl2}/organization/api/v1/causes/with-image`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('org_access_token')}`
-        },
-        body: formData,
+      await createCourseWithImage({
+        title: values.title,
+        description: values.description || undefined,
+        organizationId,
+        isPublic: values.isPublic ?? true,
+        ...(values.introVideoUrl && { introVideoUrl: values.introVideoUrl }),
+        ...(imageUrl && { imageUrl }),
       });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({
-          message: `HTTP Error: ${response.status}`,
-        }));
-        throw new Error(errorData.message || `HTTP Error: ${response.status}`);
-      }
-
-      const newCourse = await response.json();
-      
-      toast({
-        title: "Success",
-        description: "Course created successfully",
-      });
-      
-      onSuccess(newCourse);
+      toast.success("Course created successfully!");
+      onSuccess();
     } catch (error) {
-      console.error('Error creating course:', error);
-      toast({
-        title: "Error",
-        description: "Failed to create course. Please try again.",
-        variant: "destructive",
-      });
+      console.error("Error creating course:", error);
+      toast.error("Failed to create course");
     } finally {
-      setIsSubmitting(false);
+      setLoading(false);
     }
   };
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="sm" onClick={onCancel}>
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back
-        </Button>
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <FormField
+          control={form.control}
+          name="title"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Title *</FormLabel>
+              <FormControl>
+                <Input placeholder="Enter course title" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="description"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Description</FormLabel>
+              <FormControl>
+                <Textarea placeholder="Enter course description" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="introVideoUrl"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Intro Video URL</FormLabel>
+              <FormControl>
+                <Input placeholder="Enter intro video URL" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Create New Course</h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            Add a new course to an organization
-          </p>
-        </div>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <BookOpen className="h-5 w-5" />
-            Course Information
-          </CardTitle>
-          <CardDescription>
-            Enter the details for the new course
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <FormField
-                control={form.control}
-                name="title"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Course Title</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="Enter course title"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="description"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Description</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder="Enter course description"
-                        rows={4}
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="organizationId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Organization</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select organization" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {loadingOrganizations ? (
-                          <SelectItem value="loading" disabled>Loading organizations...</SelectItem>
-                        ) : (
-                          organizations.map((org) => (
-                            <SelectItem key={org.organizationId} value={org.organizationId}>
-                              {org.name}
-                            </SelectItem>
-                          ))
-                        )}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="introVideoUrl"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Intro Video URL (Optional)</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="https://youtube.com/watch?v=example"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="isPublic"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                    <div className="space-y-0.5">
-                      <FormLabel className="text-base">Public Course</FormLabel>
-                      <div className="text-sm text-muted-foreground">
-                        Make this course visible to all users
-                      </div>
-                    </div>
-                    <FormControl>
-                      <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-
-              <div className="space-y-2">
-                <Label htmlFor="image">Course Image (Optional)</Label>
-                <Input
-                  id="image"
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    setSelectedImage(file || null);
-                  }}
+          <FormLabel>Course Image</FormLabel>
+          <div className="space-y-2 mt-2">
+            <Input
+              type="file"
+              accept="image/*"
+              onChange={handleImageChange}
+              className="cursor-pointer"
+            />
+            {imagePreview && (
+              <div className="relative">
+                <img
+                  src={imagePreview}
+                  alt="Preview"
+                  className="w-full h-48 object-cover rounded-md"
                 />
-                {selectedImage && (
-                  <p className="text-sm text-muted-foreground">
-                    Selected: {selectedImage.name}
-                  </p>
-                )}
-              </div>
-
-              <div className="flex gap-4 pt-4">
-                <Button
-                  type="submit"
-                  disabled={isSubmitting || loadingOrganizations}
-                  className="flex-1"
-                >
-                  {isSubmitting ? 'Creating...' : 'Create Course'}
-                </Button>
                 <Button
                   type="button"
-                  variant="outline"
-                  onClick={onCancel}
-                  disabled={isSubmitting}
+                  variant="destructive"
+                  size="sm"
+                  className="absolute top-2 right-2"
+                  onClick={removeImage}
                 >
-                  Cancel
+                  <X className="h-4 w-4" />
                 </Button>
               </div>
-            </form>
-          </Form>
-        </CardContent>
-      </Card>
-    </div>
+            )}
+          </div>
+        </div>
+
+        <FormField
+          control={form.control}
+          name="isPublic"
+          render={({ field }) => (
+            <FormItem className="flex items-center space-x-2">
+              <FormControl>
+                <Switch
+                  checked={field.value}
+                  onCheckedChange={field.onChange}
+                />
+              </FormControl>
+              <FormLabel className="!mt-0">Make course public</FormLabel>
+            </FormItem>
+          )}
+        />
+
+        <div className="flex gap-2 justify-end">
+          <Button type="button" variant="outline" onClick={onCancel}>
+            Cancel
+          </Button>
+          <Button type="submit" disabled={loading || uploading}>
+            {uploading ? `Uploading... ${progress}%` : loading ? "Creating..." : "Create Course"}
+          </Button>
+        </div>
+
+        {uploading && (
+          <div className="mt-4">
+            <Progress value={progress} className="h-2" />
+            <p className="text-sm text-muted-foreground mt-2">Uploading image... {progress}%</p>
+          </div>
+        )}
+      </form>
+    </Form>
   );
 };
-
-export default CreateCourseForm;

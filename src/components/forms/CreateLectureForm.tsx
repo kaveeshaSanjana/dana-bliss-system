@@ -1,333 +1,387 @@
-import React, { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
-import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Calendar, Clock, MapPin, Video } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
-import { apiClient } from '@/api/client';
-import { useInstituteRole } from '@/hooks/useInstituteRole';
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { CalendarIcon, Upload, X } from "lucide-react";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+import { createLectureWithDocuments } from "@/services/api";
+import { useS3Upload } from "@/hooks/useS3Upload";
+import { validateFile, FILE_CONSTRAINTS } from "@/utils/fileValidation";
+import { Progress } from "@/components/ui/progress";
+import type { DocumentType } from "@/types/upload";
+import { useUserRole } from "@/hooks/useUserRole";
 
 interface CreateLectureFormProps {
-  onClose?: () => void;
-  onSuccess?: () => void | Promise<void>;
-  courseId?: string;
+  causeId: string;
+  onSuccess: () => void;
+  onCancel: () => void;
 }
 
-const CreateLectureForm = ({ onClose, onSuccess, courseId }: CreateLectureFormProps) => {
-  const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    venue: '',
-    mode: 'online',
-    timeStart: '',
-    timeEnd: '',
-    isPublic: true,
-    liveLink: '',
-    recordingUrl: '',
-    maxParticipants: 30,
-    meetingId: '',
-    meetingPassword: ''
-  });
-  const [isLoading, setIsLoading] = useState(false);
-  const { toast } = useToast();
-  const { user, selectedInstitute, selectedClass, selectedSubject } = useAuth();
-  const instituteRole = useInstituteRole();
-  
-  const canCreate = instituteRole === 'InstituteAdmin' || instituteRole === 'Teacher';
+export const CreateLectureForm = ({ causeId, onSuccess, onCancel }: CreateLectureFormProps) => {
+  const [loading, setLoading] = useState(false);
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [content, setContent] = useState("");
+  const [venue, setVenue] = useState("");
+  const [mode, setMode] = useState("online");
+  const [startDate, setStartDate] = useState<Date>();
+  const [endDate, setEndDate] = useState<Date>();
+  const [startTime, setStartTime] = useState("09:00");
+  const [endTime, setEndTime] = useState("10:00");
+  const [liveLink, setLiveLink] = useState("");
+  const [liveMode, setLiveMode] = useState("meet");
+  const [recordingUrl, setRecordingUrl] = useState("");
+  const [isPublic, setIsPublic] = useState(true);
+  const [documents, setDocuments] = useState<File[]>([]);
+  const [documentTypes, setDocumentTypes] = useState<DocumentType[]>([]);
+  const { uploadFile, uploading, progress } = useS3Upload();
+  const backendUrl = useUserRole((state) => state.backendUrl);
 
-  const handleInputChange = (field: string, value: string | boolean | number) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const newFiles = Array.from(e.target.files);
+      
+      // Validate each file
+      for (const file of newFiles) {
+        const validation = validateFile(file, FILE_CONSTRAINTS.LECTURE_DOCUMENT);
+        if (!validation.valid) {
+          toast.error(`${file.name}: ${validation.errors.join(', ')}`);
+          return;
+        }
+      }
+      
+      setDocuments(prev => [...prev, ...newFiles]);
+      setDocumentTypes(prev => [...prev, ...newFiles.map(() => 'OTHER' as DocumentType)]);
+    }
+  };
+
+  const removeFile = (index: number) => {
+    setDocuments(prev => prev.filter((_, i) => i !== index));
+    setDocumentTypes(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const updateDocumentType = (index: number, type: DocumentType) => {
+    setDocumentTypes(prev => {
+      const newTypes = [...prev];
+      newTypes[index] = type;
+      return newTypes;
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!selectedInstitute?.id || !selectedClass?.id || !selectedSubject?.id || !user?.id) {
-      toast({
-        title: "Error",
-        description: "Please select an institute, class, and subject before creating a lecture",
-        variant: "destructive",
-      });
+    if (!title || !description || !startDate || !endDate) {
+      toast.error("Please fill in all required fields");
       return;
     }
 
-    if (!canCreate) {
-      toast({
-        title: "Access Denied",
-        description: "You don't have permission to create lectures. Only Institute Admins and Teachers can create lectures.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    setIsLoading(true);
-
+    setLoading(true);
     try {
-      const lectureData = {
-        instituteId: selectedInstitute.id,
-        classId: selectedClass.id,
-        subjectId: selectedSubject.id,
-        instructorId: user.id,
-        lectures: {
-          title: formData.title,
-          description: formData.description,
-          lectureType: formData.mode as 'online' | 'physical',
-          venue: formData.venue,
-          startTime: formData.timeStart,
-          endTime: formData.timeEnd,
-          meetingLink: formData.liveLink || undefined,
-          meetingId: formData.meetingId || undefined,
-          recodingUrl: formData.recordingUrl || undefined,
-          maxParticipants: formData.maxParticipants,
-          meetingPassword: formData.meetingPassword || undefined,
-          isRecorded: !!formData.recordingUrl
-        }
-      };
+      // Combine date and time for start and end
+      const [startHours, startMinutes] = startTime.split(':').map(Number);
+      const startDateTime = new Date(startDate);
+      startDateTime.setHours(startHours, startMinutes, 0, 0);
       
-      console.log('Creating lecture with data:', lectureData);
-      
-      const response = await apiClient.post('/institute-class-subject-lectures', lectureData);
-      const newLecture = response.data;
-      
-      toast({
-        title: "Success",
-        description: `Lecture created successfully`,
-      });
+      const [endHours, endMinutes] = endTime.split(':').map(Number);
+      const endDateTime = new Date(endDate);
+      endDateTime.setHours(endHours, endMinutes, 0, 0);
 
-      // Call onSuccess first to close dialog and refresh
-      if (onSuccess) {
-        await onSuccess();
+      // Step 1: Create lecture without documents first
+      const formData = new FormData();
+      formData.append("title", title);
+      formData.append("description", description);
+      formData.append("content", content);
+      formData.append("venue", venue);
+      formData.append("mode", mode);
+      formData.append("timeStart", startDateTime.toISOString());
+      formData.append("timeEnd", endDateTime.toISOString());
+      formData.append("liveLink", liveLink);
+      formData.append("liveMode", liveMode);
+      if (recordingUrl.trim()) {
+        formData.append("recordingUrl", recordingUrl);
+      }
+      formData.append("isPublic", isPublic.toString());
+
+      const lectureResponse = await createLectureWithDocuments(causeId, formData);
+      const lectureId = lectureResponse.id;
+
+      // Step 2: Upload documents to S3 if any
+      if (documents.length > 0) {
+        for (let i = 0; i < documents.length; i++) {
+          const file = documents[i];
+          const docType = documentTypes[i] || 'OTHER';
+          const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
+
+          try {
+            await uploadFile(
+              file,
+              '/organization/api/v1/signed-urls/lecture/document',
+              {
+                lectureId: lectureId.toString(),
+                documentType: docType,
+                fileExtension,
+                fileName: file.name
+              }
+            );
+          } catch (uploadError) {
+            console.error(`Failed to upload ${file.name}:`, uploadError);
+            toast.error(`Failed to upload ${file.name}`);
+          }
+        }
       }
 
-      // Reset form after success callback
-      setFormData({
-        title: '',
-        description: '',
-        venue: '',
-        mode: 'online',
-        timeStart: '',
-        timeEnd: '',
-        isPublic: true,
-        liveLink: '',
-        recordingUrl: '',
-        maxParticipants: 30,
-        meetingId: '',
-        meetingPassword: ''
-      });
+      toast.success("Lecture created successfully!");
+      onSuccess();
     } catch (error) {
-      console.error('Error creating lecture:', error);
-      toast({
-        title: "Error",
-        description: "Failed to create lecture. Please try again.",
-        variant: "destructive",
-      });
+      console.error("Error creating lecture:", error);
+      toast.error("Failed to create lecture");
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
   return (
-    <div className="space-y-6">
-      {onClose && (
-        <Button variant="outline" onClick={onClose} className="w-fit">
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back
-        </Button>
-      )}
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div>
+        <Label htmlFor="title">Title *</Label>
+        <Input
+          id="title"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="Enter lecture title"
+          required
+        />
+      </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Video className="h-5 w-5" />
-            Create New Lecture
-          </CardTitle>
-          <CardDescription>
-            Create a new lecture for the Course Lectures section
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <Label htmlFor="title">Lecture Title</Label>
-                <Input
-                  id="title"
-                  placeholder="Enter lecture title..."
-                  value={formData.title}
-                  onChange={(e) => handleInputChange('title', e.target.value)}
-                  required
-                />
-              </div>
+      <div>
+        <Label htmlFor="description">Description *</Label>
+        <Textarea
+          id="description"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="Enter lecture description"
+          required
+        />
+      </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="mode">Mode</Label>
-                <Select value={formData.mode} onValueChange={(value) => handleInputChange('mode', value)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="online">
-                      <div className="flex items-center gap-2">
-                        <Video className="h-4 w-4" />
-                        Online
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="physical">
-                      <div className="flex items-center gap-2">
-                        <MapPin className="h-4 w-4" />
-                        Physical
-                      </div>
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+      <div>
+        <Label htmlFor="content">Content</Label>
+        <Textarea
+          id="content"
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+          placeholder="Enter lecture content details"
+        />
+      </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                placeholder="Enter lecture description..."
-                value={formData.description}
-                onChange={(e) => handleInputChange('description', e.target.value)}
-                rows={3}
-              />
-            </div>
+      <div>
+        <Label htmlFor="venue">Venue</Label>
+        <Input
+          id="venue"
+          value={venue}
+          onChange={(e) => setVenue(e.target.value)}
+          placeholder="Enter venue"
+        />
+      </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="venue">Venue</Label>
-              <Input
-                id="venue"
-                placeholder={formData.mode === 'online' ? "Online platform (e.g., Zoom, Teams)" : "Physical location"}
-                value={formData.venue}
-                onChange={(e) => handleInputChange('venue', e.target.value)}
-                required
-              />
-            </div>
+      <div>
+        <Label htmlFor="mode">Mode</Label>
+        <Select value={mode} onValueChange={setMode}>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="online">Online</SelectItem>
+            <SelectItem value="offline">Offline</SelectItem>
+            <SelectItem value="hybrid">Hybrid</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <Label htmlFor="timeStart" className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4" />
-                  Start Time
-                </Label>
-                <Input
-                  id="timeStart"
-                  type="datetime-local"
-                  value={formData.timeStart}
-                  onChange={(e) => handleInputChange('timeStart', e.target.value)}
-                  required
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="timeEnd" className="flex items-center gap-2">
-                  <Clock className="h-4 w-4" />
-                  End Time
-                </Label>
-                <Input
-                  id="timeEnd"
-                  type="datetime-local"
-                  value={formData.timeEnd}
-                  onChange={(e) => handleInputChange('timeEnd', e.target.value)}
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <Switch
-                id="isPublic"
-                checked={formData.isPublic}
-                onCheckedChange={(checked) => handleInputChange('isPublic', checked)}
-              />
-              <Label htmlFor="isPublic" className="text-sm font-medium">
-                Make this lecture public
-              </Label>
-            </div>
-
-            {formData.mode === 'online' && (
-              <div className="space-y-2">
-                <Label htmlFor="liveLink">Live Session Link (Optional)</Label>
-                <Input
-                  id="liveLink"
-                  placeholder="https://zoom.us/j/... or meeting link"
-                  value={formData.liveLink}
-                  onChange={(e) => handleInputChange('liveLink', e.target.value)}
-                />
-              </div>
-            )}
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <Label htmlFor="maxParticipants">Max Participants</Label>
-                <Input
-                  id="maxParticipants"
-                  type="number"
-                  min="1"
-                  placeholder="30"
-                  value={formData.maxParticipants}
-                  onChange={(e) => handleInputChange('maxParticipants', parseInt(e.target.value) || 30)}
-                />
-              </div>
-
-              {formData.mode === 'online' && (
-                <>
-                  <div className="space-y-2">
-                    <Label htmlFor="meetingPassword">Meeting Password (Optional)</Label>
-                    <Input
-                      id="meetingPassword"
-                      placeholder="Password for the meeting"
-                      value={formData.meetingPassword}
-                      onChange={(e) => handleInputChange('meetingPassword', e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="meetingId">Meeting ID (Optional)</Label>
-                    <Input
-                      id="meetingId"
-                      placeholder="Enter meeting ID"
-                      value={formData.meetingId}
-                      onChange={(e) => handleInputChange('meetingId', e.target.value)}
-                    />
-                  </div>
-                </>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="recordingUrl">Recording URL (Optional)</Label>
-              <Input
-                id="recordingUrl"
-                placeholder="https://... (can be added later)"
-                value={formData.recordingUrl}
-                onChange={(e) => handleInputChange('recordingUrl', e.target.value)}
-              />
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-4 pt-4">
-              <Button type="submit" disabled={isLoading} className="flex-1">
-                {isLoading ? 'Creating...' : 'Create Lecture'}
-              </Button>
-              {onClose && (
-                <Button type="button" variant="outline" onClick={onClose} className="flex-1">
-                  Cancel
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label>Start Date & Time *</Label>
+          <div className="space-y-2">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-full justify-start text-left font-normal",
+                    !startDate && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {startDate ? format(startDate, "PPP") : "Pick a date"}
                 </Button>
-              )}
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0">
+                <Calendar
+                  mode="single"
+                  selected={startDate}
+                  onSelect={setStartDate}
+                  initialFocus
+                  className="pointer-events-auto"
+                />
+              </PopoverContent>
+            </Popover>
+            <Input
+              type="time"
+              value={startTime}
+              onChange={(e) => setStartTime(e.target.value)}
+            />
+          </div>
+        </div>
+
+        <div>
+          <Label>End Date & Time *</Label>
+          <div className="space-y-2">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-full justify-start text-left font-normal",
+                    !endDate && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {endDate ? format(endDate, "PPP") : "Pick a date"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0">
+                <Calendar
+                  mode="single"
+                  selected={endDate}
+                  onSelect={setEndDate}
+                  initialFocus
+                  className="pointer-events-auto"
+                />
+              </PopoverContent>
+            </Popover>
+            <Input
+              type="time"
+              value={endTime}
+              onChange={(e) => setEndTime(e.target.value)}
+            />
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <Label htmlFor="liveLink">Live Link</Label>
+        <Input
+          id="liveLink"
+          value={liveLink}
+          onChange={(e) => setLiveLink(e.target.value)}
+          placeholder="Enter live meeting link"
+        />
+      </div>
+
+      <div>
+        <Label htmlFor="liveMode">Live Mode</Label>
+        <Select value={liveMode} onValueChange={setLiveMode}>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="meet">Google Meet</SelectItem>
+            <SelectItem value="zoom">Zoom</SelectItem>
+            <SelectItem value="teams">Microsoft Teams</SelectItem>
+            <SelectItem value="other">Other</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div>
+        <Label htmlFor="recordingUrl">Recording URL</Label>
+        <Input
+          id="recordingUrl"
+          value={recordingUrl}
+          onChange={(e) => setRecordingUrl(e.target.value)}
+          placeholder="Enter recording URL"
+        />
+      </div>
+
+      <div className="flex items-center space-x-2">
+        <Switch
+          id="isPublic"
+          checked={isPublic}
+          onCheckedChange={setIsPublic}
+        />
+        <Label htmlFor="isPublic">Make lecture public</Label>
+      </div>
+
+      <div>
+        <Label>Documents</Label>
+        <div className="space-y-2">
+          <Input
+            type="file"
+            multiple
+            onChange={handleFileChange}
+            className="cursor-pointer"
+          />
+          {documents.length > 0 && (
+            <div className="space-y-2">
+              {documents.map((file, index) => (
+                <div key={index} className="space-y-2 p-3 bg-muted rounded">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm truncate flex-1">{file.name}</span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeFile(index)}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <Select
+                    value={documentTypes[index]}
+                    onValueChange={(value) => updateDocumentType(index, value as DocumentType)}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select document type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="PRESENTATION">Presentation</SelectItem>
+                      <SelectItem value="ASSIGNMENT">Assignment</SelectItem>
+                      <SelectItem value="READING_MATERIAL">Reading Material</SelectItem>
+                      <SelectItem value="VIDEO">Video</SelectItem>
+                      <SelectItem value="AUDIO">Audio</SelectItem>
+                      <SelectItem value="OTHER">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              ))}
             </div>
-          </form>
-        </CardContent>
-      </Card>
-    </div>
+          )}
+        </div>
+      </div>
+
+      <div className="flex gap-2 justify-end">
+        <Button type="button" variant="outline" onClick={onCancel}>
+          Cancel
+        </Button>
+        <Button type="submit" disabled={loading || uploading}>
+          {uploading ? `Uploading... ${progress}%` : loading ? "Creating..." : "Create Lecture"}
+        </Button>
+      </div>
+
+      {uploading && (
+        <div className="mt-4">
+          <Progress value={progress} className="h-2" />
+          <p className="text-sm text-muted-foreground mt-2">Uploading documents... {progress}%</p>
+        </div>
+      )}
+    </form>
   );
 };
-
-export default CreateLectureForm;
