@@ -245,7 +245,6 @@ export interface ComprehensiveUserRequest {
   userType: 'USER_WITHOUT_PARENT' | 'USER_WITHOUT_STUDENT';
   gender: string;
   dateOfBirth: string;
-  nic: string;
   birthCertificateNo: string;
   addressLine1: string;
   addressLine2: string;
@@ -254,6 +253,7 @@ export interface ComprehensiveUserRequest {
   province: string;
   postalCode: string;
   country: string;
+  language?: string;
   imageUrl?: string;
   isActive: boolean;
   parentData?: ParentData;
