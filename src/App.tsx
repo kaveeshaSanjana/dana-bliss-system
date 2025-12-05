@@ -5,9 +5,16 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
-import { Login } from "./pages/Login";
-import AdminDashboard from "./pages/AdminDashboard";
-import { ProtectedRoute } from "./components/ProtectedRoute";
+import TermsConditions from "./pages/TermsConditions";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import RefundPolicy from "./pages/RefundPolicy";
+import RegisterInstituteAdmin from "./pages/RegisterInstituteAdmin";
+import RegisterTeacher from "./pages/RegisterTeacher";
+import RegisterStudent from "./pages/RegisterStudent";
+import RegisterParent from "./pages/RegisterParent";
+import RegisterBookHireOwner from "./pages/RegisterBookHireOwner";
+import BotPrivacyPolicy from "./pages/BotPrivacyPolicy";
+import Register from "./pages/Register";
 
 const queryClient = new QueryClient();
 
@@ -19,23 +26,16 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Index />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/dashboard" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
-          <Route path="/user-management" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
-          <Route path="/institutes" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
-          <Route path="/subjects" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
-          <Route path="/subject-lectures" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
-          <Route path="/transport" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
-          <Route path="/assign-rfid" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
-          <Route path="/image-verification" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
-          <Route path="/advertisements" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
-          <Route path="/organizations" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
-          <Route path="/organization-login" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
-          <Route path="/classes" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
-          <Route path="/payments" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
-          <Route path="/sms-payments" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
-          <Route path="/sms-campaign" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
-          <Route path="/settings" element={<ProtectedRoute><AdminDashboard /></ProtectedRoute>} />
+          <Route path="/terms" element={<TermsConditions />} />
+          <Route path="/privacy" element={<PrivacyPolicy />} />
+          <Route path="/refund" element={<RefundPolicy />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/register/institute-admin" element={<RegisterInstituteAdmin />} />
+          <Route path="/register/teacher" element={<RegisterTeacher />} />
+          <Route path="/register/student" element={<RegisterStudent />} />
+          <Route path="/register/parent" element={<RegisterParent />} />
+          <Route path="/register/book-hire-owner" element={<RegisterBookHireOwner />} />
+          <Route path="/bot-privacy" element={<BotPrivacyPolicy />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

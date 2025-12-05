@@ -1,7 +1,7 @@
-import AppContent from '@/components/AppContent';
+import LMSHomepage from "@/components/LMSHomepage";
 
 const Index = () => {
-  return <AppContent />;
+  return <LMSHomepage />;
 };
 
 export default Index;
