@@ -9,8 +9,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { BookOpen, Mail, Phone, MapPin, FileText, Upload, Heart, AlertCircle, User, Users, Baby, Edit2, CheckCircle2, Loader2 } from "lucide-react";
-import { useState } from "react";
+import { BookOpen, Mail, Phone, MapPin, FileText, Upload, Heart, AlertCircle, User, Users, Baby, Edit2, CheckCircle2, Loader2, Globe } from "lucide-react";
+import { useState, useEffect } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { ImageCropDialog } from "@/components/ImageCropDialog";
@@ -23,6 +23,16 @@ import { uploadFile, createComprehensiveUser, ComprehensiveUserRequest, generate
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { OccupationSelect } from "@/components/OccupationSelect";
 import { SimpleLocationSelector } from "@/components/SimpleLocationSelector";
+import { 
+  validateMinAge, 
+  validateNotFutureDate, 
+  validateRequired, 
+  validateEmail, 
+  validatePhone,
+  validateBirthCertificate,
+  LANGUAGE_OPTIONS,
+  type LanguageCode
+} from "@/utils/formValidations";
 const RegisterStudent = () => {
   const {
     toast
@@ -108,15 +118,20 @@ const RegisterStudent = () => {
     if (studentSubmitted) progress = 100;
     return progress;
   };
+  // Form validation error states
+  const [fatherErrors, setFatherErrors] = useState<Record<string, string>>({});
+  const [motherErrors, setMotherErrors] = useState<Record<string, string>>({});
+  const [guardianErrors, setGuardianErrors] = useState<Record<string, string>>({});
+  const [studentErrors, setStudentErrors] = useState<Record<string, string>>({});
+
   const [fatherData, setFatherData] = useState({
     firstName: "",
     lastName: "",
     email: "",
     phoneNumber: "",
     userType: "USER_WITHOUT_STUDENT",
-    gender: "",
+    gender: "MALE", // Father must be MALE
     dateOfBirth: "",
-    nic: "",
     birthCertificateNo: "",
     addressLine1: "",
     addressLine2: "",
@@ -125,6 +140,7 @@ const RegisterStudent = () => {
     province: "",
     postalCode: "",
     country: "Sri Lanka",
+    language: "E" as LanguageCode,
     image: null as File | null,
     additionalInfo: {
       occupation: "",
@@ -139,9 +155,8 @@ const RegisterStudent = () => {
     email: "",
     phoneNumber: "",
     userType: "USER_WITHOUT_STUDENT",
-    gender: "",
+    gender: "FEMALE", // Mother must be FEMALE (default)
     dateOfBirth: "",
-    nic: "",
     birthCertificateNo: "",
     addressLine1: "",
     addressLine2: "",
@@ -150,6 +165,7 @@ const RegisterStudent = () => {
     province: "",
     postalCode: "",
     country: "Sri Lanka",
+    language: "E" as LanguageCode,
     image: null as File | null,
     additionalInfo: {
       occupation: "",
@@ -164,9 +180,8 @@ const RegisterStudent = () => {
     email: "",
     phoneNumber: "",
     userType: "USER_WITHOUT_STUDENT",
-    gender: "",
+    gender: "", // Guardian can select
     dateOfBirth: "",
-    nic: "",
     birthCertificateNo: "",
     addressLine1: "",
     addressLine2: "",
@@ -175,6 +190,7 @@ const RegisterStudent = () => {
     province: "",
     postalCode: "",
     country: "Sri Lanka",
+    language: "E" as LanguageCode,
     image: null as File | null,
     additionalInfo: {
       occupation: "",
@@ -189,9 +205,8 @@ const RegisterStudent = () => {
     email: "",
     phoneNumber: "",
     userType: "USER_WITHOUT_PARENT",
-    gender: "",
+    gender: "", // Student can select
     dateOfBirth: "",
-    nic: "",
     birthCertificateNo: "",
     addressLine1: "",
     addressLine2: "",
@@ -200,6 +215,7 @@ const RegisterStudent = () => {
     province: "",
     postalCode: "",
     country: "Sri Lanka",
+    language: "E" as LanguageCode,
     image: null as File | null,
     studentData: {
       studentId: null,
@@ -507,17 +523,99 @@ const RegisterStudent = () => {
       setIsVerifyingEmailOTP(false);
     }
   };
+
+  // Comprehensive validation for parent/guardian (must be 16+ years old)
+  const validateParentData = (data: typeof fatherData | typeof motherData | typeof guardianData, type: string) => {
+    const errors: Record<string, string> = {};
+
+    // Required field validations
+    const firstNameResult = validateRequired(data.firstName, 'First name');
+    if (!firstNameResult.isValid) errors.firstName = firstNameResult.error!;
+
+    const lastNameResult = validateRequired(data.lastName, 'Last name');
+    if (!lastNameResult.isValid) errors.lastName = lastNameResult.error!;
+
+    const emailResult = validateEmail(data.email);
+    if (!emailResult.isValid) errors.email = emailResult.error!;
+
+    const phoneResult = validatePhone(data.phoneNumber);
+    if (!phoneResult.isValid) errors.phoneNumber = phoneResult.error!;
+
+    const genderResult = validateRequired(data.gender, 'Gender');
+    if (!genderResult.isValid) errors.gender = genderResult.error!;
+
+    // Date of birth - must be at least 16 years old
+    const dobResult = validateMinAge(data.dateOfBirth, 16);
+    if (!dobResult.isValid) errors.dateOfBirth = dobResult.error!;
+
+    // Birth certificate is required
+    const bcResult = validateBirthCertificate(data.birthCertificateNo);
+    if (!bcResult.isValid) errors.birthCertificateNo = bcResult.error!;
+
+    // District and Province are required
+    const districtResult = validateRequired(data.district, 'District');
+    if (!districtResult.isValid) errors.district = districtResult.error!;
+
+    const provinceResult = validateRequired(data.province, 'Province');
+    if (!provinceResult.isValid) errors.province = provinceResult.error!;
+
+    return { isValid: Object.keys(errors).length === 0, errors };
+  };
+
+  // Validation for student (no age restriction, but not future date)
+  const validateStudentFormData = (data: typeof studentData) => {
+    const errors: Record<string, string> = {};
+
+    // Required field validations
+    const firstNameResult = validateRequired(data.firstName, 'First name');
+    if (!firstNameResult.isValid) errors.firstName = firstNameResult.error!;
+
+    const lastNameResult = validateRequired(data.lastName, 'Last name');
+    if (!lastNameResult.isValid) errors.lastName = lastNameResult.error!;
+
+    const emailResult = validateEmail(data.email);
+    if (!emailResult.isValid) errors.email = emailResult.error!;
+
+    const genderResult = validateRequired(data.gender, 'Gender');
+    if (!genderResult.isValid) errors.gender = genderResult.error!;
+
+    // Date of birth - cannot be future date
+    const dobResult = validateNotFutureDate(data.dateOfBirth);
+    if (!dobResult.isValid) errors.dateOfBirth = dobResult.error!;
+
+    // Birth certificate is required
+    const bcResult = validateBirthCertificate(data.birthCertificateNo);
+    if (!bcResult.isValid) errors.birthCertificateNo = bcResult.error!;
+
+    // District and Province are required
+    const districtResult = validateRequired(data.district, 'District');
+    if (!districtResult.isValid) errors.district = districtResult.error!;
+
+    const provinceResult = validateRequired(data.province, 'Province');
+    if (!provinceResult.isValid) errors.province = provinceResult.error!;
+
+    return { isValid: Object.keys(errors).length === 0, errors };
+  };
+
   const validateFatherData = () => {
-    return fatherData.firstName && fatherData.lastName && fatherData.email && fatherData.phoneNumber;
+    const result = validateParentData(fatherData, 'Father');
+    setFatherErrors(result.errors);
+    return result.isValid;
   };
   const validateMotherData = () => {
-    return motherData.firstName && motherData.lastName && motherData.email && motherData.phoneNumber;
+    const result = validateParentData(motherData, 'Mother');
+    setMotherErrors(result.errors);
+    return result.isValid;
   };
   const validateGuardianData = () => {
-    return guardianData.firstName && guardianData.lastName && guardianData.email && guardianData.phoneNumber;
+    const result = validateParentData(guardianData, 'Guardian');
+    setGuardianErrors(result.errors);
+    return result.isValid;
   };
   const validateStudentData = () => {
-    return studentData.firstName && studentData.lastName && studentData.email;
+    const result = validateStudentFormData(studentData);
+    setStudentErrors(result.errors);
+    return result.isValid;
   };
   const handleNextToMother = async () => {
     // If edit mode, validate and submit
@@ -549,8 +647,8 @@ const RegisterStudent = () => {
           userType: "USER_WITHOUT_STUDENT",
           gender: fatherData.gender,
           dateOfBirth: fatherData.dateOfBirth,
-          nic: fatherData.nic,
           birthCertificateNo: fatherData.birthCertificateNo,
+          language: fatherData.language,
           addressLine1: fatherData.addressLine1,
           addressLine2: fatherData.addressLine2,
           city: fatherData.city,
@@ -653,8 +751,8 @@ const RegisterStudent = () => {
           userType: "USER_WITHOUT_STUDENT",
           gender: motherData.gender,
           dateOfBirth: motherData.dateOfBirth,
-          nic: motherData.nic,
           birthCertificateNo: motherData.birthCertificateNo,
+          language: motherData.language,
           addressLine1: motherData.addressLine1,
           addressLine2: motherData.addressLine2,
           city: motherData.city,
@@ -778,8 +876,8 @@ const RegisterStudent = () => {
           userType: "USER_WITHOUT_STUDENT",
           gender: guardianData.gender,
           dateOfBirth: guardianData.dateOfBirth,
-          nic: guardianData.nic,
           birthCertificateNo: guardianData.birthCertificateNo,
+          language: guardianData.language,
           addressLine1: guardianData.addressLine1,
           addressLine2: guardianData.addressLine2,
           city: guardianData.city,
@@ -881,8 +979,8 @@ const RegisterStudent = () => {
         userType: "USER_WITHOUT_PARENT",
         gender: studentData.gender,
         dateOfBirth: studentData.dateOfBirth,
-        nic: studentData.nic,
         birthCertificateNo: studentData.birthCertificateNo,
+        language: studentData.language,
         addressLine1: studentData.addressLine1,
         addressLine2: studentData.addressLine2,
         city: studentData.city,
@@ -1096,46 +1194,47 @@ const RegisterStudent = () => {
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="father-dob">Date of Birth</Label>
+                      <Label htmlFor="father-dob" className="text-sm font-semibold">Date of Birth *</Label>
                       <Input id="father-dob" type="date" value={fatherData.dateOfBirth} onChange={e => setFatherData({
                         ...fatherData,
                         dateOfBirth: e.target.value
-                      })} className="bg-background/50 border-border/50" />
+                      })} className={`bg-background/50 ${fatherErrors.dateOfBirth ? 'border-destructive' : 'border-border/50'}`} />
+                      {fatherErrors.dateOfBirth && <p className="text-xs text-destructive">{fatherErrors.dateOfBirth}</p>}
                     </div>
                     
                     <div className="space-y-2">
-                      <Label htmlFor="father-gender">Gender</Label>
-                      <Select onValueChange={value => setFatherData({
-                        ...fatherData,
-                        gender: value
-                      })}>
-                        <SelectTrigger className="bg-background/50 border-border/50">
-                          <SelectValue placeholder="Select gender" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="MALE">Male</SelectItem>
-                          <SelectItem value="FEMALE">Female</SelectItem>
-                          <SelectItem value="OTHER">Other</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <Label htmlFor="father-gender" className="text-sm font-semibold">Gender *</Label>
+                      <Input id="father-gender" value="Male" disabled className="bg-muted/50 border-border/50 cursor-not-allowed" />
+                      <p className="text-xs text-muted-foreground">Father gender is automatically set to Male</p>
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="father-nic">NIC Number</Label>
-                      <Input id="father-nic" value={fatherData.nic} onChange={e => setFatherData({
-                        ...fatherData,
-                        nic: e.target.value
-                      })} className="bg-background/50 border-border/50" placeholder="NIC number" />
+                      <Label htmlFor="father-language" className="flex items-center gap-2 text-sm font-semibold">
+                        <Globe className="w-4 h-4 text-primary" />
+                        Preferred Language
+                      </Label>
+                      <Select value={fatherData.language} onValueChange={(value: 'E' | 'S' | 'T') => setFatherData({ ...fatherData, language: value })}>
+                        <SelectTrigger className="bg-background/50 border-border/50">
+                          <SelectValue placeholder="Select language" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {LANGUAGE_OPTIONS.map(lang => (
+                            <SelectItem key={lang.value} value={lang.value}>{lang.label} ({lang.fullLabel})</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">Important messages and notifications will be sent in this language</p>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="father-bc">Birth Certificate No</Label>
+                      <Label htmlFor="father-bc" className="text-sm font-semibold">Birth Certificate No *</Label>
                       <Input id="father-bc" value={fatherData.birthCertificateNo} onChange={e => setFatherData({
                         ...fatherData,
                         birthCertificateNo: e.target.value
-                      })} className="bg-background/50 border-border/50" placeholder="BC-123456789" />
+                      })} className={`bg-background/50 ${fatherErrors.birthCertificateNo ? 'border-destructive' : 'border-border/50'}`} placeholder="BC-123456789" />
+                      {fatherErrors.birthCertificateNo && <p className="text-xs text-destructive">{fatherErrors.birthCertificateNo}</p>}
                     </div>
 
                     <div className="space-y-2">
@@ -1294,46 +1393,47 @@ const RegisterStudent = () => {
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="mother-dob">Date of Birth</Label>
+                      <Label htmlFor="mother-dob" className="text-sm font-semibold">Date of Birth *</Label>
                       <Input id="mother-dob" type="date" value={motherData.dateOfBirth} onChange={e => setMotherData({
                         ...motherData,
                         dateOfBirth: e.target.value
-                      })} className="bg-background/50 border-border/50" />
+                      })} className={`bg-background/50 ${motherErrors.dateOfBirth ? 'border-destructive' : 'border-border/50'}`} />
+                      {motherErrors.dateOfBirth && <p className="text-xs text-destructive">{motherErrors.dateOfBirth}</p>}
                     </div>
                     
                     <div className="space-y-2">
-                      <Label htmlFor="mother-gender">Gender</Label>
-                      <Select onValueChange={value => setMotherData({
-                        ...motherData,
-                        gender: value
-                      })}>
-                        <SelectTrigger className="bg-background/50 border-border/50">
-                          <SelectValue placeholder="Select gender" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="MALE">Male</SelectItem>
-                          <SelectItem value="FEMALE">Female</SelectItem>
-                          <SelectItem value="OTHER">Other</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <Label htmlFor="mother-gender" className="text-sm font-semibold">Gender *</Label>
+                      <Input id="mother-gender" value="Female" disabled className="bg-muted/50 border-border/50 cursor-not-allowed" />
+                      <p className="text-xs text-muted-foreground">Mother gender is automatically set to Female</p>
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="mother-nic">NIC Number</Label>
-                      <Input id="mother-nic" value={motherData.nic} onChange={e => setMotherData({
-                        ...motherData,
-                        nic: e.target.value
-                      })} className="bg-background/50 border-border/50" placeholder="NIC number" />
+                      <Label htmlFor="mother-language" className="flex items-center gap-2 text-sm font-semibold">
+                        <Globe className="w-4 h-4 text-primary" />
+                        Preferred Language
+                      </Label>
+                      <Select value={motherData.language} onValueChange={(value: 'E' | 'S' | 'T') => setMotherData({ ...motherData, language: value })}>
+                        <SelectTrigger className="bg-background/50 border-border/50">
+                          <SelectValue placeholder="Select language" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {LANGUAGE_OPTIONS.map(lang => (
+                            <SelectItem key={lang.value} value={lang.value}>{lang.label} ({lang.fullLabel})</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">Important messages will be sent in this language</p>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="mother-bc">Birth Certificate No</Label>
+                      <Label htmlFor="mother-bc" className="text-sm font-semibold">Birth Certificate No *</Label>
                       <Input id="mother-bc" value={motherData.birthCertificateNo} onChange={e => setMotherData({
                         ...motherData,
                         birthCertificateNo: e.target.value
-                      })} className="bg-background/50 border-border/50" placeholder="BC-123456789" />
+                      })} className={`bg-background/50 ${motherErrors.birthCertificateNo ? 'border-destructive' : 'border-border/50'}`} placeholder="BC-123456789" />
+                      {motherErrors.birthCertificateNo && <p className="text-xs text-destructive">{motherErrors.birthCertificateNo}</p>}
                     </div>
 
                     <div className="space-y-2">
@@ -1518,13 +1618,6 @@ const RegisterStudent = () => {
                       </Select>
                     </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="guardian-nic">NIC Number</Label>
-                      <Input id="guardian-nic" value={guardianData.nic} onChange={e => setGuardianData({
-                        ...guardianData,
-                        nic: e.target.value
-                      })} className="bg-background/50 border-border/50" placeholder="NIC number" />
-                    </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1879,13 +1972,6 @@ const RegisterStudent = () => {
                           </Select>
                         </div>
 
-                        <div className="space-y-2">
-                          <Label htmlFor="student-nic">NIC Number</Label>
-                          <Input id="student-nic" value={studentData.nic} onChange={e => setStudentData({
-                        ...studentData,
-                        nic: e.target.value
-                      })} className="bg-background/50 border-border/50" placeholder="NIC number" />
-                        </div>
                       </div>
 
                       <div className="space-y-2">
