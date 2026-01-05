@@ -1,84 +1,76 @@
+import { useOtherContent } from '@/hooks/useGoogleSheets';
+import { Facebook, Instagram, Twitter, Youtube, Heart } from 'lucide-react';
+
 const Footer = () => {
+  const { data: content } = useOtherContent();
+  
+  const siteName = content['site_name'] || 'Sri Lanka Travels';
+  const footerText = content['footer_text'] || 'Discover the magic of the Pearl of the Indian Ocean';
+
   return (
-    <footer className="bg-gradient-to-r from-blue-600 via-blue-700 to-blue-800 text-white py-12">
-      <div className="container mx-auto px-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-          {/* Brand Section */}
-          <div className="lg:col-span-2">
-            <div className="mb-4">
-              <h3 className="text-2xl font-bold text-white mb-2">
-                Suraksha<span className="text-blue-300">LMS</span>
-              </h3>
-              <p className="text-blue-100 text-lg font-medium mb-2">
-                One LMS. One Nation. One Future
-              </p>
-              <p className="text-blue-200 text-sm mb-1">
-                SURAKSHA LEARNING MANAGEMENT SYSTEM (PVT) LTD
-              </p>
-              <p className="text-blue-200 text-xs mb-1">
-                Reg. No: PV 00342747
-              </p>
-              <p className="text-blue-200 text-xs mb-1">
-                188/79 The Finans Waththa, Wilimbula, Henegama
-              </p>
-              <p className="text-blue-200 text-xs font-medium">
-                📞 +94 70 330 0524
-              </p>
+    <footer className="bg-foreground text-primary-foreground py-16 px-4">
+      <div className="max-w-7xl mx-auto">
+        <div className="grid md:grid-cols-4 gap-12 mb-12">
+          {/* Brand */}
+          <div className="md:col-span-2">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+                <span className="text-lg">🪷</span>
+              </div>
+              <span className="font-bold text-xl">{siteName}</span>
             </div>
-            <p className="text-blue-100 mb-6 leading-relaxed">
-              Empowering education across Sri Lanka with our comprehensive Learning Management System. 
-              Join thousands of students, teachers, and institutions in building a brighter future together.
+            <p className="text-primary-foreground/70 mb-6 max-w-md">
+              {footerText}
             </p>
-            <div className="flex space-x-4">
-              <div className="text-center">
-                <div className="font-bold text-2xl text-white">430</div>
-                <div className="text-blue-200 text-sm">Students</div>
-              </div>
-              <div className="text-center">
-                <div className="font-bold text-2xl text-white">30</div>
-                <div className="text-blue-200 text-sm">Teachers</div>
-              </div>
-              <div className="text-center">
-                <div className="font-bold text-2xl text-white">6</div>
-                <div className="text-blue-200 text-sm">Institutes</div>
-              </div>
+            <div className="flex gap-4">
+              <a href="#" className="w-10 h-10 bg-primary-foreground/10 rounded-full flex items-center justify-center hover:bg-secondary transition-colors">
+                <Facebook size={18} />
+              </a>
+              <a href="#" className="w-10 h-10 bg-primary-foreground/10 rounded-full flex items-center justify-center hover:bg-secondary transition-colors">
+                <Instagram size={18} />
+              </a>
+              <a href="#" className="w-10 h-10 bg-primary-foreground/10 rounded-full flex items-center justify-center hover:bg-secondary transition-colors">
+                <Twitter size={18} />
+              </a>
+              <a href="#" className="w-10 h-10 bg-primary-foreground/10 rounded-full flex items-center justify-center hover:bg-secondary transition-colors">
+                <Youtube size={18} />
+              </a>
             </div>
           </div>
 
           {/* Quick Links */}
           <div>
-            <h4 className="font-semibold text-white mb-4">Quick Links</h4>
-            <ul className="space-y-2">
-              <li><a href="#" className="text-blue-100 hover:text-white transition-colors">Student Login</a></li>
-              <li><a href="#" className="text-blue-100 hover:text-white transition-colors">Teacher Portal</a></li>
-              <li><a href="#" className="text-blue-100 hover:text-white transition-colors">Institute Access</a></li>
-              <li><a href="#" className="text-blue-100 hover:text-white transition-colors">Course Catalog</a></li>
-              <li><a href="#" className="text-blue-100 hover:text-white transition-colors">Support Center</a></li>
+            <h4 className="font-bold text-lg mb-4">Quick Links</h4>
+            <ul className="space-y-3">
+              <li><a href="#" className="text-primary-foreground/70 hover:text-secondary transition-colors">Home</a></li>
+              <li><a href="#special-visits" className="text-primary-foreground/70 hover:text-secondary transition-colors">Destinations</a></li>
+              <li><a href="#gallery" className="text-primary-foreground/70 hover:text-secondary transition-colors">Gallery</a></li>
+              <li><a href="#reviews" className="text-primary-foreground/70 hover:text-secondary transition-colors">Reviews</a></li>
+              <li><a href="#contact" className="text-primary-foreground/70 hover:text-secondary transition-colors">Contact</a></li>
             </ul>
           </div>
 
-          {/* Legal & Support */}
+          {/* Popular Destinations */}
           <div>
-            <h4 className="font-semibold text-white mb-4">Legal & Support</h4>
-            <ul className="space-y-2">
-              <li><a href="/privacy" className="text-blue-100 hover:text-white transition-colors">Privacy Policy</a></li>
-              <li><a href="/terms" className="text-blue-100 hover:text-white transition-colors">Terms & Conditions</a></li>
-              <li><a href="/refund" className="text-blue-100 hover:text-white transition-colors">Refund Policy</a></li>
-              <li><a href="#" className="text-blue-100 hover:text-white transition-colors">Help Center</a></li>
-              <li><a href="#" className="text-blue-100 hover:text-white transition-colors">Contact Us</a></li>
+            <h4 className="font-bold text-lg mb-4">Popular Places</h4>
+            <ul className="space-y-3">
+              <li><span className="text-primary-foreground/70">Sigiriya</span></li>
+              <li><span className="text-primary-foreground/70">Kandy</span></li>
+              <li><span className="text-primary-foreground/70">Galle</span></li>
+              <li><span className="text-primary-foreground/70">Ella</span></li>
+              <li><span className="text-primary-foreground/70">Mirissa</span></li>
             </ul>
           </div>
         </div>
 
         {/* Bottom Bar */}
-        <div className="border-t border-blue-500 mt-8 pt-6 flex flex-col md:flex-row justify-between items-center">
-          <p className="text-blue-100 text-sm">
-            © 2025 SURAKSHA LEARNING MANAGEMENT SYSTEM (PVT) LTD. All rights reserved.<br />
-            PV 00342747 | Empowering Sri Lankan Education
+        <div className="pt-8 border-t border-primary-foreground/20 flex flex-col md:flex-row items-center justify-between gap-4">
+          <p className="text-primary-foreground/60 text-sm">
+            © {new Date().getFullYear()} {siteName}. All rights reserved.
           </p>
-          <div className="flex space-x-4 mt-4 md:mt-0">
-            <span className="text-blue-100 text-sm">🇱🇰 Proudly Sri Lankan</span>
-          </div>
+          <p className="text-primary-foreground/60 text-sm flex items-center gap-1">
+            Made with <Heart size={14} className="text-secondary fill-secondary" /> for Sri Lanka
+          </p>
         </div>
       </div>
     </footer>

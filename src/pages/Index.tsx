@@ -1,7 +1,23 @@
-import LMSHomepage from "@/components/LMSHomepage";
+import Navbar from '@/components/Navbar';
+import Hero from '@/components/Hero';
+import SpecialVisits from '@/components/SpecialVisits';
+import Reviews from '@/components/Reviews';
+import Gallery from '@/components/Gallery';
+import ContactForm from '@/components/ContactForm';
+import Footer from '@/components/Footer';
 
 const Index = () => {
-  return <LMSHomepage />;
+  return (
+    <div className="min-h-screen">
+      <Navbar />
+      <Hero />
+      <SpecialVisits />
+      <Gallery />
+      <Reviews />
+      <ContactForm />
+      <Footer />
+    </div>
+  );
 };
 
 export default Index;

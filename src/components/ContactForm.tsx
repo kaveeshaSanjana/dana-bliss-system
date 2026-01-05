@@ -1,54 +1,34 @@
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { useToast } from "@/hooks/use-toast";
-import { Mail, Phone, Send, CheckCircle2 } from "lucide-react";
-import { useIntersectionObserver } from "@/hooks/useIntersectionObserver";
-import { z } from "zod";
+import { useState } from 'react';
+import { useOtherContent } from '@/hooks/useGoogleSheets';
+import { Send, Phone, Mail, MapPin, Loader2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { z } from 'zod';
 
 const contactSchema = z.object({
-  name: z.string()
-    .trim()
-    .min(2, { message: "Name must be at least 2 characters" })
-    .max(100, { message: "Name must be less than 100 characters" }),
-  email: z.string()
-    .trim()
-    .email({ message: "Invalid email address" })
-    .max(255, { message: "Email must be less than 255 characters" }),
-  phone: z.string()
-    .trim()
-    .regex(/^[0-9+\-\s()]+$/, { message: "Invalid phone number format" })
-    .min(10, { message: "Phone number must be at least 10 digits" })
-    .max(20, { message: "Phone number must be less than 20 characters" }),
-  message: z.string()
-    .trim()
-    .min(10, { message: "Message must be at least 10 characters" })
-    .max(1000, { message: "Message must be less than 1000 characters" })
+  name: z.string().trim().min(1, "Name is required").max(100, "Name must be less than 100 characters"),
+  email: z.string().trim().email("Please enter a valid email").max(255, "Email must be less than 255 characters"),
+  phone_number: z.string().trim().min(1, "Phone number is required").max(20, "Phone number must be less than 20 characters"),
+  message: z.string().trim().min(1, "Message is required").max(1000, "Message must be less than 1000 characters"),
 });
 
-type ContactFormData = z.infer<typeof contactSchema>;
-
 const ContactForm = () => {
-  const { elementRef, isVisible } = useIntersectionObserver();
+  const { data: content } = useOtherContent();
   const { toast } = useToast();
-  const [formData, setFormData] = useState<ContactFormData>({
-    name: "",
-    email: "",
-    phone: "",
-    message: ""
+  const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    phone_number: '',
+    message: '',
   });
-  const [errors, setErrors] = useState<Partial<Record<keyof ContactFormData, string>>>({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSuccess, setIsSuccess] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
-    // Clear error for this field when user types
-    if (errors[name as keyof ContactFormData]) {
-      setErrors(prev => ({ ...prev, [name]: undefined }));
+    // Clear error when user starts typing
+    if (errors[name]) {
+      setErrors(prev => ({ ...prev, [name]: '' }));
     }
   };
 
@@ -58,240 +38,217 @@ const ContactForm = () => {
     
     // Validate form data
     const result = contactSchema.safeParse(formData);
-    
     if (!result.success) {
-      const fieldErrors: Partial<Record<keyof ContactFormData, string>> = {};
-      result.error.errors.forEach(error => {
-        const field = error.path[0] as keyof ContactFormData;
-        fieldErrors[field] = error.message;
+      const fieldErrors: Record<string, string> = {};
+      result.error.errors.forEach(err => {
+        if (err.path[0]) {
+          fieldErrors[err.path[0] as string] = err.message;
+        }
       });
       setErrors(fieldErrors);
-      toast({
-        title: "Validation Error",
-        description: "Please check the form for errors",
-        variant: "destructive"
-      });
       return;
     }
 
-    setIsSubmitting(true);
-    
+    setLoading(true);
+
     try {
-      // Encode data for WhatsApp
-      const message = encodeURIComponent(
-        `New Contact Form Submission:\n\nName: ${result.data.name}\nEmail: ${result.data.email}\nPhone: ${result.data.phone}\nMessage: ${result.data.message}`
-      );
-      
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      setIsSuccess(true);
-      toast({
-        title: "Message Sent!",
-        description: "We'll get back to you within 24 hours",
+      // Submit to Google Sheets via Google Apps Script web app
+      const scriptUrl = "https://script.google.com/macros/s/AKfycby6L4OD_24KWvvGraCqHqAPi7ZaMhT2FFKamJdmKlGkwAxbfb_sCjX-jX9JLHhowXKu/exec";
+
+      // Send data to Google Apps Script
+      await fetch(scriptUrl, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          phone_number: formData.phone_number,
+          message: formData.message,
+        }),
       });
-      
-      // Reset form after 2 seconds
-      setTimeout(() => {
-        setFormData({ name: "", email: "", phone: "", message: "" });
-        setIsSuccess(false);
-      }, 2000);
-      
+
+      toast({
+        title: "Message Sent! ✨",
+        description: "Thank you for contacting us. We'll get back to you soon!",
+      });
+
+      setFormData({ name: '', email: '', phone_number: '', message: '' });
     } catch (error) {
       toast({
-        title: "Error",
-        description: "Failed to send message. Please try again.",
-        variant: "destructive"
+        title: "Oops!",
+        description: "Something went wrong. Please try again.",
+        variant: "destructive",
       });
     } finally {
-      setIsSubmitting(false);
+      setLoading(false);
     }
   };
 
   return (
-    <section ref={elementRef} className="py-16 md:py-24 bg-gradient-to-br from-background via-primary/5 to-background relative overflow-hidden">
-      {/* Background Decoration */}
-      <div className="absolute inset-0 opacity-5">
-        <div className="absolute top-10 left-10 w-72 h-72 bg-primary rounded-full blur-3xl"></div>
-        <div className="absolute bottom-10 right-10 w-96 h-96 bg-primary-dark rounded-full blur-3xl"></div>
-      </div>
-
-      <div className="container mx-auto px-4 relative z-10">
-        <div className={`text-center mb-12 transition-all duration-700 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-          <div className="inline-block mb-4">
-            <span className="px-4 py-2 bg-primary/10 text-primary rounded-full text-sm font-semibold border border-primary/20 animate-fade-in">
-              Get In Touch
-            </span>
-          </div>
-          <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-foreground mb-4">
-            Contact <span className="bg-gradient-to-r from-primary to-primary-dark bg-clip-text text-transparent">SurakshaLMS</span>
+    <section id="contact" className="py-24 px-4 bg-primary/5 pattern-lotus">
+      <div className="max-w-6xl mx-auto">
+        {/* Section Header */}
+        <div className="text-center mb-16">
+          <span className="inline-block px-4 py-1 bg-primary/10 text-primary rounded-full text-sm font-medium mb-4">
+            Get In Touch
+          </span>
+          <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-4">
+            Plan Your <span className="text-secondary">Adventure</span>
           </h2>
-          <p className="text-muted-foreground text-lg md:text-xl max-w-2xl mx-auto leading-relaxed">
-            Have questions? We'd love to hear from you. Send us a message and we'll respond as soon as possible.
+          <p className="text-muted-foreground max-w-2xl mx-auto">
+            Ready to explore Sri Lanka? Contact us to start planning your unforgettable journey
           </p>
         </div>
 
-        <div className="grid lg:grid-cols-2 gap-12 max-w-6xl mx-auto">
-          {/* Contact Information */}
-          <div className={`space-y-8 transition-all duration-700 delay-200 ${isVisible ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-8'}`}>
-            <div className="bg-gradient-to-br from-card/80 to-card/40 backdrop-blur-sm rounded-2xl p-8 border border-border/50 shadow-xl hover:shadow-2xl transition-all duration-500 hover:scale-[1.02]">
-              <h3 className="text-2xl font-bold text-foreground mb-6">Contact Information</h3>
+        <div className="grid lg:grid-cols-5 gap-12">
+          {/* Contact Info */}
+          <div className="lg:col-span-2 space-y-8">
+            <div className="bg-card rounded-2xl p-8 shadow-lg">
+              <h3 className="text-xl font-bold text-foreground mb-6">Contact Information</h3>
               
               <div className="space-y-6">
-                <div className="flex items-start gap-4 group">
-                  <div className="p-3 bg-primary/10 rounded-xl group-hover:bg-primary/20 transition-colors duration-300">
-                    <Mail className="w-6 h-6 text-primary" />
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <Phone className="text-primary" size={20} />
                   </div>
                   <div>
-                    <p className="font-semibold text-foreground mb-1">Email</p>
-                    <a href="mailto:service@suraksha.lk" className="text-muted-foreground hover:text-primary transition-colors duration-300">
-                      service@suraksha.lk
-                    </a>
+                    <p className="font-medium text-foreground">Phone</p>
+                    <p className="text-muted-foreground">{content['contact_phone'] || '+94 77 123 4567'}</p>
                   </div>
                 </div>
 
-                <div className="flex items-start gap-4 group">
-                  <div className="p-3 bg-primary/10 rounded-xl group-hover:bg-primary/20 transition-colors duration-300">
-                    <Phone className="w-6 h-6 text-primary" />
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <Mail className="text-primary" size={20} />
                   </div>
                   <div>
-                    <p className="font-semibold text-foreground mb-1">Phone</p>
-                    <a href="tel:+94703300524" className="text-muted-foreground hover:text-primary transition-colors duration-300">
-                      +94 70 330 0524
-                    </a>
+                    <p className="font-medium text-foreground">Email</p>
+                    <p className="text-muted-foreground">{content['contact_email'] || 'hello@srilanka.travel'}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center flex-shrink-0">
+                    <MapPin className="text-primary" size={20} />
+                  </div>
+                  <div>
+                    <p className="font-medium text-foreground">Location</p>
+                    <p className="text-muted-foreground">{content['contact_address'] || 'Colombo, Sri Lanka'}</p>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="bg-gradient-to-br from-primary/10 to-primary-dark/5 rounded-2xl p-8 border border-primary/20">
-              <h3 className="text-xl font-bold text-foreground mb-4">Why Choose SurakshaLMS?</h3>
-              <ul className="space-y-3">
-                {["24/7 Support", "Secure Platform", "Easy Integration", "Comprehensive Training"].map((item, idx) => (
-                  <li key={idx} className="flex items-center gap-3">
-                    <CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0" />
-                    <span className="text-foreground">{item}</span>
-                  </li>
-                ))}
-              </ul>
+            {/* Decorative element */}
+            <div className="hidden lg:block relative h-48 rounded-2xl overflow-hidden">
+              <img 
+                src="https://images.unsplash.com/photo-1580892037498-cfafa83ed50b?auto=format&fit=crop&w=600&q=80"
+                alt="Sri Lanka landscape"
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-primary/60 to-transparent" />
             </div>
           </div>
 
           {/* Contact Form */}
-          <div className={`transition-all duration-700 delay-300 ${isVisible ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-8'}`}>
-            <form onSubmit={handleSubmit} className="bg-gradient-to-br from-card to-card/50 backdrop-blur-sm rounded-2xl p-8 border border-border/50 shadow-2xl space-y-6">
-              {isSuccess && (
-                <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-3 animate-fade-in">
-                  <CheckCircle2 className="w-6 h-6 text-green-600" />
-                  <p className="text-green-800 font-medium">Message sent successfully!</p>
+          <div className="lg:col-span-3">
+            <form onSubmit={handleSubmit} className="bg-card rounded-2xl p-8 shadow-lg space-y-6">
+              <div className="grid md:grid-cols-2 gap-6">
+                <div>
+                  <label htmlFor="name" className="block text-sm font-medium text-foreground mb-2">
+                    Your Name *
+                  </label>
+                  <input
+                    type="text"
+                    id="name"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleChange}
+                    className={`w-full px-4 py-3 bg-background border rounded-xl focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all ${
+                      errors.name ? 'border-destructive' : 'border-border'
+                    }`}
+                    placeholder="John Doe"
+                    maxLength={100}
+                  />
+                  {errors.name && <p className="text-destructive text-sm mt-1">{errors.name}</p>}
                 </div>
-              )}
 
-              <div className="space-y-2">
-                <Label htmlFor="name" className="text-foreground font-semibold">Full Name *</Label>
-                <Input
-                  id="name"
-                  name="name"
-                  type="text"
-                  value={formData.name}
-                  onChange={handleChange}
-                  placeholder="John Doe"
-                  className={`h-12 border-2 focus:border-primary transition-all duration-300 ${errors.name ? 'border-destructive' : ''}`}
-                  disabled={isSubmitting}
-                  maxLength={100}
-                  aria-invalid={!!errors.name}
-                  aria-describedby={errors.name ? "name-error" : undefined}
-                />
-                {errors.name && (
-                  <p id="name-error" className="text-sm text-destructive animate-fade-in">{errors.name}</p>
-                )}
+                <div>
+                  <label htmlFor="email" className="block text-sm font-medium text-foreground mb-2">
+                    Email Address *
+                  </label>
+                  <input
+                    type="email"
+                    id="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleChange}
+                    className={`w-full px-4 py-3 bg-background border rounded-xl focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all ${
+                      errors.email ? 'border-destructive' : 'border-border'
+                    }`}
+                    placeholder="john@example.com"
+                    maxLength={255}
+                  />
+                  {errors.email && <p className="text-destructive text-sm mt-1">{errors.email}</p>}
+                </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="email" className="text-foreground font-semibold">Email Address *</Label>
-                <Input
-                  id="email"
-                  name="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  placeholder="john@example.com"
-                  className={`h-12 border-2 focus:border-primary transition-all duration-300 ${errors.email ? 'border-destructive' : ''}`}
-                  disabled={isSubmitting}
-                  maxLength={255}
-                  aria-invalid={!!errors.email}
-                  aria-describedby={errors.email ? "email-error" : undefined}
-                />
-                {errors.email && (
-                  <p id="email-error" className="text-sm text-destructive animate-fade-in">{errors.email}</p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="phone" className="text-foreground font-semibold">Phone Number *</Label>
-                <Input
-                  id="phone"
-                  name="phone"
+              <div>
+                <label htmlFor="phone_number" className="block text-sm font-medium text-foreground mb-2">
+                  Phone Number *
+                </label>
+                <input
                   type="tel"
-                  value={formData.phone}
+                  id="phone_number"
+                  name="phone_number"
+                  value={formData.phone_number}
                   onChange={handleChange}
-                  placeholder="+94 70 330 0524"
-                  className={`h-12 border-2 focus:border-primary transition-all duration-300 ${errors.phone ? 'border-destructive' : ''}`}
-                  disabled={isSubmitting}
+                  className={`w-full px-4 py-3 bg-background border rounded-xl focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all ${
+                    errors.phone_number ? 'border-destructive' : 'border-border'
+                  }`}
+                  placeholder="+94 77 123 4567"
                   maxLength={20}
-                  aria-invalid={!!errors.phone}
-                  aria-describedby={errors.phone ? "phone-error" : undefined}
                 />
-                {errors.phone && (
-                  <p id="phone-error" className="text-sm text-destructive animate-fade-in">{errors.phone}</p>
-                )}
+                {errors.phone_number && <p className="text-destructive text-sm mt-1">{errors.phone_number}</p>}
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="message" className="text-foreground font-semibold">Message *</Label>
-                <Textarea
+              <div>
+                <label htmlFor="message" className="block text-sm font-medium text-foreground mb-2">
+                  Your Message *
+                </label>
+                <textarea
                   id="message"
                   name="message"
                   value={formData.message}
                   onChange={handleChange}
-                  placeholder="Tell us how we can help you..."
-                  className={`min-h-32 border-2 focus:border-primary transition-all duration-300 resize-none ${errors.message ? 'border-destructive' : ''}`}
-                  disabled={isSubmitting}
+                  rows={5}
+                  className={`w-full px-4 py-3 bg-background border rounded-xl focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all resize-none ${
+                    errors.message ? 'border-destructive' : 'border-border'
+                  }`}
+                  placeholder="Tell us about your dream trip to Sri Lanka..."
                   maxLength={1000}
-                  aria-invalid={!!errors.message}
-                  aria-describedby={errors.message ? "message-error" : undefined}
                 />
-                <div className="flex justify-between items-center">
-                  {errors.message ? (
-                    <p id="message-error" className="text-sm text-destructive animate-fade-in">{errors.message}</p>
-                  ) : (
-                    <span className="text-xs text-muted-foreground">{formData.message.length}/1000</span>
-                  )}
-                </div>
+                {errors.message && <p className="text-destructive text-sm mt-1">{errors.message}</p>}
               </div>
 
-              <Button
+              <button
                 type="submit"
-                disabled={isSubmitting}
-                className="w-full h-12 bg-gradient-to-r from-primary to-primary-dark hover:from-primary-dark hover:to-primary text-primary-foreground font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed group"
+                disabled={loading}
+                className="w-full py-4 bg-primary text-primary-foreground rounded-xl font-medium hover:bg-primary/90 transition-all flex items-center justify-center gap-2 disabled:opacity-70"
               >
-                {isSubmitting ? (
-                  <span className="flex items-center gap-2">
-                    <div className="w-5 h-5 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin"></div>
+                {loading ? (
+                  <>
+                    <Loader2 className="animate-spin" size={20} />
                     Sending...
-                  </span>
+                  </>
                 ) : (
-                  <span className="flex items-center gap-2">
+                  <>
+                    <Send size={20} />
                     Send Message
-                    <Send className="w-5 h-5 group-hover:translate-x-1 transition-transform duration-300" />
-                  </span>
+                  </>
                 )}
-              </Button>
-
-              <p className="text-xs text-muted-foreground text-center">
-                By submitting this form, you agree to our{" "}
-                <a href="/privacy" className="text-primary hover:underline">Privacy Policy</a>
-              </p>
+              </button>
             </form>
           </div>
         </div>
