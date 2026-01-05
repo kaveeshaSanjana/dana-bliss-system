@@ -52,8 +52,8 @@ const ContactForm = () => {
     setLoading(true);
 
     try {
-      // Submit to Google Sheets via Google Apps Script web app
-      const scriptUrl = "https://script.google.com/macros/s/AKfycby6L4OD_24KWvvGraCqHqAPi7ZaMhT2FFKamJdmKlGkwAxbfb_sCjX-jX9JLHhowXKu/exec";
+      // Submit to Google Sheets via Google Apps Script web app (type=contact_us is default)
+      const scriptUrl = "https://script.google.com/macros/s/AKfycbyRU-Smg1m5dsJXS6EPDsKYylIXHlGsoK9342zzZQCzeZywWymxaDkyx-EGt0R6DSM/exec";
 
       // Send data to Google Apps Script
       await fetch(scriptUrl, {
