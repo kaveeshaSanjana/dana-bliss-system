@@ -7,6 +7,7 @@ const Hero = () => {
   const title = content['hero_title'] || 'Discover Sri Lanka';
   const subtitle = content['hero_subtitle'] || 'The Pearl of the Indian Ocean';
   const description = content['hero_description'] || 'Experience ancient temples, pristine beaches, lush tea plantations, and warm hospitality';
+  const heroBackgroundImage = content['hero_background_image'] || 'https://images.unsplash.com/photo-1586523969764-f4e2b6bc92e6?auto=format&fit=crop&w=1920&q=80';
 
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
@@ -14,7 +15,7 @@ const Hero = () => {
       <div 
         className="absolute inset-0 bg-cover bg-center bg-no-repeat"
         style={{
-          backgroundImage: `url('https://images.unsplash.com/photo-1586523969764-f4e2b6bc92e6?auto=format&fit=crop&w=1920&q=80')`,
+          backgroundImage: `url('${heroBackgroundImage}')`,
         }}
       >
         <div className="absolute inset-0 bg-gradient-to-b from-foreground/60 via-foreground/40 to-background" />
