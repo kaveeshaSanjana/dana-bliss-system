@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useSpecialVisits } from '@/hooks/useGoogleSheets';
 import { toast } from 'sonner';
 
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyRU-Smg1m5dsJXS6EPDsKYylIXHlGsoK9342zzZQCzeZywWymxaDkyx-EGt0R6DSM/exec';
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzAcX_myvtg7yWOMStiakBuUWFqRf48xEHwThwIcrFRXcHHkvhKFrm96P5T-C158Z0o/exec';
 
 interface ReviewFormData {
   name: string;
@@ -47,10 +47,10 @@ const ReviewForm = () => {
     setSubmitting(true);
     
     try {
-      const response = await fetch(`${SCRIPT_URL}?type=review`, {
+      const response = await fetch(SCRIPT_URL, {
         method: 'POST',
         mode: 'no-cors', // Required for Google Apps Script
-        body: JSON.stringify(formData),
+        body: JSON.stringify({ ...formData, type: 'review' }),
         headers: { 'Content-Type': 'application/json' },
       });
       
