@@ -1,8 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useOtherContent } from '@/hooks/useGoogleSheets';
-import { Send, Phone, Mail, MapPin, Loader2 } from 'lucide-react';
+import { Send, Phone, Mail, MapPin, Loader2, Sparkles, Heart, Plane, MessageCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 import { z } from 'zod';
+import confetti from 'canvas-confetti';
 
 const contactSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(100, "Name must be less than 100 characters"),
@@ -16,12 +19,51 @@ const ContactForm = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [showThankYou, setShowThankYou] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     phone_number: '',
     message: '',
   });
+
+  const triggerConfetti = () => {
+    // Star-shaped confetti burst
+    const defaults = {
+      spread: 360,
+      ticks: 100,
+      gravity: 0.5,
+      decay: 0.94,
+      startVelocity: 30,
+      shapes: ['star'],
+      colors: ['#FFD700', '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4']
+    };
+
+    confetti({
+      ...defaults,
+      particleCount: 50,
+      scalar: 1.2,
+      origin: { x: 0.5, y: 0.3 }
+    });
+
+    setTimeout(() => {
+      confetti({
+        ...defaults,
+        particleCount: 30,
+        scalar: 0.75,
+        origin: { x: 0.3, y: 0.5 }
+      });
+    }, 150);
+
+    setTimeout(() => {
+      confetti({
+        ...defaults,
+        particleCount: 30,
+        scalar: 0.75,
+        origin: { x: 0.7, y: 0.5 }
+      });
+    }, 300);
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -68,11 +110,8 @@ const ContactForm = () => {
         }),
       });
 
-      toast({
-        title: "Message Sent! ✨",
-        description: "Thank you for contacting us. We'll get back to you soon!",
-      });
-
+      setShowThankYou(true);
+      triggerConfetti();
       setFormData({ name: '', email: '', phone_number: '', message: '' });
     } catch (error) {
       toast({
@@ -114,7 +153,9 @@ const ContactForm = () => {
                   </div>
                   <div>
                     <p className="font-medium text-foreground">Phone</p>
-                    <p className="text-muted-foreground">{content['contact_phone'] || '+94 77 123 4567'}</p>
+                    <a href="tel:+94766776015" className="text-muted-foreground hover:text-primary transition-colors">
+                      +94 76 677 6015
+                    </a>
                   </div>
                 </div>
 
@@ -124,7 +165,9 @@ const ContactForm = () => {
                   </div>
                   <div>
                     <p className="font-medium text-foreground">Email</p>
-                    <p className="text-muted-foreground">{content['contact_email'] || 'hello@srilanka.travel'}</p>
+                    <a href="mailto:Kalumprasad1500@gmail.com" className="text-muted-foreground hover:text-primary transition-colors">
+                      Kalumprasad1500@gmail.com
+                    </a>
                   </div>
                 </div>
 
@@ -136,6 +179,29 @@ const ContactForm = () => {
                     <p className="font-medium text-foreground">Location</p>
                     <p className="text-muted-foreground">{content['contact_address'] || 'Colombo, Sri Lanka'}</p>
                   </div>
+                </div>
+              </div>
+
+              {/* Quick Contact Buttons */}
+              <div className="mt-8 pt-6 border-t border-border">
+                <p className="text-sm text-muted-foreground mb-4">Quick Contact</p>
+                <div className="flex gap-3">
+                  <a
+                    href="tel:+94766776015"
+                    className="flex-1 flex items-center justify-center gap-2 py-3 px-4 bg-primary text-primary-foreground rounded-xl font-medium hover:bg-primary/90 transition-all"
+                  >
+                    <Phone size={18} />
+                    Call Now
+                  </a>
+                  <a
+                    href="https://wa.me/94766776015?text=Hello%21%20I%27m%20interested%20in%20your%20Sri%20Lanka%20tour%20services."
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 flex items-center justify-center gap-2 py-3 px-4 bg-green-500 text-white rounded-xl font-medium hover:bg-green-600 transition-all"
+                  >
+                    <MessageCircle size={18} />
+                    WhatsApp
+                  </a>
                 </div>
               </div>
             </div>
@@ -252,6 +318,37 @@ const ContactForm = () => {
             </form>
           </div>
         </div>
+
+        {/* Thank You Dialog */}
+        <Dialog open={showThankYou} onOpenChange={setShowThankYou}>
+          <DialogContent className="sm:max-w-md text-center">
+            <div className="flex flex-col items-center py-6">
+              <div className="relative mb-6">
+                <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center">
+                  <Plane className="w-10 h-10 text-primary" />
+                </div>
+                <div className="absolute -top-1 -right-1">
+                  <Sparkles className="w-6 h-6 text-yellow-400" />
+                </div>
+                <div className="absolute -bottom-1 -left-1">
+                  <Heart className="w-5 h-5 text-red-400" />
+                </div>
+              </div>
+              <h3 className="text-2xl font-bold text-foreground mb-3">
+                Thank You!
+              </h3>
+              <p className="text-muted-foreground text-lg mb-6">
+                Thank you for Contact Us.
+              </p>
+              <Button 
+                onClick={() => setShowThankYou(false)}
+                className="bg-primary hover:bg-primary/90 text-primary-foreground px-8"
+              >
+                Close
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </section>
   );

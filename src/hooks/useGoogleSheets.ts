@@ -90,6 +90,12 @@ export const useSpecialVisits = () => {
 export const useReviews = () => {
   const [data, setData] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const refetch = () => {
+    setLoading(true);
+    setRefreshKey(prev => prev + 1);
+  };
 
   useEffect(() => {
     fetchSheetData('reviews').then(rows => {
@@ -105,9 +111,9 @@ export const useReviews = () => {
       setData(reviews);
       setLoading(false);
     });
-  }, []);
+  }, [refreshKey]);
 
-  return { data, loading };
+  return { data, loading, refetch };
 };
 
 export const useGallery = () => {
@@ -150,7 +156,8 @@ export const useOtherContent = () => {
   return { data, loading };
 };
 
-// For submitting contact form - uses Google Apps Script web app
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwWUdWcAWMrQznpib9F5lVjJQW0Fbh6We4kwDVVO27F4WBFCoIXiG1BzYbF-QSjPWI/exec';
+
 export const submitContactForm = async (formData: {
   name: string;
   email: string;
@@ -158,28 +165,52 @@ export const submitContactForm = async (formData: {
   message: string;
 }): Promise<boolean> => {
   try {
-    // Google Apps Script Web App URL - user needs to deploy their own script
-    // For now, we'll use a form submission approach
-    const scriptUrl = `https://docs.google.com/forms/d/e/YOUR_FORM_ID/formResponse`;
-    
-    // Alternative: Direct sheet append via Apps Script
-    // The user should deploy this script and replace the URL:
-    /*
-    function doPost(e) {
-      var sheet = SpreadsheetApp.openById('SHEET_ID').getSheetByName('contact_us');
-      var data = JSON.parse(e.postData.contents);
-      sheet.appendRow([data.name, data.email, data.phone_number, data.message, new Date()]);
-      return ContentService.createTextOutput(JSON.stringify({success: true}));
+    const response = await fetch(SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...formData,
+        type: 'contact_us'
+      })
+    });
+    const result = await response.json();
+    console.log("Contact form response:", result);
+    if (!response.ok || result.status !== "success") {
+      console.error("Contact form failed:", result);
+      return false;
     }
-    */
-    
-    // For demo purposes, log the submission
-    console.log('Contact form submitted:', formData);
-    
-    // Simulate successful submission
     return true;
   } catch (error) {
-    console.error('Error submitting form:', error);
+    console.error('Error submitting contact form:', error);
+    return false;
+  }
+};
+
+// For submitting reviews - uses Google Apps Script web app
+export const submitReview = async (formData: {
+  name: string;
+  rating: number;
+  comment: string;
+  special_visits_category: string;
+}): Promise<boolean> => {
+  try {
+    const response = await fetch(SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...formData,
+        type: 'review'
+      })
+    });
+    const result = await response.json();
+    console.log("Review response:", result);
+    if (!response.ok || result.status !== "success") {
+      console.error("Review failed:", result);
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.error('Error submitting review:', error);
     return false;
   }
 };

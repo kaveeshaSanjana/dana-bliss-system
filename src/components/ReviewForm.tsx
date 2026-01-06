@@ -1,13 +1,15 @@
-import { useState } from 'react';
-import { Star, Send, Loader2 } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Star, Send, Loader2, PartyPopper, PenLine } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { useSpecialVisits } from '@/hooks/useGoogleSheets';
 import { toast } from 'sonner';
+import confetti from 'canvas-confetti';
 
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzAcX_myvtg7yWOMStiakBuUWFqRf48xEHwThwIcrFRXcHHkvhKFrm96P5T-C158Z0o/exec';
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwWUdWcAWMrQznpib9F5lVjJQW0Fbh6We4kwDVVO27F4WBFCoIXiG1BzYbF-QSjPWI/exec';
 
 interface ReviewFormData {
   name: string;
@@ -16,16 +18,66 @@ interface ReviewFormData {
   special_visits_category: string;
 }
 
-const ReviewForm = () => {
+interface ReviewFormProps {
+  onReviewSubmitted?: () => void;
+  preselectedCategory?: string;
+  onSuccess?: () => void;
+  hideHeader?: boolean;
+}
+
+const ReviewForm = ({ onReviewSubmitted, preselectedCategory, onSuccess, hideHeader = false }: ReviewFormProps) => {
   const { data: specialVisits, loading: visitsLoading } = useSpecialVisits();
   const [formData, setFormData] = useState<ReviewFormData>({
     name: '',
     rating: 5,
     comment: '',
-    special_visits_category: '',
+    special_visits_category: preselectedCategory || '',
   });
   const [submitting, setSubmitting] = useState(false);
   const [hoveredStar, setHoveredStar] = useState(0);
+  const [showThankYou, setShowThankYou] = useState(false);
+  const sectionRef = useRef<HTMLElement>(null);
+  const [isVisible, setIsVisible] = useState(false);
+
+  // Intersection Observer for scroll animations
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsVisible(true);
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (sectionRef.current) {
+      observer.observe(sectionRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, []);
+
+  const triggerConfetti = () => {
+    // Fire confetti from both sides
+    confetti({
+      particleCount: 100,
+      spread: 70,
+      origin: { x: 0.1, y: 0.6 }
+    });
+    confetti({
+      particleCount: 100,
+      spread: 70,
+      origin: { x: 0.9, y: 0.6 }
+    });
+    // Center burst
+    setTimeout(() => {
+      confetti({
+        particleCount: 150,
+        spread: 100,
+        origin: { x: 0.5, y: 0.5 }
+      });
+    }, 200);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,7 +99,7 @@ const ReviewForm = () => {
     setSubmitting(true);
     
     try {
-      const response = await fetch(SCRIPT_URL, {
+      await fetch(SCRIPT_URL, {
         method: 'POST',
         mode: 'no-cors', // Required for Google Apps Script
         body: JSON.stringify({ ...formData, type: 'review' }),
@@ -55,19 +107,36 @@ const ReviewForm = () => {
       });
       
       // no-cors doesn't give us response status, assume success
-      toast.success('Thank you for your review!');
+      setShowThankYou(true);
+      triggerConfetti();
       setFormData({
         name: '',
         rating: 5,
         comment: '',
         special_visits_category: '',
       });
+      
+      // Refresh reviews after a short delay to allow sheet to update
+      if (onReviewSubmitted) {
+        setTimeout(() => {
+          onReviewSubmitted();
+        }, 2000);
+      }
+      if (onSuccess) {
+        setTimeout(() => {
+          onSuccess();
+        }, 2000);
+      }
     } catch (error) {
       console.error('Error submitting review:', error);
       toast.error('Failed to submit review. Please try again.');
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleCloseThankYou = () => {
+    setShowThankYou(false);
   };
 
   const renderStars = () => {
@@ -82,14 +151,14 @@ const ReviewForm = () => {
           onClick={() => setFormData(prev => ({ ...prev, rating: starValue }))}
           onMouseEnter={() => setHoveredStar(starValue)}
           onMouseLeave={() => setHoveredStar(0)}
-          className="focus:outline-none transition-transform hover:scale-110"
+          className="focus:outline-none transition-all duration-300 hover:scale-125 active:scale-95"
         >
           <Star
-            size={28}
-            className={`transition-colors ${
+            size={32}
+            className={`transition-all duration-300 drop-shadow-sm ${
               isFilled 
-                ? 'fill-secondary text-secondary' 
-                : 'text-muted-foreground hover:text-secondary/50'
+                ? 'fill-yellow-400 text-yellow-400 drop-shadow-[0_0_8px_rgba(250,204,21,0.5)]' 
+                : 'text-muted-foreground/40 hover:text-yellow-400/60'
             }`}
           />
         </button>
@@ -98,25 +167,37 @@ const ReviewForm = () => {
   };
 
   return (
-    <section id="submit-review" className="py-24 px-4 bg-background">
-      <div className="max-w-2xl mx-auto">
-        {/* Section Header */}
-        <div className="text-center mb-12">
-          <span className="inline-block px-4 py-1 bg-secondary/10 text-secondary rounded-full text-sm font-medium mb-4">
-            Share Your Experience
-          </span>
-          <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-4">
-            Write a <span className="text-primary">Review</span>
-          </h2>
-          <p className="text-muted-foreground max-w-xl mx-auto">
-            Help other travelers by sharing your experience in Sri Lanka
-          </p>
-        </div>
+    <section ref={sectionRef} id="submit-review" className={hideHeader ? "" : "py-24 px-4 bg-gradient-to-b from-background via-primary/5 to-background overflow-hidden"}>
+      <div className={hideHeader ? "" : "max-w-2xl mx-auto"}>
+        {/* Section Header - hide when embedded */}
+        {!hideHeader && (
+          <div className={`text-center mb-12 transition-all duration-700 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
+            <span className="inline-flex items-center gap-2 px-4 py-1.5 bg-secondary/10 text-secondary rounded-full text-sm font-medium mb-4">
+              <PenLine size={14} className="animate-bounce-gentle" />
+              Share Your Experience
+            </span>
+            <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-4">
+              Write a <span className="text-primary">Review</span>
+            </h2>
+            <p className="text-muted-foreground max-w-xl mx-auto">
+              Help other travelers by sharing your experience in Sri Lanka
+            </p>
+          </div>
+        )}
 
         {/* Review Form */}
-        <form onSubmit={handleSubmit} className="bg-card rounded-3xl p-8 md:p-10 shadow-xl">
+        <form 
+          onSubmit={handleSubmit} 
+          className={`group bg-card rounded-3xl p-8 md:p-10 shadow-xl relative overflow-hidden transition-all duration-700 delay-200 hover:shadow-2xl ${
+            isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
+          }`}
+        >
+          {/* Decorative elements */}
+          <div className="absolute -top-20 -right-20 w-40 h-40 bg-primary/5 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-700" />
+          <div className="absolute -bottom-20 -left-20 w-40 h-40 bg-secondary/5 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-700" />
+          
           {/* Name */}
-          <div className="mb-6">
+          <div className="mb-6 relative z-10">
             <label htmlFor="reviewer-name" className="block text-sm font-medium text-foreground mb-2">
               Your Name <span className="text-destructive">*</span>
             </label>
@@ -126,45 +207,51 @@ const ReviewForm = () => {
               placeholder="John Doe"
               value={formData.name}
               onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-              className="bg-background"
+              className="bg-background transition-all duration-300 focus:ring-2 focus:ring-primary/20 focus:border-primary hover:border-primary/50"
               required
             />
           </div>
 
-          {/* Destination */}
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-foreground mb-2">
-              Destination Visited <span className="text-destructive">*</span>
-            </label>
-            <Select
-              value={formData.special_visits_category}
-              onValueChange={(value) => setFormData(prev => ({ ...prev, special_visits_category: value }))}
-            >
-              <SelectTrigger className="bg-background">
-                <SelectValue placeholder={visitsLoading ? "Loading destinations..." : "Select destination"} />
-              </SelectTrigger>
-              <SelectContent>
-                {specialVisits.map((visit) => (
-                  <SelectItem key={visit.name} value={visit.name}>
-                    {visit.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {/* Destination - hide when preselected */}
+          {!preselectedCategory && (
+            <div className="mb-6 relative z-10">
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Destination Visited <span className="text-destructive">*</span>
+              </label>
+              <Select
+                value={formData.special_visits_category}
+                onValueChange={(value) => setFormData(prev => ({ ...prev, special_visits_category: value }))}
+              >
+                <SelectTrigger className="bg-background transition-all duration-300 hover:border-primary/50">
+                  <SelectValue placeholder={visitsLoading ? "Loading destinations..." : "Select destination"} />
+                </SelectTrigger>
+                <SelectContent className="bg-card border-border">
+                  {specialVisits.map((visit) => (
+                    <SelectItem 
+                      key={visit.name} 
+                      value={visit.name}
+                      className="hover:bg-primary/10 focus:bg-primary/10 cursor-pointer transition-colors"
+                    >
+                      {visit.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           {/* Rating */}
-          <div className="mb-6">
+          <div className="mb-6 relative z-10">
             <label className="block text-sm font-medium text-foreground mb-3">
               Your Rating <span className="text-destructive">*</span>
             </label>
-            <div className="flex gap-2">
+            <div className="flex gap-3 p-3 bg-background/50 rounded-xl w-fit">
               {renderStars()}
             </div>
           </div>
 
           {/* Comment */}
-          <div className="mb-8">
+          <div className="mb-8 relative z-10">
             <label htmlFor="review-comment" className="block text-sm font-medium text-foreground mb-2">
               Your Review <span className="text-destructive">*</span>
             </label>
@@ -173,7 +260,7 @@ const ReviewForm = () => {
               placeholder="Share your experience... What did you love about your visit?"
               value={formData.comment}
               onChange={(e) => setFormData(prev => ({ ...prev, comment: e.target.value }))}
-              className="bg-background min-h-[120px] resize-none"
+              className="bg-background min-h-[120px] resize-none transition-all duration-300 focus:ring-2 focus:ring-primary/20 focus:border-primary hover:border-primary/50"
               required
             />
           </div>
@@ -182,21 +269,53 @@ const ReviewForm = () => {
           <Button
             type="submit"
             disabled={submitting}
-            className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-6 text-lg font-semibold"
+            className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-6 text-lg font-semibold relative overflow-hidden group/btn transition-all duration-300 hover:shadow-lg hover:shadow-primary/25 hover:-translate-y-0.5 active:translate-y-0"
           >
-            {submitting ? (
-              <>
-                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                Submitting...
-              </>
-            ) : (
-              <>
-                <Send className="mr-2 h-5 w-5" />
-                Submit Review
-              </>
-            )}
+            <span className="relative z-10 flex items-center justify-center">
+              {submitting ? (
+                <>
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                  Submitting...
+                </>
+              ) : (
+                <>
+                  <Send className="mr-2 h-5 w-5 group-hover/btn:translate-x-1 group-hover/btn:-translate-y-1 transition-transform duration-300" />
+                  Submit Review
+                </>
+              )}
+            </span>
+            <div className="absolute inset-0 bg-gradient-to-r from-primary via-primary/80 to-primary opacity-0 group-hover/btn:opacity-100 transition-opacity duration-300" />
           </Button>
         </form>
+
+        {/* Thank You Dialog */}
+        <Dialog open={showThankYou} onOpenChange={setShowThankYou}>
+          <DialogContent className="sm:max-w-md text-center">
+            <div className="flex flex-col items-center py-6">
+              <div className="relative mb-6 animate-bounce-gentle">
+                <PartyPopper className="w-20 h-20 text-yellow-400 drop-shadow-lg" />
+                <div className="absolute -top-2 -right-2 animate-float">
+                  <span className="text-3xl">🎉</span>
+                </div>
+                <div className="absolute -top-2 -left-2 animate-float" style={{ animationDelay: '0.5s' }}>
+                  <span className="text-3xl">🎊</span>
+                </div>
+              </div>
+              <h3 className="text-2xl font-bold text-foreground mb-3">
+                Thank You!
+              </h3>
+              <p className="text-muted-foreground text-lg mb-6">
+                Thanks for Giving Review for Us.
+              </p>
+              <Button 
+                onClick={handleCloseThankYou}
+                className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 hover:shadow-lg transition-all duration-300"
+              >
+                Close
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </section>
   );
