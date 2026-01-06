@@ -150,15 +150,47 @@ export const useOtherContent = () => {
         
         const content: Record<string, string> = {};
         
-        // Skip header row if it starts with "variable"
-        const dataRows = rows[0]?.[0]?.toLowerCase() === 'variable' ? rows.slice(1) : rows;
-        
-        dataRows.forEach(row => {
-          if (row[0]) {
-            // Store the raw content - comma-separated values will be parsed by consumers
-            content[row[0]] = row[1] || '';
+        // Check if first row is the header with variable names
+        if (rows.length >= 1) {
+          const headerRow = rows[0];
+          const dataRow = rows.length > 1 ? rows[1] : [];
+          
+          // If header contains multiple space-separated variable names in first cell, parse them
+          if (headerRow[0] && headerRow[0].includes(' ')) {
+            const variableNames = headerRow[0].split(' ').filter(Boolean);
+            const contentValues = headerRow[1] ? headerRow[1].split(' ') : [];
+            
+            // Map hero variables from header - handle hero_background_images specially
+            variableNames.forEach((varName, index) => {
+              if (varName === 'hero_background_images') {
+                // Everything from this index onwards is the images (comma-separated URLs)
+                const imagesStartIndex = headerRow[1]?.indexOf('https://');
+                if (imagesStartIndex !== undefined && imagesStartIndex >= 0) {
+                  content[varName] = headerRow[1].substring(imagesStartIndex);
+                }
+              } else if (varName === 'hero_title') {
+                // First word after "content" is hero_title
+                content[varName] = contentValues[1] || '';
+              } else if (varName === 'hero_subtitle' || varName === 'hero_description') {
+                // These are empty in the merged format
+                content[varName] = '';
+              }
+            });
+          } else {
+            // Normal row format: variable in col 0, content in col 1
+            if (headerRow[0] && headerRow[0] !== 'variable') {
+              content[headerRow[0]] = headerRow[1] || '';
+            }
           }
-        });
+          
+          // Process remaining rows normally (skip if first row was header)
+          const dataRows = rows[0][0] === 'variable' || rows[0][0]?.includes(' ') ? rows.slice(1) : rows;
+          dataRows.forEach(row => {
+            if (row[0] && !row[0].includes(' ')) {
+              content[row[0]] = row[1] || '';
+            }
+          });
+        }
         
         console.log('Parsed other content:', content);
         setData(content);
