@@ -9,9 +9,15 @@ const Hero = () => {
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [loadedImages, setLoadedImages] = useState<Set<number>>(new Set([0]));
 
-  const title = content['hero_title'] || 'Discover Sri Lanka';
-  const subtitle = content['hero_subtitle'] || 'The Pearl of the Indian Ocean';
-  const description = content['hero_description'] || 'Experience ancient temples, pristine beaches, lush tea plantations, and warm hospitality';
+  // Parse comma-separated values for titles, subtitles, descriptions
+  const parseCommaSeparated = (value: string, fallback: string): string[] => {
+    const items = value.split(',').map(s => s.trim()).filter(Boolean);
+    return items.length > 0 ? items : [fallback];
+  };
+
+  const titles = parseCommaSeparated(content['hero_title'] || '', 'Discover Sri Lanka');
+  const subtitles = parseCommaSeparated(content['hero_subtitle'] || '', 'The Pearl of the Indian Ocean');
+  const descriptions = parseCommaSeparated(content['hero_description'] || '', 'Experience ancient temples, pristine beaches, lush tea plantations, and warm hospitality');
   
   // Parse multiple images from hero_background_images (comma-separated)
   const heroImagesRaw = content['hero_background_images'] || '';
@@ -23,6 +29,11 @@ const Hero = () => {
   // Fallback to single image or default
   const fallbackImage = content['hero_background_image'] || 'https://images.unsplash.com/photo-1586523969764-f4e2b6bc92e6?auto=format&fit=crop&w=1920&q=80';
   const images = heroImages.length > 0 ? heroImages : [fallbackImage];
+
+  // Get current slide's content (cycle through available values)
+  const currentTitle = titles[currentSlide % titles.length];
+  const currentSubtitle = subtitles[currentSlide % subtitles.length];
+  const currentDescription = descriptions[currentSlide % descriptions.length];
 
   // Preload next image
   useEffect(() => {
@@ -163,9 +174,9 @@ const Hero = () => {
               <span className="animate-shimmer inline-block w-96 h-20 bg-muted rounded" />
             ) : (
               <>
-                {title.split(' ')[0]}{' '}
+                {currentTitle.split(' ')[0]}{' '}
                 <span className="text-secondary bg-gradient-to-r from-secondary via-amber-400 to-secondary bg-clip-text text-transparent bg-[length:200%_100%] animate-shimmer">
-                  {title.split(' ').slice(1).join(' ')}
+                  {currentTitle.split(' ').slice(1).join(' ')}
                 </span>
               </>
             )}
@@ -178,7 +189,7 @@ const Hero = () => {
               isTransitioning ? 'translate-y-full opacity-0' : 'translate-y-0 opacity-100'
             }`}
           >
-            {subtitle}
+            {currentSubtitle}
           </p>
         </div>
 
@@ -188,7 +199,7 @@ const Hero = () => {
               isTransitioning ? 'translate-y-full opacity-0' : 'translate-y-0 opacity-100'
             }`}
           >
-            {description}
+            {currentDescription}
           </p>
         </div>
 
