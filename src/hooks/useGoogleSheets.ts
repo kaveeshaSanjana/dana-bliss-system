@@ -141,16 +141,67 @@ export const useOtherContent = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchSheetData('other').then(rows => {
-      const content: Record<string, string> = {};
-      rows.forEach(row => {
-        if (row[0]) {
-          content[row[0]] = row[1] || '';
+    const fetchData = async () => {
+      try {
+        const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=other`;
+        const response = await fetch(url);
+        const csv = await response.text();
+        const rows = parseCSV(csv);
+        
+        const content: Record<string, string> = {};
+        
+        // Check if first row is the header with variable names
+        if (rows.length >= 1) {
+          const headerRow = rows[0];
+          const dataRow = rows.length > 1 ? rows[1] : [];
+          
+          // If header contains multiple space-separated variable names in first cell, parse them
+          if (headerRow[0] && headerRow[0].includes(' ')) {
+            const variableNames = headerRow[0].split(' ').filter(Boolean);
+            const contentValues = headerRow[1] ? headerRow[1].split(' ') : [];
+            
+            // Map hero variables from header - handle hero_background_images specially
+            variableNames.forEach((varName, index) => {
+              if (varName === 'hero_background_images') {
+                // Everything from this index onwards is the images (comma-separated URLs)
+                const imagesStartIndex = headerRow[1]?.indexOf('https://');
+                if (imagesStartIndex !== undefined && imagesStartIndex >= 0) {
+                  content[varName] = headerRow[1].substring(imagesStartIndex);
+                }
+              } else if (varName === 'hero_title') {
+                // First word after "content" is hero_title
+                content[varName] = contentValues[1] || '';
+              } else if (varName === 'hero_subtitle' || varName === 'hero_description') {
+                // These are empty in the merged format
+                content[varName] = '';
+              }
+            });
+          } else {
+            // Normal row format: variable in col 0, content in col 1
+            if (headerRow[0] && headerRow[0] !== 'variable') {
+              content[headerRow[0]] = headerRow[1] || '';
+            }
+          }
+          
+          // Process remaining rows normally (skip if first row was header)
+          const dataRows = rows[0][0] === 'variable' || rows[0][0]?.includes(' ') ? rows.slice(1) : rows;
+          dataRows.forEach(row => {
+            if (row[0] && !row[0].includes(' ')) {
+              content[row[0]] = row[1] || '';
+            }
+          });
         }
-      });
-      setData(content);
-      setLoading(false);
-    });
+        
+        console.log('Parsed other content:', content);
+        setData(content);
+        setLoading(false);
+      } catch (error) {
+        console.error('Error fetching other content:', error);
+        setLoading(false);
+      }
+    };
+    
+    fetchData();
   }, []);
 
   return { data, loading };
