@@ -1,13 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
-import { Star, Send, Loader2, PartyPopper, PenLine } from 'lucide-react';
+import { Star, Send, Loader2, PartyPopper, PenLine, X, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { useSpecialVisits } from '@/hooks/useGoogleSheets';
 import { toast } from 'sonner';
 import confetti from 'canvas-confetti';
+import { Checkbox } from '@/components/ui/checkbox';
 
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwWUdWcAWMrQznpib9F5lVjJQW0Fbh6We4kwDVVO27F4WBFCoIXiG1BzYbF-QSjPWI/exec';
 
@@ -27,11 +27,15 @@ interface ReviewFormProps {
 
 const ReviewForm = ({ onReviewSubmitted, preselectedCategory, onSuccess, hideHeader = false }: ReviewFormProps) => {
   const { data: specialVisits, loading: visitsLoading } = useSpecialVisits();
-  const [formData, setFormData] = useState<ReviewFormData>({
+  const [selectedDestinations, setSelectedDestinations] = useState<string[]>(
+    preselectedCategory ? [preselectedCategory] : []
+  );
+  const [customDestination, setCustomDestination] = useState('');
+  const [showCustomInput, setShowCustomInput] = useState(false);
+  const [formData, setFormData] = useState<Omit<ReviewFormData, 'special_visits_category'>>({
     name: '',
     rating: 5,
     comment: '',
-    special_visits_category: preselectedCategory || '',
   });
   const [submitting, setSubmitting] = useState(false);
   const [hoveredStar, setHoveredStar] = useState(0);
@@ -58,7 +62,6 @@ const ReviewForm = ({ onReviewSubmitted, preselectedCategory, onSuccess, hideHea
   }, []);
 
   const triggerConfetti = () => {
-    // Fire confetti from both sides
     confetti({
       particleCount: 100,
       spread: 70,
@@ -69,7 +72,6 @@ const ReviewForm = ({ onReviewSubmitted, preselectedCategory, onSuccess, hideHea
       spread: 70,
       origin: { x: 0.9, y: 0.6 }
     });
-    // Center burst
     setTimeout(() => {
       confetti({
         particleCount: 150,
@@ -77,6 +79,27 @@ const ReviewForm = ({ onReviewSubmitted, preselectedCategory, onSuccess, hideHea
         origin: { x: 0.5, y: 0.5 }
       });
     }, 200);
+  };
+
+  const handleDestinationToggle = (destination: string) => {
+    setSelectedDestinations(prev => 
+      prev.includes(destination)
+        ? prev.filter(d => d !== destination)
+        : [...prev, destination]
+    );
+  };
+
+  const handleAddCustomDestination = () => {
+    const trimmed = customDestination.trim();
+    if (trimmed && !selectedDestinations.includes(trimmed)) {
+      setSelectedDestinations(prev => [...prev, trimmed]);
+      setCustomDestination('');
+      setShowCustomInput(false);
+    }
+  };
+
+  const handleRemoveDestination = (destination: string) => {
+    setSelectedDestinations(prev => prev.filter(d => d !== destination));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -91,32 +114,35 @@ const ReviewForm = ({ onReviewSubmitted, preselectedCategory, onSuccess, hideHea
       toast.error('Please enter your review');
       return;
     }
-    if (!formData.special_visits_category) {
-      toast.error('Please select a destination');
+    if (selectedDestinations.length === 0) {
+      toast.error('Please select at least one destination');
       return;
     }
 
     setSubmitting(true);
     
     try {
+      const submitData: ReviewFormData = {
+        ...formData,
+        special_visits_category: selectedDestinations.join(', ')
+      };
+
       await fetch(SCRIPT_URL, {
         method: 'POST',
-        mode: 'no-cors', // Required for Google Apps Script
-        body: JSON.stringify({ ...formData, type: 'review' }),
+        mode: 'no-cors',
+        body: JSON.stringify({ ...submitData, type: 'review' }),
         headers: { 'Content-Type': 'application/json' },
       });
       
-      // no-cors doesn't give us response status, assume success
       setShowThankYou(true);
       triggerConfetti();
       setFormData({
         name: '',
         rating: 5,
         comment: '',
-        special_visits_category: '',
       });
+      setSelectedDestinations([]);
       
-      // Refresh reviews after a short delay to allow sheet to update
       if (onReviewSubmitted) {
         setTimeout(() => {
           onReviewSubmitted();
@@ -169,7 +195,7 @@ const ReviewForm = ({ onReviewSubmitted, preselectedCategory, onSuccess, hideHea
   return (
     <section ref={sectionRef} id="submit-review" className={hideHeader ? "" : "py-24 px-4 bg-gradient-to-b from-background via-primary/5 to-background overflow-hidden"}>
       <div className={hideHeader ? "" : "max-w-2xl mx-auto"}>
-        {/* Section Header - hide when embedded */}
+        {/* Section Header */}
         {!hideHeader && (
           <div className={`text-center mb-12 transition-all duration-700 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
             <span className="inline-flex items-center gap-2 px-4 py-1.5 bg-secondary/10 text-secondary rounded-full text-sm font-medium mb-4">
@@ -212,31 +238,108 @@ const ReviewForm = ({ onReviewSubmitted, preselectedCategory, onSuccess, hideHea
             />
           </div>
 
-          {/* Destination - hide when preselected */}
+          {/* Destinations - Multi-select with checkboxes */}
           {!preselectedCategory && (
             <div className="mb-6 relative z-10">
-              <label className="block text-sm font-medium text-foreground mb-2">
-                Destination Visited <span className="text-destructive">*</span>
+              <label className="block text-sm font-medium text-foreground mb-3">
+                Destinations Visited <span className="text-destructive">*</span>
+                <span className="text-muted-foreground font-normal ml-2">(Select multiple)</span>
               </label>
-              <Select
-                value={formData.special_visits_category}
-                onValueChange={(value) => setFormData(prev => ({ ...prev, special_visits_category: value }))}
-              >
-                <SelectTrigger className="bg-background transition-all duration-300 hover:border-primary/50">
-                  <SelectValue placeholder={visitsLoading ? "Loading destinations..." : "Select destination"} />
-                </SelectTrigger>
-                <SelectContent className="bg-card border-border">
-                  {specialVisits.map((visit) => (
-                    <SelectItem 
-                      key={visit.name} 
-                      value={visit.name}
-                      className="hover:bg-primary/10 focus:bg-primary/10 cursor-pointer transition-colors"
+              
+              {/* Selected destinations tags */}
+              {selectedDestinations.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {selectedDestinations.map((dest) => (
+                    <span 
+                      key={dest} 
+                      className="inline-flex items-center gap-1 px-3 py-1 bg-primary/10 text-primary rounded-full text-sm font-medium"
                     >
-                      {visit.name}
-                    </SelectItem>
+                      {dest}
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveDestination(dest)}
+                        className="ml-1 hover:bg-primary/20 rounded-full p-0.5 transition-colors"
+                      >
+                        <X size={14} />
+                      </button>
+                    </span>
                   ))}
-                </SelectContent>
-              </Select>
+                </div>
+              )}
+
+              {/* Checkbox list */}
+              <div className="bg-background rounded-xl p-4 border border-border max-h-48 overflow-y-auto space-y-2">
+                {visitsLoading ? (
+                  <p className="text-muted-foreground text-sm">Loading destinations...</p>
+                ) : (
+                  <>
+                    {specialVisits.map((visit) => (
+                      <label 
+                        key={visit.name}
+                        className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
+                      >
+                        <Checkbox
+                          checked={selectedDestinations.includes(visit.name)}
+                          onCheckedChange={() => handleDestinationToggle(visit.name)}
+                          className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                        />
+                        <span className="text-foreground text-sm">{visit.name}</span>
+                      </label>
+                    ))}
+                  </>
+                )}
+              </div>
+
+              {/* Add Custom Destination */}
+              <div className="mt-3">
+                {showCustomInput ? (
+                  <div className="flex gap-2">
+                    <Input
+                      type="text"
+                      placeholder="Enter custom destination..."
+                      value={customDestination}
+                      onChange={(e) => setCustomDestination(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleAddCustomDestination();
+                        }
+                      }}
+                      className="flex-1 bg-background"
+                      autoFocus
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleAddCustomDestination}
+                      disabled={!customDestination.trim()}
+                    >
+                      Add
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setShowCustomInput(false);
+                        setCustomDestination('');
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setShowCustomInput(true)}
+                    className="inline-flex items-center gap-2 text-sm text-primary hover:text-primary/80 transition-colors"
+                  >
+                    <Plus size={16} />
+                    Add custom destination
+                  </button>
+                )}
+              </div>
             </div>
           )}
 

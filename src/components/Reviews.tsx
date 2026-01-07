@@ -38,9 +38,9 @@ const Reviews = ({ onRefetchRef }: ReviewsProps) => {
     return () => observer.disconnect();
   }, []);
 
-  // Show 4 cards by default
-  const mobileMax = parseInt(otherContent['in_mobile_max_reviews'] || '4');
-  const desktopMax = parseInt(otherContent['in_desktop_max_reviews'] || '4');
+  // Show items based on config
+  const mobileMax = otherContent.in_mobile_max_reviews;
+  const desktopMax = otherContent.in_desktop_max_reviews;
   const maxItems = isMobile ? mobileMax : desktopMax;
 
   const displayedReviews = reviews.slice(0, maxItems);

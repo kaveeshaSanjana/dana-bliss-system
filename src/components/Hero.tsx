@@ -9,20 +9,18 @@ const Hero = () => {
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [loadedImages, setLoadedImages] = useState<Set<number>>(new Set([0]));
 
-  const title = content['hero_title'] || 'Discover Sri Lanka';
-  const subtitle = content['hero_subtitle'] || 'The Pearl of the Indian Ocean';
-  const description = content['hero_description'] || 'Experience ancient temples, pristine beaches, lush tea plantations, and warm hospitality';
+  // Get arrays from content
+  const fallbackImage = 'https://images.unsplash.com/photo-1586523969764-f4e2b6bc92e6?auto=format&fit=crop&w=1920&q=80';
+  const images = content.hero_background_images.length > 0 ? content.hero_background_images : [fallbackImage];
   
-  // Parse multiple images from hero_background_images (comma-separated)
-  const heroImagesRaw = content['hero_background_images'] || '';
-  const heroImages = heroImagesRaw
-    .split(',')
-    .map((url: string) => url.trim())
-    .filter((url: string) => url.length > 0);
+  // Get current slide content (each slide has its own title, subtitle, description)
+  const titles = content.hero_titles.length > 0 ? content.hero_titles : ['Discover Sri Lanka'];
+  const subtitles = content.hero_subtitles.length > 0 ? content.hero_subtitles : ['The Pearl of the Indian Ocean'];
+  const descriptions = content.hero_descriptions.length > 0 ? content.hero_descriptions : ['Experience ancient temples, pristine beaches, lush tea plantations, and warm hospitality'];
   
-  // Fallback to single image or default
-  const fallbackImage = content['hero_background_image'] || 'https://images.unsplash.com/photo-1586523969764-f4e2b6bc92e6?auto=format&fit=crop&w=1920&q=80';
-  const images = heroImages.length > 0 ? heroImages : [fallbackImage];
+  const currentTitle = titles[currentSlide % titles.length] || titles[0];
+  const currentSubtitle = subtitles[currentSlide % subtitles.length] || subtitles[0];
+  const currentDescription = descriptions[currentSlide % descriptions.length] || descriptions[0];
 
   // Preload next image
   useEffect(() => {
@@ -40,7 +38,7 @@ const Hero = () => {
     if (isTransitioning || index === currentSlide) return;
     setIsTransitioning(true);
     setCurrentSlide(index);
-    setTimeout(() => setIsTransitioning(false), 1000);
+    setTimeout(() => setIsTransitioning(false), 500);
   }, [currentSlide, isTransitioning]);
 
   const nextSlide = useCallback(() => {
@@ -51,10 +49,10 @@ const Hero = () => {
     goToSlide((currentSlide - 1 + images.length) % images.length);
   }, [currentSlide, images.length, goToSlide]);
 
-  // Auto-play slideshow
+  // Auto-play slideshow - faster transitions
   useEffect(() => {
     if (!isPlaying || images.length <= 1) return;
-    const interval = setInterval(nextSlide, 6000);
+    const interval = setInterval(nextSlide, 4000);
     return () => clearInterval(interval);
   }, [isPlaying, nextSlide, images.length]);
 
@@ -70,57 +68,39 @@ const Hero = () => {
   const currentTheme = colorThemes[currentSlide % colorThemes.length];
 
   return (
-    <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
-      {/* Background Images with Ken Burns Effect */}
-      {images.map((image, index) => (
-        <div
-          key={index}
-          className={`absolute inset-0 transition-all duration-1000 ease-out ${
-            index === currentSlide 
-              ? 'opacity-100 scale-100' 
-              : 'opacity-0 scale-110'
-          }`}
-          style={{ zIndex: index === currentSlide ? 1 : 0 }}
-        >
-          <div 
-            className={`absolute inset-0 bg-cover bg-center bg-no-repeat transition-transform duration-[8000ms] ease-out ${
-              index === currentSlide ? 'scale-110' : 'scale-100'
-            }`}
-            style={{
-              backgroundImage: `url('${image}')`,
-            }}
-          />
-          {/* Multi-layer gradient overlay */}
-          <div className={`absolute inset-0 bg-gradient-to-b from-foreground/70 via-foreground/40 to-background transition-all duration-1000`} />
-          <div className={`absolute inset-0 bg-gradient-to-r ${currentTheme.accent} to-transparent opacity-50 transition-all duration-1000`} />
-        </div>
-      ))}
-
-      {/* Animated Particles */}
-      <div className="absolute inset-0 z-[2] overflow-hidden pointer-events-none">
-        {[...Array(20)].map((_, i) => (
+    <section className="relative min-h-screen flex items-center justify-center overflow-hidden" aria-label="Hero slideshow showcasing Sri Lanka destinations">
+      {/* Background Images - Only render current and adjacent slides for performance */}
+      {images.map((image, index) => {
+        // Only render current, previous, and next slides
+        const isVisible = index === currentSlide || 
+          index === (currentSlide + 1) % images.length || 
+          index === (currentSlide - 1 + images.length) % images.length;
+        
+        if (!isVisible && images.length > 3) return null;
+        
+        return (
           <div
-            key={i}
-            className="absolute w-1 h-1 bg-secondary/40 rounded-full animate-float"
-            style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-              animationDelay: `${Math.random() * 5}s`,
-              animationDuration: `${3 + Math.random() * 4}s`,
-            }}
-          />
-        ))}
-      </div>
+            key={index}
+            className={`absolute inset-0 transition-opacity duration-700 ease-out ${
+              index === currentSlide ? 'opacity-100' : 'opacity-0'
+            }`}
+            style={{ zIndex: index === currentSlide ? 1 : 0 }}
+          >
+            <img 
+              src={image}
+              alt={`Sri Lanka destination ${index + 1}`}
+              className="absolute inset-0 w-full h-full object-cover"
+              loading={index === 0 ? "eager" : "lazy"}
+              fetchPriority={index === 0 ? "high" : "auto"}
+            />
+            {/* Simplified gradient overlay */}
+            <div className="absolute inset-0 bg-gradient-to-b from-foreground/60 via-foreground/30 to-background" />
+          </div>
+        );
+      })}
 
-      {/* Decorative Elements */}
-      <div className="absolute top-20 left-10 w-32 h-32 border-2 border-secondary/30 rounded-full animate-float opacity-50 z-[2]" />
-      <div className="absolute bottom-40 right-20 w-24 h-24 border border-secondary/20 rotate-45 animate-float opacity-30 z-[2]" style={{ animationDelay: '1s' }} />
-      
-      {/* Dynamic glow effect */}
-      <div 
-        className={`absolute top-1/4 left-1/4 w-96 h-96 ${currentTheme.glow} rounded-full blur-[150px] opacity-20 transition-all duration-1000 z-[2]`}
-        style={{ transform: `translate(${currentSlide * 10}%, ${currentSlide * 5}%)` }}
-      />
+      {/* Simplified decorative glow - reduced for performance */}
+      <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-secondary/10 rounded-full blur-[100px] z-[2]" />
 
       {/* Content */}
       <div className="relative z-10 text-center px-4 max-w-5xl mx-auto">
@@ -132,7 +112,7 @@ const Hero = () => {
             </span>
             <div className="w-12 h-px bg-primary-foreground/30 relative overflow-hidden">
               <div 
-                className="absolute inset-y-0 left-0 bg-secondary transition-all duration-[6000ms] ease-linear"
+                className="absolute inset-y-0 left-0 bg-secondary transition-all duration-[4000ms] ease-linear"
                 style={{ width: isPlaying ? '100%' : '0%' }}
                 key={currentSlide}
               />
@@ -145,17 +125,17 @@ const Hero = () => {
 
         <div className="mb-6 overflow-hidden">
           <span 
-            className={`inline-block px-4 py-2 bg-secondary/20 backdrop-blur-sm rounded-full text-secondary text-sm font-medium tracking-wider uppercase transition-all duration-700 ${
+            className={`inline-block px-4 py-2 bg-secondary/20 backdrop-blur-sm rounded-full text-secondary text-sm font-medium tracking-wider uppercase transition-all duration-400 ${
               isTransitioning ? 'translate-y-full opacity-0' : 'translate-y-0 opacity-100'
             }`}
           >
-            Welcome to Paradise
+            Ceylon Tour Rides
           </span>
         </div>
 
         <div className="overflow-hidden mb-6">
           <h1 
-            className={`text-5xl md:text-7xl lg:text-8xl font-bold text-primary-foreground leading-tight transition-all duration-700 ${
+            className={`text-5xl md:text-7xl lg:text-8xl font-bold text-primary-foreground leading-tight transition-all duration-400 ${
               isTransitioning ? 'translate-y-full opacity-0' : 'translate-y-0 opacity-100'
             }`}
           >
@@ -163,9 +143,9 @@ const Hero = () => {
               <span className="animate-shimmer inline-block w-96 h-20 bg-muted rounded" />
             ) : (
               <>
-                {title.split(' ')[0]}{' '}
+                {currentTitle.split(' ')[0]}{' '}
                 <span className="text-secondary bg-gradient-to-r from-secondary via-amber-400 to-secondary bg-clip-text text-transparent bg-[length:200%_100%] animate-shimmer">
-                  {title.split(' ').slice(1).join(' ')}
+                  {currentTitle.split(' ').slice(1).join(' ')}
                 </span>
               </>
             )}
@@ -174,26 +154,26 @@ const Hero = () => {
 
         <div className="overflow-hidden">
           <p 
-            className={`text-xl md:text-2xl text-primary-foreground/90 mb-4 font-light transition-all duration-700 delay-100 ${
+            className={`text-xl md:text-2xl text-primary-foreground/90 mb-4 font-light transition-all duration-400 delay-75 ${
               isTransitioning ? 'translate-y-full opacity-0' : 'translate-y-0 opacity-100'
             }`}
           >
-            {subtitle}
+            {currentSubtitle}
           </p>
         </div>
 
         <div className="overflow-hidden">
           <p 
-            className={`text-lg text-primary-foreground/70 mb-12 max-w-2xl mx-auto transition-all duration-700 delay-200 ${
+            className={`text-lg text-primary-foreground/70 mb-12 max-w-2xl mx-auto transition-all duration-400 delay-100 ${
               isTransitioning ? 'translate-y-full opacity-0' : 'translate-y-0 opacity-100'
             }`}
           >
-            {description}
+            {currentDescription}
           </p>
         </div>
 
         <div 
-          className={`flex flex-col sm:flex-row gap-4 justify-center transition-all duration-700 delay-300 ${
+          className={`flex flex-col sm:flex-row gap-4 justify-center transition-all duration-400 delay-150 ${
             isTransitioning ? 'translate-y-8 opacity-0' : 'translate-y-0 opacity-100'
           }`}
         >

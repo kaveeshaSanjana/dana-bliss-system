@@ -136,8 +136,32 @@ export const useGallery = () => {
   return { data, loading };
 };
 
+export interface OtherContentData {
+  hero_titles: string[];
+  hero_subtitles: string[];
+  hero_descriptions: string[];
+  hero_background_images: string[];
+  in_mobile_max_special_visits: number;
+  in_desktop_max_special_visits: number;
+  in_mobile_max_gallery: number;
+  in_desktop_max_gallery: number;
+  in_mobile_max_reviews: number;
+  in_desktop_max_reviews: number;
+}
+
 export const useOtherContent = () => {
-  const [data, setData] = useState<Record<string, string>>({});
+  const [data, setData] = useState<OtherContentData>({
+    hero_titles: [],
+    hero_subtitles: [],
+    hero_descriptions: [],
+    hero_background_images: [],
+    in_mobile_max_special_visits: 5,
+    in_desktop_max_special_visits: 6,
+    in_mobile_max_gallery: 5,
+    in_desktop_max_gallery: 5,
+    in_mobile_max_reviews: 5,
+    in_desktop_max_reviews: 5,
+  });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -150,50 +174,67 @@ export const useOtherContent = () => {
         
         const content: Record<string, string> = {};
         
-        // Check if first row is the header with variable names
-        if (rows.length >= 1) {
-          const headerRow = rows[0];
-          const dataRow = rows.length > 1 ? rows[1] : [];
+        // Process rows
+        rows.forEach((row, index) => {
+          const colA = row[0]?.trim() || '';
+          const colB = row[1]?.trim() || '';
           
-          // If header contains multiple space-separated variable names in first cell, parse them
-          if (headerRow[0] && headerRow[0].includes(' ')) {
-            const variableNames = headerRow[0].split(' ').filter(Boolean);
-            const contentValues = headerRow[1] ? headerRow[1].split(' ') : [];
+          // Skip empty rows
+          if (!colA) return;
+          
+          // Check if this is the merged header row (contains multiple variable names)
+          if (colA.includes('hero_title') || colA.includes('hero_subtitle')) {
+            // This is the problematic merged row - parse it specially
+            // The structure looks like: "variable hero_title hero_subtitle hero_description hero_background_images"
+            // with content: "content Welcome to Sri Lanka , Explore lanka The best counrty..."
             
-            // Map hero variables from header - handle hero_background_images specially
-            variableNames.forEach((varName, index) => {
-              if (varName === 'hero_background_images') {
-                // Everything from this index onwards is the images (comma-separated URLs)
-                const imagesStartIndex = headerRow[1]?.indexOf('https://');
-                if (imagesStartIndex !== undefined && imagesStartIndex >= 0) {
-                  content[varName] = headerRow[1].substring(imagesStartIndex);
-                }
-              } else if (varName === 'hero_title') {
-                // First word after "content" is hero_title
-                content[varName] = contentValues[1] || '';
-              } else if (varName === 'hero_subtitle' || varName === 'hero_description') {
-                // These are empty in the merged format
-                content[varName] = '';
-              }
-            });
-          } else {
-            // Normal row format: variable in col 0, content in col 1
-            if (headerRow[0] && headerRow[0] !== 'variable') {
-              content[headerRow[0]] = headerRow[1] || '';
+            // Extract hero_background_images URLs from content (they start with http)
+            const urlMatch = colB.match(/(https?:\/\/[^\s,]+[^\s,]*)/g);
+            if (urlMatch) {
+              content['hero_background_images'] = urlMatch.join(',');
             }
+            
+            // Parse the text content before URLs
+            const textPart = colB.replace(/(https?:\/\/[^\s]+)/g, '').trim();
+            // Remove "content" prefix if exists
+            const cleanText = textPart.replace(/^content\s*/i, '').trim();
+            
+            // Split by comma to get title, subtitle, description
+            const parts = cleanText.split(',').map(s => s.trim()).filter(Boolean);
+            if (parts.length >= 1) content['hero_title'] = parts[0];
+            if (parts.length >= 2) content['hero_subtitle'] = parts[1];
+            if (parts.length >= 3) content['hero_description'] = parts.slice(2).join(', ');
+            
+          } else if (!colA.startsWith('variable')) {
+            // Regular row: variable in column A, content in column B
+            content[colA] = colB;
           }
-          
-          // Process remaining rows normally (skip if first row was header)
-          const dataRows = rows[0][0] === 'variable' || rows[0][0]?.includes(' ') ? rows.slice(1) : rows;
-          dataRows.forEach(row => {
-            if (row[0] && !row[0].includes(' ')) {
-              content[row[0]] = row[1] || '';
-            }
-          });
-        }
+        });
         
         console.log('Parsed other content:', content);
-        setData(content);
+        
+// Parse all hero fields as arrays (comma-separated)
+        const parseCommaSeparated = (value: string) => 
+          value.split(',').map(s => s.trim()).filter(Boolean);
+        
+        const heroTitles = parseCommaSeparated(content['hero_title'] || '');
+        const heroSubtitles = parseCommaSeparated(content['hero_subtitle'] || '');
+        const heroDescriptions = parseCommaSeparated(content['hero_description'] || '');
+        const bgImages = parseCommaSeparated(content['hero_background_images'] || '')
+          .filter(url => url.startsWith('http'));
+        
+        setData({
+          hero_titles: heroTitles,
+          hero_subtitles: heroSubtitles,
+          hero_descriptions: heroDescriptions,
+          hero_background_images: bgImages,
+          in_mobile_max_special_visits: parseInt(content['in_mobile_max_special_visits']) || 5,
+          in_desktop_max_special_visits: parseInt(content['in_desktop_max_special_visits']) || 6,
+          in_mobile_max_gallery: parseInt(content['in_mobile_max_gallery']) || 5,
+          in_desktop_max_gallery: parseInt(content['in_desktop_max_gallery']) || 5,
+          in_mobile_max_reviews: parseInt(content['in_mobile_max_reviews']) || 5,
+          in_desktop_max_reviews: parseInt(content['in_desktop_max_reviews']) || 5,
+        });
         setLoading(false);
       } catch (error) {
         console.error('Error fetching other content:', error);

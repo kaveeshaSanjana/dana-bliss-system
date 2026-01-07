@@ -10,7 +10,7 @@ const Navbar = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const siteName = content['site_name'] || 'Sri Lanka Travels';
+  const siteName = content['site_name'] || 'Ceylon Tour Rides';
   const isHomePage = location.pathname === '/';
 
   useEffect(() => {

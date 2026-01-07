@@ -4,7 +4,7 @@ import { Facebook, Instagram, Heart } from 'lucide-react';
 const Footer = () => {
   const { data: content } = useOtherContent();
   
-  const siteName = content['site_name'] || 'Sri Lanka Travels';
+  const siteName = content['site_name'] || 'Ceylon Tour Rides';
   const footerText = content['footer_text'] || 'Discover the magic of the Pearl of the Indian Ocean';
 
   return (

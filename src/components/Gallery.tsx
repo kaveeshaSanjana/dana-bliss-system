@@ -11,8 +11,8 @@ const Gallery = () => {
   const isMobile = useIsMobile();
 
   // Get max items from sheet, default to 4 mobile, 8 desktop
-  const mobileMax = parseInt(otherContent['in_mobile_max_gallery'] || '4');
-  const desktopMax = parseInt(otherContent['in_desktop_max_gallery'] || '8');
+  const mobileMax = otherContent.in_mobile_max_gallery;
+  const desktopMax = otherContent.in_desktop_max_gallery;
   const maxItems = isMobile ? mobileMax : desktopMax;
 
   const displayedImages = images.slice(0, maxItems);

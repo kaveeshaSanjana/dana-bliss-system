@@ -8,9 +8,9 @@ const SpecialVisits = () => {
   const { data: otherContent } = useOtherContent();
   const isMobile = useIsMobile();
 
-  // Get max items from sheet, default to 6 mobile, 9 desktop
-  const mobileMax = parseInt(otherContent['in_mobile_max_special_visits'] || '6');
-  const desktopMax = parseInt(otherContent['in_desktop_max_special_visits'] || '9');
+  // Get max items from sheet config
+  const mobileMax = otherContent.in_mobile_max_special_visits;
+  const desktopMax = otherContent.in_desktop_max_special_visits;
   const maxItems = isMobile ? mobileMax : desktopMax;
 
   const displayedVisits = visits.slice(0, maxItems);
