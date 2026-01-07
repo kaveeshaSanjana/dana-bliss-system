@@ -176,13 +176,48 @@ export const useOtherContent = () => {
         
         // Process rows - each row has: column A = variable name, column B = content
         rows.forEach((row) => {
-          const variableName = row[0]?.trim() || '';
-          const variableContent = row[1]?.trim() || '';
-          
+          let variableName = row[0]?.trim() || '';
+          let variableContent = row[1]?.trim() || '';
+
+          // Support the user entering: "hero_title | Welcome to Sri Lanka" in ONE cell
+          if (variableName.includes('|') && !variableContent) {
+            const [left, right] = variableName.split('|').map(s => s.trim());
+            variableName = left || '';
+            variableContent = right || '';
+          }
+
           // Skip header row and empty rows
           if (!variableName || variableName === 'variable') return;
-          
-          // Store the content for this variable
+
+          // Backward-compat: handle the merged "variable hero_title hero_subtitle..." row
+          if (
+            variableName.startsWith('variable') &&
+            variableName.includes('hero_title') &&
+            variableName.includes('hero_background_images')
+          ) {
+            const urls = (variableContent.match(/https?:\/\/[^\s,"]+/g) || []).map(u => u.trim());
+            if (urls.length) content['hero_background_images'] = urls.join(',');
+
+            const textPart = variableContent
+              .replace(/https?:\/\/[^\s,"]+/g, '')
+              .replace(/^content\s*/i, '')
+              .trim();
+
+            const parts = (textPart.includes('|')
+              ? textPart.split('|')
+              : textPart.includes(',')
+                ? textPart.split(',')
+                : textPart.split(/\s{2,}/)
+            ).map(s => s.trim()).filter(Boolean);
+
+            if (parts[0]) content['hero_title'] = parts[0];
+            if (parts[1]) content['hero_subtitle'] = parts[1];
+            if (parts[2]) content['hero_description'] = parts.slice(2).join(' ');
+
+            return;
+          }
+
+          // Regular row: variable in column A, content in column B
           content[variableName] = variableContent;
         });
         
