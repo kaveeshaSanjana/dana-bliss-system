@@ -115,7 +115,7 @@ const Hero = () => {
           <h1 className={`text-5xl md:text-7xl lg:text-8xl font-bold text-primary-foreground leading-tight transition-all duration-400 ${isTransitioning ? 'translate-y-full opacity-0' : 'translate-y-0 opacity-100'}`}>
             {loading ? <span className="animate-shimmer inline-block w-96 h-20 bg-muted rounded" /> : <>
                 {currentTitle.split(' ')[0]}{' '}
-                <span className="text-secondary">
+                <span className="bg-white/0 text-secondary-foreground text-center">
                   {currentTitle.split(' ').slice(1).join(' ')}
                 </span>
               </>}
