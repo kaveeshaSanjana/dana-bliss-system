@@ -7,6 +7,7 @@ import ReviewForm from '@/components/ReviewForm';
 import Gallery from '@/components/Gallery';
 import ContactForm from '@/components/ContactForm';
 import Footer from '@/components/Footer';
+import ScrollToContact from '@/components/ScrollToContact';
 
 const Index = () => {
   const refetchReviewsRef = useRef<(() => void) | null>(null);
@@ -31,6 +32,7 @@ const Index = () => {
       <ReviewForm onReviewSubmitted={handleReviewSubmitted} />
       <ContactForm />
       <Footer />
+      <ScrollToContact />
     </div>
   );
 };
