@@ -174,46 +174,21 @@ export const useOtherContent = () => {
         
         const content: Record<string, string> = {};
         
-        // Process rows
-        rows.forEach((row, index) => {
-          const colA = row[0]?.trim() || '';
-          const colB = row[1]?.trim() || '';
+        // Process rows - each row has: column A = variable name, column B = content
+        rows.forEach((row) => {
+          const variableName = row[0]?.trim() || '';
+          const variableContent = row[1]?.trim() || '';
           
-          // Skip empty rows
-          if (!colA) return;
+          // Skip header row and empty rows
+          if (!variableName || variableName === 'variable') return;
           
-          // Check if this is the merged header row (contains multiple variable names)
-          if (colA.includes('hero_title') || colA.includes('hero_subtitle')) {
-            // This is the problematic merged row - parse it specially
-            // The structure looks like: "variable hero_title hero_subtitle hero_description hero_background_images"
-            // with content: "content Welcome to Sri Lanka , Explore lanka The best counrty..."
-            
-            // Extract hero_background_images URLs from content (they start with http)
-            const urlMatch = colB.match(/(https?:\/\/[^\s,]+[^\s,]*)/g);
-            if (urlMatch) {
-              content['hero_background_images'] = urlMatch.join(',');
-            }
-            
-            // Parse the text content before URLs
-            const textPart = colB.replace(/(https?:\/\/[^\s]+)/g, '').trim();
-            // Remove "content" prefix if exists
-            const cleanText = textPart.replace(/^content\s*/i, '').trim();
-            
-            // Split by comma to get title, subtitle, description
-            const parts = cleanText.split(',').map(s => s.trim()).filter(Boolean);
-            if (parts.length >= 1) content['hero_title'] = parts[0];
-            if (parts.length >= 2) content['hero_subtitle'] = parts[1];
-            if (parts.length >= 3) content['hero_description'] = parts.slice(2).join(', ');
-            
-          } else if (!colA.startsWith('variable')) {
-            // Regular row: variable in column A, content in column B
-            content[colA] = colB;
-          }
+          // Store the content for this variable
+          content[variableName] = variableContent;
         });
         
         console.log('Parsed other content:', content);
         
-// Parse all hero fields as arrays (comma-separated)
+        // Parse comma-separated values into arrays
         const parseCommaSeparated = (value: string) => 
           value.split(',').map(s => s.trim()).filter(Boolean);
         
