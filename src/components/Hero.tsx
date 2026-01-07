@@ -1,24 +1,23 @@
-import { useOtherContent } from '@/hooks/useGoogleSheets';
+import { useHeroContent } from '@/hooks/useGoogleSheets';
 import { ChevronDown, ChevronLeft, ChevronRight, Play, Pause } from 'lucide-react';
 import { useState, useEffect, useCallback } from 'react';
+
 const Hero = () => {
-  const {
-    data: content,
-    loading
-  } = useOtherContent();
+  const { data: heroData, loading } = useHeroContent();
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [loadedImages, setLoadedImages] = useState<Set<number>>(new Set([0]));
 
-  // Get arrays from content
+  // Get arrays from hero sheet
   const fallbackImage = 'https://images.unsplash.com/photo-1586523969764-f4e2b6bc92e6?auto=format&fit=crop&w=1920&q=80';
-  const images = content.hero_background_images.length > 0 ? content.hero_background_images : [fallbackImage];
+  const images = heroData.background_images.length > 0 ? heroData.background_images : [fallbackImage];
 
-  // Get current slide content (each slide has its own title, subtitle, description)
-  const titles = content.hero_titles.length > 0 ? content.hero_titles : ['Discover Sri Lanka'];
-  const subtitles = content.hero_subtitles.length > 0 ? content.hero_subtitles : ['The Pearl of the Indian Ocean'];
-  const descriptions = content.hero_descriptions.length > 0 ? content.hero_descriptions : ['Experience ancient temples, pristine beaches, lush tea plantations, and warm hospitality'];
+  // Get current slide content - index matches across all arrays
+  const titles = heroData.titles.length > 0 ? heroData.titles : ['Discover Sri Lanka'];
+  const subtitles = heroData.subtitles.length > 0 ? heroData.subtitles : ['The Pearl of the Indian Ocean'];
+  const descriptions = heroData.descriptions.length > 0 ? heroData.descriptions : ['Experience ancient temples, pristine beaches, lush tea plantations, and warm hospitality'];
+  
   const currentTitle = titles[currentSlide % titles.length] || titles[0];
   const currentSubtitle = subtitles[currentSlide % subtitles.length] || subtitles[0];
   const currentDescription = descriptions[currentSlide % descriptions.length] || descriptions[0];

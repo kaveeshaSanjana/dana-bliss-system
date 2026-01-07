@@ -136,11 +136,14 @@ export const useGallery = () => {
   return { data, loading };
 };
 
+export interface HeroData {
+  titles: string[];
+  subtitles: string[];
+  descriptions: string[];
+  background_images: string[];
+}
+
 export interface OtherContentData {
-  hero_titles: string[];
-  hero_subtitles: string[];
-  hero_descriptions: string[];
-  hero_background_images: string[];
   in_mobile_max_special_visits: number;
   in_desktop_max_special_visits: number;
   in_mobile_max_gallery: number;
@@ -149,12 +152,77 @@ export interface OtherContentData {
   in_desktop_max_reviews: number;
 }
 
+// Fetch hero content from "hero" sheet
+export const useHeroContent = () => {
+  const [data, setData] = useState<HeroData>({
+    titles: [],
+    subtitles: [],
+    descriptions: [],
+    background_images: [],
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=hero`;
+        const response = await fetch(url);
+        const csv = await response.text();
+        const rows = parseCSV(csv);
+        
+        const content: Record<string, string> = {};
+        
+        // Process rows - each row has: column A = variable name, column B = content
+        rows.forEach((row) => {
+          let variableName = row[0]?.trim() || '';
+          let variableContent = row[1]?.trim() || '';
+
+          // Support format: "hero_title | value1,value2" in ONE cell
+          if (variableName.includes('|') && !variableContent) {
+            const [left, right] = variableName.split('|').map(s => s.trim());
+            variableName = left || '';
+            variableContent = right || '';
+          }
+
+          // Skip header row and empty rows
+          if (!variableName || variableName === 'variable') return;
+
+          content[variableName] = variableContent;
+        });
+        
+        console.log('Parsed hero content:', content);
+        
+        // Parse comma-separated values into arrays
+        const parseCommaSeparated = (value: string) => 
+          value.split(',').map(s => s.trim()).filter(Boolean);
+        
+        const titles = parseCommaSeparated(content['hero_title'] || '');
+        const subtitles = parseCommaSeparated(content['hero_subtitle'] || '');
+        const descriptions = parseCommaSeparated(content['hero_description'] || '');
+        const bgImages = parseCommaSeparated(content['hero_background_images'] || '')
+          .filter(url => url.startsWith('http'));
+        
+        setData({
+          titles,
+          subtitles,
+          descriptions,
+          background_images: bgImages,
+        });
+        setLoading(false);
+      } catch (error) {
+        console.error('Error fetching hero content:', error);
+        setLoading(false);
+      }
+    };
+    
+    fetchData();
+  }, []);
+
+  return { data, loading };
+};
+
 export const useOtherContent = () => {
   const [data, setData] = useState<OtherContentData>({
-    hero_titles: [],
-    hero_subtitles: [],
-    hero_descriptions: [],
-    hero_background_images: [],
     in_mobile_max_special_visits: 5,
     in_desktop_max_special_visits: 6,
     in_mobile_max_gallery: 5,
@@ -174,70 +242,22 @@ export const useOtherContent = () => {
         
         const content: Record<string, string> = {};
         
-        // Process rows - each row has: column A = variable name, column B = content
         rows.forEach((row) => {
           let variableName = row[0]?.trim() || '';
           let variableContent = row[1]?.trim() || '';
 
-          // Support the user entering: "hero_title | Welcome to Sri Lanka" in ONE cell
           if (variableName.includes('|') && !variableContent) {
             const [left, right] = variableName.split('|').map(s => s.trim());
             variableName = left || '';
             variableContent = right || '';
           }
 
-          // Skip header row and empty rows
           if (!variableName || variableName === 'variable') return;
 
-          // Backward-compat: handle the merged "variable hero_title hero_subtitle..." row
-          if (
-            variableName.startsWith('variable') &&
-            variableName.includes('hero_title') &&
-            variableName.includes('hero_background_images')
-          ) {
-            const urls = (variableContent.match(/https?:\/\/[^\s,"]+/g) || []).map(u => u.trim());
-            if (urls.length) content['hero_background_images'] = urls.join(',');
-
-            const textPart = variableContent
-              .replace(/https?:\/\/[^\s,"]+/g, '')
-              .replace(/^content\s*/i, '')
-              .trim();
-
-            const parts = (textPart.includes('|')
-              ? textPart.split('|')
-              : textPart.includes(',')
-                ? textPart.split(',')
-                : textPart.split(/\s{2,}/)
-            ).map(s => s.trim()).filter(Boolean);
-
-            if (parts[0]) content['hero_title'] = parts[0];
-            if (parts[1]) content['hero_subtitle'] = parts[1];
-            if (parts[2]) content['hero_description'] = parts.slice(2).join(' ');
-
-            return;
-          }
-
-          // Regular row: variable in column A, content in column B
           content[variableName] = variableContent;
         });
         
-        console.log('Parsed other content:', content);
-        
-        // Parse comma-separated values into arrays
-        const parseCommaSeparated = (value: string) => 
-          value.split(',').map(s => s.trim()).filter(Boolean);
-        
-        const heroTitles = parseCommaSeparated(content['hero_title'] || '');
-        const heroSubtitles = parseCommaSeparated(content['hero_subtitle'] || '');
-        const heroDescriptions = parseCommaSeparated(content['hero_description'] || '');
-        const bgImages = parseCommaSeparated(content['hero_background_images'] || '')
-          .filter(url => url.startsWith('http'));
-        
         setData({
-          hero_titles: heroTitles,
-          hero_subtitles: heroSubtitles,
-          hero_descriptions: heroDescriptions,
-          hero_background_images: bgImages,
           in_mobile_max_special_visits: parseInt(content['in_mobile_max_special_visits']) || 5,
           in_desktop_max_special_visits: parseInt(content['in_desktop_max_special_visits']) || 6,
           in_mobile_max_gallery: parseInt(content['in_mobile_max_gallery']) || 5,
