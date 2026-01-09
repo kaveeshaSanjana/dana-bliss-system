@@ -81,41 +81,36 @@ const ContactForm = () => {
       const sanitizedEmail = result.data.email.replace(/\s/g, '');
       const sanitizedPhone = result.data.phone.replace(/\s/g, '');
 
-      const response = await fetch("https://script.google.com/macros/s/AKfycbxVooz1896Bz04_Jwjspl9Md9Ks1zmlTT6ZBA4sohRv35-KD87vOk7IMHAsaf6iM8F3/exec", {
+      // Use FormData with no-cors mode to avoid CORS issues with Google Apps Script
+      const formData = new FormData();
+      formData.append('fullName', result.data.name.trim());
+      formData.append('email', sanitizedEmail);
+      formData.append('phone', sanitizedPhone);
+      formData.append('message', result.data.message.trim());
+
+      await fetch("https://script.google.com/macros/s/AKfycbxVooz1896Bz04_Jwjspl9Md9Ks1zmlTT6ZBA4sohRv35-KD87vOk7IMHAsaf6iM8F3/exec", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          fullName: result.data.name.trim(),
-          email: sanitizedEmail,
-          phone: sanitizedPhone,
-          message: result.data.message.trim()
-        })
+        mode: "no-cors",
+        body: formData
       });
       
-      const data = await response.json();
+      // With no-cors mode, we can't read the response, so assume success
+      setIsSuccess(true);
+      toast({
+        title: "Message Sent!",
+        description: "We'll get back to you within 24 hours",
+      });
       
-      if (data.success) {
-        setIsSuccess(true);
-        toast({
-          title: "Message Sent!",
-          description: "We'll get back to you within 24 hours",
-        });
-        
-        // Reset form after 2 seconds
-        setTimeout(() => {
-          setFormData({ name: "", email: "", phone: "", message: "" });
-          setIsSuccess(false);
-        }, 2000);
-      } else {
-        throw new Error(data.message || "Failed to send message");
-      }
+      // Reset form after 2 seconds
+      setTimeout(() => {
+        setFormData({ name: "", email: "", phone: "", message: "" });
+        setIsSuccess(false);
+      }, 2000);
       
     } catch (error) {
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to send message. Please try again.",
+        description: "Failed to send message. Please try again.",
         variant: "destructive"
       });
     } finally {
