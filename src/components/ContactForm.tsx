@@ -77,30 +77,41 @@ const ContactForm = () => {
     setIsSubmitting(true);
     
     try {
-      // Encode data for WhatsApp
-      const message = encodeURIComponent(
-        `New Contact Form Submission:\n\nName: ${result.data.name}\nEmail: ${result.data.email}\nPhone: ${result.data.phone}\nMessage: ${result.data.message}`
-      );
-      
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      setIsSuccess(true);
-      toast({
-        title: "Message Sent!",
-        description: "We'll get back to you within 24 hours",
+      const response = await fetch("https://script.google.com/macros/s/AKfycbwaAARiaa6-dTA81Fv9dnM52FAsAXa8Me6vTM7AYGsqWRZDD0jTVM7EihdRZwdalQ7Q/exec", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          fullName: result.data.name,
+          email: result.data.email,
+          phone: result.data.phone,
+          message: result.data.message
+        })
       });
       
-      // Reset form after 2 seconds
-      setTimeout(() => {
-        setFormData({ name: "", email: "", phone: "", message: "" });
-        setIsSuccess(false);
-      }, 2000);
+      const data = await response.json();
+      
+      if (data.success) {
+        setIsSuccess(true);
+        toast({
+          title: "Message Sent!",
+          description: "We'll get back to you within 24 hours",
+        });
+        
+        // Reset form after 2 seconds
+        setTimeout(() => {
+          setFormData({ name: "", email: "", phone: "", message: "" });
+          setIsSuccess(false);
+        }, 2000);
+      } else {
+        throw new Error(data.message || "Failed to send message");
+      }
       
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to send message. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to send message. Please try again.",
         variant: "destructive"
       });
     } finally {
