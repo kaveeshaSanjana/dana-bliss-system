@@ -24,6 +24,8 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp
 import { OccupationSelect } from "@/components/OccupationSelect";
 import { SimpleLocationSelector } from "@/components/SimpleLocationSelector";
 import { EmailHelpSection } from "@/components/EmailHelpSection";
+import { useAddressInheritance, StoredAddress } from "@/hooks/useAddressInheritance";
+import { AddressSuggestionBanner } from "@/components/AddressSuggestionBanner";
 import { 
   validateMinAge, 
   validateNotFutureDate, 
@@ -39,9 +41,13 @@ const STORAGE_KEY_REGISTRATION_STATE = "suraksha_student_registration_state";
 const STORAGE_KEY_FORM_DATA = "suraksha_student_form_data";
 
 const RegisterStudent = () => {
-  const {
+const {
     toast
   } = useToast();
+  
+  // Address inheritance hook
+  const { saveAddress, getSuggestion, clearAddresses } = useAddressInheritance();
+  
   const [isInitialized, setIsInitialized] = useState(false);
   const [activeTab, setActiveTab] = useState("father");
 
@@ -251,6 +257,10 @@ const RegisterStudent = () => {
           educationLevel: ""
         }
       });
+      
+      
+      // Clear address inheritance data
+      clearAddresses();
       
       setShowClearDataDialog(false);
       
@@ -838,6 +848,58 @@ const RegisterStudent = () => {
     return undefined;
   };
 
+  // Address inheritance handlers - apply suggested address to form
+  const handleApplyAddressToMother = (address: StoredAddress) => {
+    setMotherData(prev => ({
+      ...prev,
+      addressLine1: address.addressLine1,
+      addressLine2: address.addressLine2,
+      city: address.city,
+      district: address.district,
+      province: address.province,
+      postalCode: address.postalCode,
+      country: address.country
+    }));
+    toast({
+      title: "Address Applied",
+      description: `${address.sourceName}'s address has been applied`
+    });
+  };
+
+  const handleApplyAddressToGuardian = (address: StoredAddress) => {
+    setGuardianData(prev => ({
+      ...prev,
+      addressLine1: address.addressLine1,
+      addressLine2: address.addressLine2,
+      city: address.city,
+      district: address.district,
+      province: address.province,
+      postalCode: address.postalCode,
+      country: address.country
+    }));
+    toast({
+      title: "Address Applied",
+      description: `${address.sourceName}'s address has been applied`
+    });
+  };
+
+  const handleApplyAddressToStudent = (address: StoredAddress) => {
+    setStudentData(prev => ({
+      ...prev,
+      addressLine1: address.addressLine1,
+      addressLine2: address.addressLine2,
+      city: address.city,
+      district: address.district,
+      province: address.province,
+      postalCode: address.postalCode,
+      country: address.country
+    }));
+    toast({
+      title: "Address Applied",
+      description: `${address.sourceName}'s address has been applied`
+    });
+  };
+
   // Student phone verification handlers
   const handleRequestPhoneOTP = async () => {
     if (!studentPhoneForVerification || studentPhoneForVerification === "+94") {
@@ -1159,6 +1221,17 @@ const RegisterStudent = () => {
             imageUrl: imageUrl // Use the uploaded imageUrl from form, not response
           });
           
+          // Save father's address for inheritance to mother/guardian/student
+          saveAddress({
+            addressLine1: fatherData.addressLine1,
+            addressLine2: fatherData.addressLine2,
+            city: fatherData.city,
+            district: fatherData.district,
+            province: fatherData.province,
+            postalCode: fatherData.postalCode,
+            country: fatherData.country
+          }, 'father', `${fatherData.firstName} ${fatherData.lastName}`);
+          
           toast({
             title: "Success",
             description: "Father details created successfully"
@@ -1262,6 +1335,17 @@ const RegisterStudent = () => {
             name: `${motherData.firstName} ${motherData.lastName}`,
             imageUrl: imageUrl // Use the uploaded imageUrl from form, not response
           });
+          
+          // Save mother's address for inheritance to guardian/student
+          saveAddress({
+            addressLine1: motherData.addressLine1,
+            addressLine2: motherData.addressLine2,
+            city: motherData.city,
+            district: motherData.district,
+            province: motherData.province,
+            postalCode: motherData.postalCode,
+            country: motherData.country
+          }, 'mother', `${motherData.firstName} ${motherData.lastName}`);
           
           toast({
             title: "Success",
@@ -1387,6 +1471,17 @@ const RegisterStudent = () => {
             name: `${guardianData.firstName} ${guardianData.lastName}`,
             imageUrl: imageUrl // Use the uploaded imageUrl from form, not response
           });
+          
+          // Save guardian's address for inheritance to student
+          saveAddress({
+            addressLine1: guardianData.addressLine1,
+            addressLine2: guardianData.addressLine2,
+            city: guardianData.city,
+            district: guardianData.district,
+            province: guardianData.province,
+            postalCode: guardianData.postalCode,
+            country: guardianData.country
+          }, 'guardian', `${guardianData.firstName} ${guardianData.lastName}`);
           
           toast({
             title: "Success",
@@ -2148,6 +2243,13 @@ const RegisterStudent = () => {
                     })} className="bg-background/50 border-border/50" placeholder="Highest education level" />
                   </div>
 
+                  {/* Address suggestion banner for mother */}
+                  <AddressSuggestionBanner
+                    suggestion={getSuggestion('mother')}
+                    onApply={handleApplyAddressToMother}
+                    currentSource="mother"
+                  />
+
                     <div className="space-y-2">
                       <Label htmlFor="mother-address1">Address Line 1</Label>
                       <Input id="mother-address1" value={motherData.addressLine1} onChange={e => setMotherData({
@@ -2381,6 +2483,13 @@ const RegisterStudent = () => {
                       }
                     })} className="bg-background/50 border-border/50" placeholder="Highest education level" />
                   </div>
+
+                  {/* Address suggestion banner for guardian */}
+                  <AddressSuggestionBanner
+                    suggestion={getSuggestion('guardian')}
+                    onApply={handleApplyAddressToGuardian}
+                    currentSource="guardian"
+                  />
 
                     <div className="space-y-2">
                       <Label htmlFor="guardian-address1">Address Line 1</Label>
@@ -2714,6 +2823,13 @@ const RegisterStudent = () => {
                     })} className={`bg-background/50 ${studentErrors.birthCertificateNo ? 'border-destructive ring-2 ring-destructive/20' : 'border-border/50'}`} placeholder="123456789" />
                         {studentErrors.birthCertificateNo && <p className="text-xs text-destructive">{studentErrors.birthCertificateNo}</p>}
                       </div>
+
+                      {/* Address suggestion banner for student */}
+                      <AddressSuggestionBanner
+                        suggestion={getSuggestion('student')}
+                        onApply={handleApplyAddressToStudent}
+                        currentSource="student"
+                      />
 
                       <div className="space-y-2">
                         <Label htmlFor="student-address1">Address Line 1</Label>
