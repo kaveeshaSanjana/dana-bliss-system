@@ -1,106 +1,84 @@
-import { useOtherContent } from '@/hooks/useGoogleSheets';
-import { Facebook, Instagram, Heart } from 'lucide-react';
-
 const Footer = () => {
-  const { data: content } = useOtherContent();
-  
-  const siteName = content['site_name'] || 'Ceylon Tour Rides';
-  const footerText = content['footer_text'] || 'Discover the magic of the Pearl of the Indian Ocean';
-
   return (
-    <footer className="bg-foreground text-primary-foreground py-16 px-4">
-      <div className="max-w-7xl mx-auto">
-        <div className="grid md:grid-cols-4 gap-12 mb-12">
-          {/* Brand */}
-          <div className="md:col-span-2">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-                <span className="text-lg">🪷</span>
-              </div>
-              <span className="font-bold text-xl">{siteName}</span>
+    <footer className="bg-gradient-to-r from-blue-600 via-blue-700 to-blue-800 text-white py-12">
+      <div className="container mx-auto px-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+          {/* Brand Section */}
+          <div className="lg:col-span-2">
+            <div className="mb-4">
+              <h3 className="text-2xl font-bold text-white mb-2">
+                Suraksha<span className="text-blue-300">LMS</span>
+              </h3>
+              <p className="text-blue-100 text-lg font-medium mb-2">
+                One LMS. One Nation. One Future
+              </p>
+              <p className="text-blue-200 text-sm mb-1">
+                SURAKSHA LEARNING MANAGEMENT SYSTEM (PVT) LTD
+              </p>
+              <p className="text-blue-200 text-xs mb-1">
+                Reg. No: PV 00342747
+              </p>
+              <p className="text-blue-200 text-xs mb-1">
+                Gampaha, Sri Lanka
+              </p>
+              <p className="text-blue-200 text-xs font-medium">
+                📞 +94 70 330 0524
+              </p>
             </div>
-            <p className="text-primary-foreground/70 mb-6 max-w-md">
-              {footerText}
+            <p className="text-blue-100 mb-6 leading-relaxed">
+              Empowering education across Sri Lanka with our comprehensive Learning Management System. 
+              Join thousands of students, teachers, and institutions in building a brighter future together.
             </p>
-            <div className="flex gap-4">
-              <a 
-                href="https://www.facebook.com/share/1A8BsBr6tc/" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="w-10 h-10 bg-primary-foreground/10 rounded-full flex items-center justify-center hover:bg-[#1877F2] transition-colors"
-              >
-                <Facebook size={18} />
-              </a>
-              <a 
-                href="https://www.instagram.com/travel.lakshitha?igsh=eWN6MTBsNzd1a3J6" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="w-10 h-10 bg-primary-foreground/10 rounded-full flex items-center justify-center hover:bg-gradient-to-br hover:from-[#833AB4] hover:via-[#FD1D1D] hover:to-[#F77737] transition-colors"
-              >
-                <Instagram size={18} />
-              </a>
-              <a 
-                href="https://www.tiktok.com/@kalumprasad1500?_r=1&_t=ZS-92pzsVataFw" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="w-10 h-10 bg-primary-foreground/10 rounded-full flex items-center justify-center hover:bg-black transition-colors"
-              >
-                <svg className="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/>
-                </svg>
-              </a>
-            </div>
-            
-            {/* Contact Info */}
-            <div className="mt-6 space-y-2">
-              <a 
-                href="tel:+94766776015" 
-                className="flex items-center gap-2 text-primary-foreground/70 hover:text-secondary transition-colors text-sm"
-              >
-                📞 +94 76 677 6015
-              </a>
-              <a 
-                href="mailto:Kalumprasad1500@gmail.com" 
-                className="flex items-center gap-2 text-primary-foreground/70 hover:text-secondary transition-colors text-sm"
-              >
-                ✉️ Kalumprasad1500@gmail.com
-              </a>
+            <div className="flex space-x-4">
+              <div className="text-center">
+                <div className="font-bold text-2xl text-white">430</div>
+                <div className="text-blue-200 text-sm">Students</div>
+              </div>
+              <div className="text-center">
+                <div className="font-bold text-2xl text-white">30</div>
+                <div className="text-blue-200 text-sm">Teachers</div>
+              </div>
+              <div className="text-center">
+                <div className="font-bold text-2xl text-white">6</div>
+                <div className="text-blue-200 text-sm">Institutes</div>
+              </div>
             </div>
           </div>
 
           {/* Quick Links */}
           <div>
-            <h4 className="font-bold text-lg mb-4">Quick Links</h4>
-            <ul className="space-y-3">
-              <li><a href="#" className="text-primary-foreground/70 hover:text-secondary transition-colors">Home</a></li>
-              <li><a href="#special-visits" className="text-primary-foreground/70 hover:text-secondary transition-colors">Destinations</a></li>
-              <li><a href="#gallery" className="text-primary-foreground/70 hover:text-secondary transition-colors">Gallery</a></li>
-              <li><a href="#reviews" className="text-primary-foreground/70 hover:text-secondary transition-colors">Reviews</a></li>
-              <li><a href="#contact" className="text-primary-foreground/70 hover:text-secondary transition-colors">Contact</a></li>
+            <h4 className="font-semibold text-white mb-4">Quick Links</h4>
+            <ul className="space-y-2">
+              <li><a href="#" className="text-blue-100 hover:text-white transition-colors">Student Login</a></li>
+              <li><a href="#" className="text-blue-100 hover:text-white transition-colors">Teacher Portal</a></li>
+              <li><a href="#" className="text-blue-100 hover:text-white transition-colors">Institute Access</a></li>
+              <li><a href="#" className="text-blue-100 hover:text-white transition-colors">Course Catalog</a></li>
+              <li><a href="#" className="text-blue-100 hover:text-white transition-colors">Support Center</a></li>
             </ul>
           </div>
 
-          {/* Popular Destinations */}
+          {/* Legal & Support */}
           <div>
-            <h4 className="font-bold text-lg mb-4">Popular Places</h4>
-            <ul className="space-y-3">
-              <li><span className="text-primary-foreground/70">Sigiriya</span></li>
-              <li><span className="text-primary-foreground/70">Kandy</span></li>
-              <li><span className="text-primary-foreground/70">Galle</span></li>
-              <li><span className="text-primary-foreground/70">Ella</span></li>
-              <li><span className="text-primary-foreground/70">Mirissa</span></li>
+            <h4 className="font-semibold text-white mb-4">Legal & Support</h4>
+            <ul className="space-y-2">
+              <li><a href="/privacy" className="text-blue-100 hover:text-white transition-colors">Privacy Policy</a></li>
+              <li><a href="/terms" className="text-blue-100 hover:text-white transition-colors">Terms & Conditions</a></li>
+              <li><a href="/refund" className="text-blue-100 hover:text-white transition-colors">Refund Policy</a></li>
+              <li><a href="#" className="text-blue-100 hover:text-white transition-colors">Help Center</a></li>
+              <li><a href="#" className="text-blue-100 hover:text-white transition-colors">Contact Us</a></li>
             </ul>
           </div>
         </div>
 
         {/* Bottom Bar */}
-        <div className="pt-8 border-t border-primary-foreground/20 flex flex-col md:flex-row items-center justify-between gap-4">
-          <p className="text-primary-foreground/60 text-sm">
-            © {new Date().getFullYear()} {siteName}. All rights reserved.
+        <div className="border-t border-blue-500 mt-8 pt-6 flex flex-col md:flex-row justify-between items-center">
+          <p className="text-blue-100 text-sm">
+            © 2025 SURAKSHA LEARNING MANAGEMENT SYSTEM (PVT) LTD. All rights reserved.<br />
+            PV 00342747 | Empowering Sri Lankan Education
           </p>
-          <p className="text-primary-foreground/60 text-sm flex items-center gap-1">
-            Made with <Heart size={14} className="text-secondary fill-secondary" /> for Sri Lanka
-          </p>
+          <div className="flex space-x-4 mt-4 md:mt-0">
+            <span className="text-blue-100 text-sm">🇱🇰 Proudly Sri Lankan</span>
+          </div>
         </div>
       </div>
     </footer>
