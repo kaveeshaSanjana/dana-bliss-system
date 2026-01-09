@@ -1,9 +1,30 @@
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { LogIn, Menu, Home } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { LogIn, Menu, Home, ExternalLink, GraduationCap, Building2 } from "lucide-react";
 import { useState } from "react";
 import surakshaLogo from "@/assets/logos/surakshalms-logo.png";
+
+const portalItems = [
+  {
+    name: "LMS Portal",
+    description: "Learning Management System",
+    href: "https://lms.suraksha.lk",
+    icon: GraduationCap,
+  },
+  {
+    name: "OMS Portal",
+    description: "Organization Management System",
+    href: "https://org.suraksha.lk",
+    icon: Building2,
+  },
+];
 
 const ModernNavigation = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -58,6 +79,49 @@ const ModernNavigation = () => {
                   </TooltipContent>
                 </Tooltip>
               ))}
+
+              {/* Portals Dropdown */}
+              <DropdownMenu>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <DropdownMenuTrigger asChild>
+                      <Button 
+                        variant="ghost" 
+                        className="px-4 py-2 text-foreground/80 hover:text-foreground hover:bg-white/15 rounded-2xl transition-all duration-300 backdrop-blur-sm relative group focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                        aria-label="Access Portals"
+                      >
+                        <LogIn className="w-4 h-4 mr-2" />
+                        <span className="relative z-10">Portals</span>
+                        <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-primary-dark/10 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                      </Button>
+                    </DropdownMenuTrigger>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="bg-background/95 backdrop-blur-xl border border-primary/20">
+                    <p>Access LMS & OMS Portals</p>
+                  </TooltipContent>
+                </Tooltip>
+                <DropdownMenuContent 
+                  align="end" 
+                  className="w-64 bg-background/95 backdrop-blur-xl border border-primary/20 rounded-xl shadow-2xl p-2"
+                >
+                  {portalItems.map((portal) => (
+                    <DropdownMenuItem
+                      key={portal.name}
+                      className="flex items-center gap-3 px-4 py-3 rounded-lg cursor-pointer hover:bg-primary/10 transition-all duration-200 focus:bg-primary/10"
+                      onClick={() => window.open(portal.href, '_blank')}
+                    >
+                      <div className="p-2 rounded-lg bg-primary/10">
+                        <portal.icon className="w-5 h-5 text-primary" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="font-medium text-foreground">{portal.name}</div>
+                        <div className="text-xs text-muted-foreground">{portal.description}</div>
+                      </div>
+                      <ExternalLink className="w-4 h-4 text-muted-foreground" />
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
 
               {/* Register Button */}
               <Tooltip>
@@ -114,6 +178,29 @@ const ModernNavigation = () => {
                         {item.name}
                       </Button>
                     ))}
+
+                    {/* Portals Section */}
+                    <div className="pt-4 mt-4 border-t border-border/30">
+                      <p className="text-xs text-muted-foreground px-4 mb-2 font-medium uppercase tracking-wider">Portals</p>
+                      {portalItems.map((portal) => (
+                        <Button 
+                          key={portal.name}
+                          variant="ghost" 
+                          className="w-full justify-start gap-3 px-4 py-3 text-left hover:bg-white/10 rounded-xl transition-all duration-300" 
+                          onClick={() => {
+                            window.open(portal.href, '_blank');
+                            setIsOpen(false);
+                          }}
+                        >
+                          <portal.icon className="w-5 h-5 text-primary" />
+                          <div className="flex-1">
+                            <div className="font-medium">{portal.name}</div>
+                            <div className="text-xs text-muted-foreground">{portal.description}</div>
+                          </div>
+                          <ExternalLink className="w-4 h-4 text-muted-foreground" />
+                        </Button>
+                      ))}
+                    </div>
                     
                     {/* Register Button */}
                     <Button 
