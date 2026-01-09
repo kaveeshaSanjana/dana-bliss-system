@@ -81,12 +81,12 @@ const ContactForm = () => {
       const sanitizedEmail = result.data.email.replace(/\s/g, '');
       const sanitizedPhone = result.data.phone.replace(/\s/g, '');
 
-      const response = await fetch("https://script.google.com/macros/s/AKfycbxVooz1896Bz04_Jwjspl9Md9Ks1zmlTT6ZBA4sohRv35-KD87vOk7IMHAsaf6iM8F3/exec", {
+      const response = await fetch("https://script.google.com/macros/s/AKfycbz5VT5Q5PC5NCvnq-IuKVQ0NhywPbpo4E_2Ya_aLi3YnqbIRnMj7QRtXHiYi0pt441b/exec", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/x-www-form-urlencoded"
         },
-        body: JSON.stringify({
+        body: new URLSearchParams({
           fullName: result.data.name.trim(),
           email: sanitizedEmail,
           phone: sanitizedPhone,
