@@ -27,6 +27,7 @@ export const ROUTE_PATTERNS = {
   INSTITUTE_CLASSES: '/institute/:instituteId/classes',
   INSTITUTE_GALLERY: '/institute/:instituteId/gallery',
   INSTITUTE_PAYMENTS: '/institute/:instituteId/payments',
+  INSTITUTE_SUBJECTS: '/institute/:instituteId/subjects',
   
   // Class Hierarchy
   CLASS: '/institute/:instituteId/class/:classId',
@@ -117,6 +118,7 @@ export const ROUTES = {
   instituteClasses: (instituteId: string) => `/institute/${instituteId}/classes`,
   instituteGallery: (instituteId: string) => `/institute/${instituteId}/gallery`,
   institutePayments: (instituteId: string) => `/institute/${instituteId}/payments`,
+  instituteSubjects: (instituteId: string) => `/institute/${instituteId}/subjects`,
   
   // Class
   class: (instituteId: string, classId: string) => 
