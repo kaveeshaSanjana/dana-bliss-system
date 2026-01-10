@@ -486,8 +486,8 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
             alwaysShow: false
           },
           {
-            id: 'subjects',
-            label: 'All Subjects',
+            id: 'institute-subjects',
+            label: 'Institute Subjects',
             icon: BookOpen,
             permission: 'view-subjects',
             alwaysShow: false
@@ -543,8 +543,8 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
           // Parents is class-scoped only (do not show under subject context)
 
           {
-            id: 'subjects',
-            label: 'All Subjects',
+            id: 'institute-subjects',
+            label: 'Institute Subjects',
             icon: BookOpen,
             permission: 'view-subjects',
             alwaysShow: false

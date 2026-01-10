@@ -85,6 +85,7 @@ import MySubmissions from '@/pages/MySubmissions';
 import HomeworkSubmissions from '@/pages/HomeworkSubmissions';
 import ExamResults from '@/pages/ExamResults';
 import CreateExamResults from '@/pages/CreateExamResults';
+import InstituteSubjects from '@/pages/InstituteSubjects';
 
 interface AppContentProps {
   initialPage?: string;
@@ -880,6 +881,8 @@ const AppContent = ({ initialPage }: AppContentProps) => {
         return <Classes />;
       case 'subjects':
         return <Subjects />;
+      case 'institute-subjects':
+        return <InstituteSubjects />;
       case 'institutes':
         return <Institutes />;
       case 'institute-organizations':
