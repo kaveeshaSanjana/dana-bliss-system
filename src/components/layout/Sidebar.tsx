@@ -486,8 +486,15 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
             alwaysShow: false
           },
           {
+            id: 'subjects',
+            label: 'All Subjects',
+            icon: BookOpen,
+            permission: 'view-subjects',
+            alwaysShow: false
+          },
+          {
             id: 'institute-subjects',
-            label: 'Institute Subjects',
+            label: 'Manage Subjects',
             icon: BookOpen,
             permission: 'view-subjects',
             alwaysShow: false
