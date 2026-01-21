@@ -28,8 +28,7 @@ if (typeof window !== 'undefined' && 'Notification' in window) {
   }
 }
 
-// VAPID key for web push - Replace with your actual key from Firebase Console
-// Go to: Firebase Console → Project Settings → Cloud Messaging → Web Push certificates
-export const VAPID_KEY = "YOUR_VAPID_KEY_HERE";
+// VAPID key for web push from Firebase Console
+export const VAPID_KEY = "BObBcaw81QVuCdX-xIWHudXvNsAu6p0z_9k2-gAMCRKUdnA3QLnkIlW1RBkxW2xeXo9c5l3z-AyEdcU-ybyGuvM";
 
 export { app, messaging, getToken, onMessage };
