@@ -19,6 +19,7 @@ import { useToast } from '@/hooks/use-toast';
 import { instituteStudentsApi, StudentAttendanceRecord, StudentAttendanceResponse } from '@/api/instituteStudents.api';
 import { childAttendanceApi, ChildAttendanceRecord } from '@/api/childAttendance.api';
 import AttendanceFilters, { AttendanceFilterParams } from '@/components/AttendanceFilters';
+import { getAttendanceStatusConfig, AttendanceStatus } from '@/types/attendance.types';
 
 interface AttendanceColumn {
   id: string;
@@ -131,11 +132,14 @@ const Attendance = () => {
         id: 'status', 
         label: 'Status', 
         minWidth: 100,
-        format: (value) => (
-          <Badge variant={value === 'present' ? 'default' : value === 'absent' ? 'destructive' : 'secondary'}>
-            {value?.toUpperCase()}
-          </Badge>
-        )
+        format: (value) => {
+          const config = getAttendanceStatusConfig(value);
+          return (
+            <Badge className={`${config.bgColor} ${config.color} border`}>
+              {config.icon} {config.label}
+            </Badge>
+          );
+        }
       },
       { id: 'location', label: 'Location', minWidth: 200 },
       { id: 'markingMethod', label: 'Method', minWidth: 120 }

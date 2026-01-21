@@ -10,11 +10,13 @@ import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
 import { childAttendanceApi } from '@/api/childAttendance.api';
 import { buildAttendanceAddress } from '@/utils/attendanceAddress';
+import { AttendanceStatus, ALL_ATTENDANCE_STATUSES, ATTENDANCE_STATUS_CONFIG } from '@/types/attendance.types';
+
 interface LastAttendance {
   rfidCardId: string;
   studentName: string;
   userIdByInstitute: string;
-  status: 'present' | 'absent' | 'late';
+  status: AttendanceStatus;
   timestamp: number;
   imageUrl?: string;
 }
@@ -24,7 +26,7 @@ const RfidAttendance = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [rfidCardId, setRfidCardId] = useState('');
-  const [status, setStatus] = useState<'present' | 'absent' | 'late'>('present');
+  const [status, setStatus] = useState<AttendanceStatus>('present');
   const [isProcessing, setIsProcessing] = useState(false);
   const [location, setLocation] = useState<string>('');
   const [lastAttendance, setLastAttendance] = useState<LastAttendance | null>(null);
@@ -281,21 +283,25 @@ const RfidAttendance = () => {
                         src={lastAttendance.imageUrl}
                         alt={`${lastAttendance.studentName} photo`}
                         className={`h-48 w-48 sm:h-56 sm:w-56 rounded-lg object-cover border-4 shadow-lg ${
-                          lastAttendance.status === 'present'
-                            ? 'border-success'
-                            : lastAttendance.status === 'absent'
-                            ? 'border-destructive'
-                            : 'border-warning'
+                          lastAttendance.status === 'present' ? 'border-success' :
+                          lastAttendance.status === 'absent' ? 'border-destructive' :
+                          lastAttendance.status === 'late' ? 'border-warning' :
+                          lastAttendance.status === 'left' ? 'border-purple-500' :
+                          lastAttendance.status === 'left_early' ? 'border-pink-500' :
+                          lastAttendance.status === 'left_lately' ? 'border-indigo-500' :
+                          'border-muted'
                         }`}
                       />
                       {/* Status Check */}
                       <div
                         className={`absolute -bottom-3 -right-3 rounded-full p-2 shadow-lg ${
-                          lastAttendance.status === 'present'
-                            ? 'bg-success'
-                            : lastAttendance.status === 'absent'
-                            ? 'bg-destructive'
-                            : 'bg-warning'
+                          lastAttendance.status === 'present' ? 'bg-success' :
+                          lastAttendance.status === 'absent' ? 'bg-destructive' :
+                          lastAttendance.status === 'late' ? 'bg-warning' :
+                          lastAttendance.status === 'left' ? 'bg-purple-500' :
+                          lastAttendance.status === 'left_early' ? 'bg-pink-500' :
+                          lastAttendance.status === 'left_lately' ? 'bg-indigo-500' :
+                          'bg-muted'
                         }`}
                       >
                         <CheckCircle className="h-8 w-8 text-primary-foreground" />
@@ -313,33 +319,39 @@ const RfidAttendance = () => {
                   <div className="text-center space-y-3">
                     <p
                       className={`text-xl font-bold ${
-                        lastAttendance.status === 'present'
-                          ? 'text-success'
-                          : lastAttendance.status === 'absent'
-                          ? 'text-destructive'
-                          : 'text-warning'
+                        lastAttendance.status === 'present' ? 'text-success' :
+                        lastAttendance.status === 'absent' ? 'text-destructive' :
+                        lastAttendance.status === 'late' ? 'text-warning' :
+                        lastAttendance.status === 'left' ? 'text-purple-600' :
+                        lastAttendance.status === 'left_early' ? 'text-pink-600' :
+                        lastAttendance.status === 'left_lately' ? 'text-indigo-600' :
+                        'text-muted-foreground'
                       }`}
                     >
                       {lastAttendance.studentName}
                     </p>
                     <div
                       className={`inline-block px-4 py-1.5 rounded-full text-sm font-semibold border ${
-                        lastAttendance.status === 'present'
-                          ? 'bg-success/10 text-success border-success/20'
-                          : lastAttendance.status === 'absent'
-                          ? 'bg-destructive/10 text-destructive border-destructive/20'
-                          : 'bg-warning/10 text-warning border-warning/20'
+                        lastAttendance.status === 'present' ? 'bg-success/10 text-success border-success/20' :
+                        lastAttendance.status === 'absent' ? 'bg-destructive/10 text-destructive border-destructive/20' :
+                        lastAttendance.status === 'late' ? 'bg-warning/10 text-warning border-warning/20' :
+                        lastAttendance.status === 'left' ? 'bg-purple-500/10 text-purple-600 border-purple-500/20' :
+                        lastAttendance.status === 'left_early' ? 'bg-pink-500/10 text-pink-600 border-pink-500/20' :
+                        lastAttendance.status === 'left_lately' ? 'bg-indigo-500/10 text-indigo-600 border-indigo-500/20' :
+                        'bg-muted/10 text-muted-foreground border-muted/20'
                       }`}
                     >
-                      Status: {lastAttendance.status.toUpperCase()}
+                      Status: {ATTENDANCE_STATUS_CONFIG[lastAttendance.status]?.label || lastAttendance.status.toUpperCase()}
                     </div>
                     <div
                       className={`text-sm space-y-1 ${
-                        lastAttendance.status === 'present'
-                          ? 'text-success'
-                          : lastAttendance.status === 'absent'
-                          ? 'text-destructive'
-                          : 'text-warning'
+                        lastAttendance.status === 'present' ? 'text-success' :
+                        lastAttendance.status === 'absent' ? 'text-destructive' :
+                        lastAttendance.status === 'late' ? 'text-warning' :
+                        lastAttendance.status === 'left' ? 'text-purple-600' :
+                        lastAttendance.status === 'left_early' ? 'text-pink-600' :
+                        lastAttendance.status === 'left_lately' ? 'text-indigo-600' :
+                        'text-muted-foreground'
                       }`}
                     >
                       <p>
@@ -381,16 +393,18 @@ const RfidAttendance = () => {
                   </Label>
                   <Select 
                     value={status} 
-                    onValueChange={(value: 'present' | 'absent' | 'late') => setStatus(value)}
+                    onValueChange={(value: AttendanceStatus) => setStatus(value)}
                     disabled={isProcessing}
                   >
                     <SelectTrigger id="status-select" className="h-12 text-base border-2 border-primary">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="present" className="text-muted-foreground">Present</SelectItem>
-                      <SelectItem value="absent" className="text-muted-foreground">Absent</SelectItem>
-                      <SelectItem value="late" className="text-muted-foreground">Late</SelectItem>
+                      {ALL_ATTENDANCE_STATUSES.map((statusOption) => (
+                        <SelectItem key={statusOption} value={statusOption} className="text-muted-foreground">
+                          {ATTENDANCE_STATUS_CONFIG[statusOption].icon} {ATTENDANCE_STATUS_CONFIG[statusOption].label}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>

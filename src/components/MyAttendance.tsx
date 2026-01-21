@@ -5,11 +5,12 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
-import { Calendar, Clock, MapPin, User, RefreshCw, AlertTriangle, TrendingUp, UserCheck, UserX, Filter, Building2, BookOpen, GraduationCap, ChevronLeft, ChevronRight, CalendarDays, Zap } from 'lucide-react';
+import { Calendar, Clock, MapPin, User, RefreshCw, AlertTriangle, TrendingUp, UserCheck, UserX, Filter, Building2, BookOpen, GraduationCap, ChevronLeft, ChevronRight, CalendarDays, Zap, LogOut, DoorOpen } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { useRefreshWithCooldown } from '@/hooks/useRefreshWithCooldown';
 import { studentAttendanceApi, type StudentAttendanceRecord, type StudentAttendanceResponse } from '@/api/studentAttendance.api';
+import { AttendanceStatus, ATTENDANCE_STATUS_CONFIG, normalizeAttendanceSummary } from '@/types/attendance.types';
 
 const MyAttendance = () => {
   const { user, selectedInstitute, selectedClass, selectedSubject, currentInstituteId, currentClassId, currentSubjectId } = useAuth();
@@ -122,36 +123,35 @@ const MyAttendance = () => {
   };
 
   const getStatusStyles = (status: string) => {
-    switch (status.toLowerCase()) {
-      case 'present':
-        return {
-          bg: 'bg-emerald-500/10 border-emerald-500/20',
-          text: 'text-emerald-600 dark:text-emerald-400',
-          icon: <UserCheck className="h-4 w-4" />,
-          dot: 'bg-emerald-500'
-        };
-      case 'absent':
-        return {
-          bg: 'bg-red-500/10 border-red-500/20',
-          text: 'text-red-600 dark:text-red-400',
-          icon: <UserX className="h-4 w-4" />,
-          dot: 'bg-red-500'
-        };
-      case 'late':
-        return {
-          bg: 'bg-amber-500/10 border-amber-500/20',
-          text: 'text-amber-600 dark:text-amber-400',
-          icon: <Clock className="h-4 w-4" />,
-          dot: 'bg-amber-500'
-        };
-      default:
-        return {
-          bg: 'bg-muted border-border',
-          text: 'text-muted-foreground',
-          icon: <User className="h-4 w-4" />,
-          dot: 'bg-muted-foreground'
-        };
-    }
+    const normalizedStatus = status?.toLowerCase() as AttendanceStatus;
+    const config = ATTENDANCE_STATUS_CONFIG[normalizedStatus] || ATTENDANCE_STATUS_CONFIG.present;
+    
+    // Map to our style format
+    const iconMap: Record<AttendanceStatus, React.ReactNode> = {
+      present: <UserCheck className="h-4 w-4" />,
+      absent: <UserX className="h-4 w-4" />,
+      late: <Clock className="h-4 w-4" />,
+      left: <LogOut className="h-4 w-4" />,
+      left_early: <DoorOpen className="h-4 w-4" />,
+      left_lately: <Clock className="h-4 w-4" />
+    };
+
+    // Derive dot color from config.color
+    const dotColorMap: Record<AttendanceStatus, string> = {
+      present: 'bg-emerald-500',
+      absent: 'bg-red-500',
+      late: 'bg-amber-500',
+      left: 'bg-purple-500',
+      left_early: 'bg-pink-500',
+      left_lately: 'bg-indigo-500'
+    };
+
+    return {
+      bg: config.bgColor,
+      text: config.color,
+      icon: iconMap[normalizedStatus] || <User className="h-4 w-4" />,
+      dot: dotColorMap[normalizedStatus] || 'bg-muted-foreground'
+    };
   };
 
   if (!user) {
@@ -170,8 +170,9 @@ const MyAttendance = () => {
     );
   }
 
-  const summary = attendanceData?.summary;
-  const totalRecords = (summary?.totalPresent || 0) + (summary?.totalAbsent || 0) + (summary?.totalLate || 0);
+  const summary = attendanceData?.summary ? normalizeAttendanceSummary(attendanceData.summary) : null;
+  const totalRecords = summary ? 
+    (summary.totalPresent + summary.totalAbsent + summary.totalLate + summary.totalLeft + summary.totalLeftEarly + summary.totalLeftLately) : 0;
 
   return (
     <div className="container mx-auto p-4 md:p-6 space-y-6">
@@ -301,7 +302,7 @@ const MyAttendance = () => {
 
       {/* Summary Cards */}
       {summary && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
           <Card className="relative overflow-hidden border-0 bg-gradient-to-br from-emerald-500/10 to-emerald-500/5">
             <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/10 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2" />
             <CardContent className="relative pt-6">
@@ -365,6 +366,78 @@ const MyAttendance = () => {
                   <div 
                     className="h-full bg-amber-500 rounded-full transition-all duration-500"
                     style={{ width: `${(summary.totalLate / totalRecords) * 100}%` }}
+                  />
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* New: Left Status */}
+          <Card className="relative overflow-hidden border-0 bg-gradient-to-br from-purple-500/10 to-purple-500/5">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-purple-500/10 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2" />
+            <CardContent className="relative pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Left</p>
+                  <p className="text-3xl font-bold text-purple-600 dark:text-purple-400">{summary.totalLeft}</p>
+                </div>
+                <div className="p-3 rounded-xl bg-purple-500/10">
+                  <LogOut className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+                </div>
+              </div>
+              {totalRecords > 0 && (
+                <div className="mt-3 h-1.5 bg-purple-500/20 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-purple-500 rounded-full transition-all duration-500"
+                    style={{ width: `${(summary.totalLeft / totalRecords) * 100}%` }}
+                  />
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* New: Left Early Status */}
+          <Card className="relative overflow-hidden border-0 bg-gradient-to-br from-pink-500/10 to-pink-500/5">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-pink-500/10 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2" />
+            <CardContent className="relative pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Left Early</p>
+                  <p className="text-3xl font-bold text-pink-600 dark:text-pink-400">{summary.totalLeftEarly}</p>
+                </div>
+                <div className="p-3 rounded-xl bg-pink-500/10">
+                  <DoorOpen className="h-6 w-6 text-pink-600 dark:text-pink-400" />
+                </div>
+              </div>
+              {totalRecords > 0 && (
+                <div className="mt-3 h-1.5 bg-pink-500/20 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-pink-500 rounded-full transition-all duration-500"
+                    style={{ width: `${(summary.totalLeftEarly / totalRecords) * 100}%` }}
+                  />
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* New: Left Late Status */}
+          <Card className="relative overflow-hidden border-0 bg-gradient-to-br from-indigo-500/10 to-indigo-500/5">
+            <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/10 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2" />
+            <CardContent className="relative pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Left Late</p>
+                  <p className="text-3xl font-bold text-indigo-600 dark:text-indigo-400">{summary.totalLeftLately}</p>
+                </div>
+                <div className="p-3 rounded-xl bg-indigo-500/10">
+                  <Clock className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
+                </div>
+              </div>
+              {totalRecords > 0 && (
+                <div className="mt-3 h-1.5 bg-indigo-500/20 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-indigo-500 rounded-full transition-all duration-500"
+                    style={{ width: `${(summary.totalLeftLately / totalRecords) * 100}%` }}
                   />
                 </div>
               )}

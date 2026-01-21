@@ -14,10 +14,11 @@ import { enhancedCachedClient } from '@/api/enhancedCachedClient';
 import { apiClient } from '@/api/client'; // For POST operations
 import { CACHE_TTL } from '@/config/cacheTTL';
 import { useToast } from '@/hooks/use-toast';
-import { User, Mail, Phone, MapPin, Calendar, Shield, Edit, Save, X, Lock, Download, FileText, CreditCard, Eye, EyeOff, Camera } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Calendar, Shield, Edit, Save, X, Lock, Download, FileText, CreditCard, Eye, EyeOff, Camera, Briefcase, GraduationCap, Globe, Languages } from 'lucide-react';
 import { useInstituteRole } from '@/hooks/useInstituteRole';
 interface UserData {
   id: string;
+  nameWithInitials: string;
   firstName: string;
   lastName: string;
   email: string;
@@ -25,7 +26,27 @@ interface UserData {
   userType: string;
   dateOfBirth: string;
   gender: string;
+  nic: string;
+  birthCertificateNo: string;
+  addressLine1: string;
+  addressLine2: string;
+  city: string;
+  district: string;
+  province: string;
+  postalCode: string;
+  country: string;
   imageUrl: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  // Parent/Professional data
+  occupation: string;
+  workplace: string;
+  workPhone: string;
+  educationLevel: string;
+  // Account data
+  subscriptionPlan: string;
+  language: string;
 }
 const Profile = () => {
   const {
@@ -41,13 +62,29 @@ const Profile = () => {
   const [loading, setLoading] = useState(true);
   const [formData, setFormData] = useState({
     name: '',
+    nameWithInitials: '',
     email: '',
     phone: '',
-    address: '',
-    bio: '',
-    joinDate: '',
     dateOfBirth: '',
-    gender: ''
+    gender: '',
+    nic: '',
+    birthCertificateNo: '',
+    addressLine1: '',
+    addressLine2: '',
+    city: '',
+    district: '',
+    province: '',
+    postalCode: '',
+    country: '',
+    joinDate: '',
+    // Parent/Professional data
+    occupation: '',
+    workplace: '',
+    workPhone: '',
+    educationLevel: '',
+    // Account data
+    subscriptionPlan: '',
+    language: ''
   });
   const [passwordData, setPasswordData] = useState({
     currentPassword: '',
@@ -63,35 +100,77 @@ const Profile = () => {
   const [activeProfileTab, setActiveProfileTab] = useState('details');
   const userPermissions = AccessControl.getPermissions(instituteRole);
 
-  // Remove automatic loading - set default values instead
+  // Load user data from /auth/me endpoint
   const loadUserData = async () => {
-    if (!user?.id) return;
     setLoading(true);
     try {
-      console.log('Fetching user data for ID:', user.id);
-      const response = await enhancedCachedClient.get<UserData>(
-        `/users/${user.id}`,
-        {},
-        {
-          ttl: CACHE_TTL.USER_PROFILE,
-          forceRefresh: false,
-          userId: user.id
-        }
-      );
+      console.log('Fetching user data from /auth/me');
+      const response = await apiClient.get<{ success: boolean; data: any }>('/auth/me');
       console.log('User data response:', response);
-      setUserData(response);
+      
+      if (response.success && response.data) {
+        const userData = response.data;
+        setUserData({
+          id: userData.id || '',
+          nameWithInitials: userData.nameWithInitials || '',
+          firstName: userData.firstName || '',
+          lastName: userData.lastName || '',
+          email: userData.email || '',
+          phone: userData.phoneNumber || '',
+          userType: userData.userType || '',
+          dateOfBirth: userData.dateOfBirth || '',
+          gender: userData.gender || '',
+          nic: userData.nic || '',
+          birthCertificateNo: userData.birthCertificateNo || '',
+          addressLine1: userData.addressLine1 || '',
+          addressLine2: userData.addressLine2 || '',
+          city: userData.city || '',
+          district: userData.district || '',
+          province: userData.province || '',
+          postalCode: userData.postalCode || '',
+          country: userData.country || '',
+          imageUrl: userData.imageUrl || '',
+          isActive: userData.isActive ?? true,
+          createdAt: userData.createdAt || '',
+          updatedAt: userData.updatedAt || '',
+          // Parent/Professional data
+          occupation: userData.occupation || '',
+          workplace: userData.workplace || '',
+          workPhone: userData.workPhone || '',
+          educationLevel: userData.educationLevel || '',
+          // Account data
+          subscriptionPlan: userData.subscriptionPlan || '',
+          language: userData.language || ''
+        });
 
-      // Update form data with API response
-      setFormData({
-        name: `${response.firstName} ${response.lastName}`,
-        email: response.email,
-        phone: response.phone,
-        address: '',
-        bio: '',
-        joinDate: user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : '',
-        dateOfBirth: response.dateOfBirth,
-        gender: response.gender
-      });
+        // Update form data with API response
+        setFormData({
+          name: `${userData.firstName || ''} ${userData.lastName || ''}`.trim(),
+          nameWithInitials: userData.nameWithInitials || '',
+          email: userData.email || '',
+          phone: userData.phoneNumber || '',
+          dateOfBirth: userData.dateOfBirth || '',
+          gender: userData.gender || '',
+          nic: userData.nic || '',
+          birthCertificateNo: userData.birthCertificateNo || '',
+          addressLine1: userData.addressLine1 || '',
+          addressLine2: userData.addressLine2 || '',
+          city: userData.city || '',
+          district: userData.district || '',
+          province: userData.province || '',
+          postalCode: userData.postalCode || '',
+          country: userData.country || '',
+          joinDate: userData.createdAt ? new Date(userData.createdAt).toLocaleDateString() : '',
+          // Parent/Professional data
+          occupation: userData.occupation || '',
+          workplace: userData.workplace || '',
+          workPhone: userData.workPhone || '',
+          educationLevel: userData.educationLevel || '',
+          // Account data
+          subscriptionPlan: userData.subscriptionPlan || '',
+          language: userData.language || ''
+        });
+      }
     } catch (error) {
       console.error('Error fetching user data:', error);
       toast({
@@ -106,10 +185,8 @@ const Profile = () => {
 
   // Auto-load user data on mount
   React.useEffect(() => {
-    if (user?.id) {
-      loadUserData();
-    }
-  }, [user?.id]);
+    loadUserData();
+  }, []);
   const handleSave = () => {
     // Save logic would go here
     console.log('Saving profile:', formData);
@@ -118,14 +195,28 @@ const Profile = () => {
   const handleCancel = () => {
     if (userData) {
       setFormData({
-        name: `${userData.firstName} ${userData.lastName}`,
-        email: userData.email,
-        phone: userData.phone,
-        address: '',
-        bio: '',
+        name: `${userData.firstName || ''} ${userData.lastName || ''}`.trim(),
+        nameWithInitials: userData.nameWithInitials || '',
+        email: userData.email || '',
+        phone: userData.phone || '',
+        dateOfBirth: userData.dateOfBirth || '',
+        gender: userData.gender || '',
+        nic: userData.nic || '',
+        birthCertificateNo: userData.birthCertificateNo || '',
+        addressLine1: userData.addressLine1 || '',
+        addressLine2: userData.addressLine2 || '',
+        city: userData.city || '',
+        district: userData.district || '',
+        province: userData.province || '',
+        postalCode: userData.postalCode || '',
+        country: userData.country || '',
         joinDate: user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : '',
-        dateOfBirth: userData.dateOfBirth,
-        gender: userData.gender
+        occupation: userData.occupation || '',
+        workplace: userData.workplace || '',
+        workPhone: userData.workPhone || '',
+        educationLevel: userData.educationLevel || '',
+        subscriptionPlan: userData.subscriptionPlan || '',
+        language: userData.language || ''
       });
     }
     setIsEditing(false);
@@ -375,25 +466,15 @@ const Profile = () => {
 
                   {/* Action Buttons */}
                   <div className="flex gap-2 pt-2">
-                    {!isEditing ? (
-                      <>
-                        <Button size="sm" onClick={() => setIsEditing(true)} className="gap-2">
-                          <Edit className="h-4 w-4" />
-                          Edit Profile
-                        </Button>
-                      </>
-                    ) : (
-                      <>
-                        <Button variant="outline" size="sm" onClick={handleCancel} className="gap-2">
-                          <X className="h-4 w-4" />
-                          Cancel
-                        </Button>
-                        <Button size="sm" onClick={handleSave} className="gap-2">
-                          <Save className="h-4 w-4" />
-                          Save Changes
-                        </Button>
-                      </>
-                    )}
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      disabled
+                      className="gap-2 opacity-60 cursor-not-allowed"
+                    >
+                      <Lock className="h-4 w-4" />
+                      Edit Profile
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -404,7 +485,7 @@ const Profile = () => {
         {/* Main Content */}
         <div className="space-y-6">
           <Tabs value={activeProfileTab} onValueChange={setActiveProfileTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-3 h-auto p-1.5 bg-gradient-to-r from-muted/50 to-muted/30 backdrop-blur-sm rounded-xl border border-border/50">
+            <TabsList className="grid w-full grid-cols-2 h-auto p-1.5 bg-gradient-to-r from-muted/50 to-muted/30 backdrop-blur-sm rounded-xl border border-border/50">
               <TabsTrigger 
                 value="details" 
                 className="data-[state=active]:bg-background data-[state=active]:shadow-lg data-[state=active]:text-primary py-3 px-4 text-sm font-medium transition-all rounded-lg"
@@ -420,14 +501,6 @@ const Profile = () => {
                 <Lock className="h-4 w-4 mr-2 inline" />
                 <span className="hidden sm:inline">Security</span>
                 <span className="sm:hidden">Sec</span>
-              </TabsTrigger>
-              <TabsTrigger 
-                value="user-id" 
-                className="data-[state=active]:bg-background data-[state=active]:shadow-lg data-[state=active]:text-primary py-3 px-4 text-sm font-medium transition-all rounded-lg"
-              >
-                <CreditCard className="h-4 w-4 mr-2 inline" />
-                <span className="hidden sm:inline">ID Card</span>
-                <span className="sm:hidden">ID</span>
               </TabsTrigger>
             </TabsList>
               
@@ -450,24 +523,42 @@ const Profile = () => {
                   </CardHeader>
                   <CardContent className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {/* Name with Initials */}
+                      <div className="space-y-2.5">
+                        <Label htmlFor="nameWithInitials" className="text-sm font-semibold">Name with Initials</Label>
+                        {isEditing ? (
+                          <Input 
+                            id="nameWithInitials" 
+                            value={formData.nameWithInitials} 
+                            onChange={e => setFormData({...formData, nameWithInitials: e.target.value})} 
+                            placeholder="e.g., J. Doe"
+                            className="h-12 text-base border-border/50 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200" 
+                          />
+                        ) : (
+                          <div className="h-12 px-4 rounded-xl bg-gradient-to-r from-muted/70 to-muted/40 border border-border/50 flex items-center">
+                            <p className="font-medium">{formData.nameWithInitials || 'Not set'}</p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Full Name */}
                       <div className="space-y-2.5">
                         <Label htmlFor="name" className="text-sm font-semibold">Full Name</Label>
                         {isEditing ? (
-                          <div className="relative">
-                            <Input 
-                              id="name" 
-                              value={formData.name} 
-                              onChange={e => setFormData({...formData, name: e.target.value})} 
-                              className="h-12 text-base border-border/50 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200" 
-                            />
-                          </div>
+                          <Input 
+                            id="name" 
+                            value={formData.name} 
+                            onChange={e => setFormData({...formData, name: e.target.value})} 
+                            className="h-12 text-base border-border/50 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200" 
+                          />
                         ) : (
                           <div className="h-12 px-4 rounded-xl bg-gradient-to-r from-muted/70 to-muted/40 border border-border/50 flex items-center">
-                            <p className="font-medium">{formData.name}</p>
+                            <p className="font-medium">{formData.name || 'Not set'}</p>
                           </div>
                         )}
                       </div>
                       
+                      {/* Email */}
                       <div className="space-y-2.5">
                         <Label htmlFor="email" className="text-sm font-semibold">Email address</Label>
                         {isEditing ? (
@@ -484,11 +575,12 @@ const Profile = () => {
                         ) : (
                           <div className="h-12 px-4 rounded-xl bg-gradient-to-r from-muted/70 to-muted/40 border border-border/50 flex items-center gap-3">
                             <Mail className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-                            <p className="font-medium truncate">{formData.email}</p>
+                            <p className="font-medium truncate">{formData.email || 'Not set'}</p>
                           </div>
                         )}
                       </div>
 
+                      {/* Phone */}
                       <div className="space-y-2.5">
                         <Label htmlFor="phone" className="text-sm font-semibold">Phone Number</Label>
                         {isEditing ? (
@@ -498,18 +590,19 @@ const Profile = () => {
                               id="phone" 
                               value={formData.phone} 
                               onChange={e => setFormData({...formData, phone: e.target.value})} 
-                              placeholder="+1 (555) 123-4567" 
+                              placeholder="+94XXXXXXXXX" 
                               className="h-12 text-base pl-11 border-border/50 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200" 
                             />
                           </div>
                         ) : (
                           <div className="h-12 px-4 rounded-xl bg-gradient-to-r from-muted/70 to-muted/40 border border-border/50 flex items-center gap-3">
                             <Phone className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-                            <p className="font-medium">{formData.phone || 'No phone number added'}</p>
+                            <p className="font-medium">{formData.phone || 'Not set'}</p>
                           </div>
                         )}
                       </div>
 
+                      {/* Date of Birth */}
                       <div className="space-y-2.5">
                         <Label htmlFor="dateOfBirth" className="text-sm font-semibold">Date of Birth</Label>
                         {isEditing ? (
@@ -528,6 +621,7 @@ const Profile = () => {
                         )}
                       </div>
 
+                      {/* Gender */}
                       <div className="space-y-2.5">
                         <Label htmlFor="gender" className="text-sm font-semibold">Gender</Label>
                         {isEditing ? (
@@ -544,6 +638,41 @@ const Profile = () => {
                         )}
                       </div>
 
+                      {/* NIC */}
+                      <div className="space-y-2.5">
+                        <Label htmlFor="nic" className="text-sm font-semibold">NIC</Label>
+                        {isEditing ? (
+                          <Input 
+                            id="nic" 
+                            value={formData.nic} 
+                            onChange={e => setFormData({...formData, nic: e.target.value})} 
+                            className="h-12 text-base border-border/50 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200" 
+                          />
+                        ) : (
+                          <div className="h-12 px-4 rounded-xl bg-gradient-to-r from-muted/70 to-muted/40 border border-border/50 flex items-center">
+                            <p className="font-medium">{formData.nic || 'Not set'}</p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Birth Certificate No */}
+                      <div className="space-y-2.5">
+                        <Label htmlFor="birthCertificateNo" className="text-sm font-semibold">Birth Certificate No</Label>
+                        {isEditing ? (
+                          <Input 
+                            id="birthCertificateNo" 
+                            value={formData.birthCertificateNo} 
+                            onChange={e => setFormData({...formData, birthCertificateNo: e.target.value})} 
+                            className="h-12 text-base border-border/50 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200" 
+                          />
+                        ) : (
+                          <div className="h-12 px-4 rounded-xl bg-gradient-to-r from-muted/70 to-muted/40 border border-border/50 flex items-center">
+                            <p className="font-medium">{formData.birthCertificateNo || 'Not set'}</p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* User Type */}
                       <div className="space-y-2.5">
                         <Label className="text-sm font-semibold">User Type</Label>
                         <div className="h-12 px-4 rounded-xl bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20 flex items-center gap-3">
@@ -551,45 +680,261 @@ const Profile = () => {
                           <p className="font-semibold text-primary">{userData?.userType || 'N/A'}</p>
                         </div>
                       </div>
-                    </div>
 
-                    <div className="space-y-2.5">
-                      <Label htmlFor="address" className="text-sm font-semibold">Address</Label>
-                      {isEditing ? (
-                        <div className="relative">
-                          <MapPin className="absolute left-3 top-4 h-5 w-5 text-muted-foreground" />
-                          <Textarea 
-                            id="address" 
-                            value={formData.address} 
-                            onChange={e => setFormData({...formData, address: e.target.value})} 
-                            className="min-h-[80px] text-base pl-11 border-border/50 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200" 
-                            rows={3}
+                      {/* Address Line 1 */}
+                      <div className="space-y-2.5 md:col-span-2">
+                        <Label htmlFor="addressLine1" className="text-sm font-semibold">Address Line 1</Label>
+                        {isEditing ? (
+                          <div className="relative">
+                            <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                            <Input 
+                              id="addressLine1" 
+                              value={formData.addressLine1} 
+                              onChange={e => setFormData({...formData, addressLine1: e.target.value})} 
+                              placeholder="Street address, area, landmark"
+                              className="h-12 text-base pl-11 border-border/50 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200" 
+                            />
+                          </div>
+                        ) : (
+                          <div className="h-12 px-4 rounded-xl bg-gradient-to-r from-muted/70 to-muted/40 border border-border/50 flex items-center gap-3">
+                            <MapPin className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                            <p className="font-medium">{formData.addressLine1 || 'Not set'}</p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Address Line 2 */}
+                      <div className="space-y-2.5 md:col-span-2">
+                        <Label htmlFor="addressLine2" className="text-sm font-semibold">Address Line 2</Label>
+                        {isEditing ? (
+                          <Input 
+                            id="addressLine2" 
+                            value={formData.addressLine2} 
+                            onChange={e => setFormData({...formData, addressLine2: e.target.value})} 
+                            placeholder="Apartment, suite, unit, etc."
+                            className="h-12 text-base border-border/50 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200" 
                           />
-                        </div>
-                      ) : (
-                        <div className="min-h-[80px] px-4 py-3 rounded-xl bg-gradient-to-r from-muted/70 to-muted/40 border border-border/50 flex gap-3">
-                          <MapPin className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
-                          <p className="font-medium leading-relaxed">{formData.address}</p>
-                        </div>
-                      )}
+                        ) : (
+                          <div className="h-12 px-4 rounded-xl bg-gradient-to-r from-muted/70 to-muted/40 border border-border/50 flex items-center">
+                            <p className="font-medium">{formData.addressLine2 || 'Not set'}</p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* City */}
+                      <div className="space-y-2.5">
+                        <Label htmlFor="city" className="text-sm font-semibold">City</Label>
+                        {isEditing ? (
+                          <Input 
+                            id="city" 
+                            value={formData.city} 
+                            onChange={e => setFormData({...formData, city: e.target.value})} 
+                            className="h-12 text-base border-border/50 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200" 
+                          />
+                        ) : (
+                          <div className="h-12 px-4 rounded-xl bg-gradient-to-r from-muted/70 to-muted/40 border border-border/50 flex items-center">
+                            <p className="font-medium">{formData.city || 'Not set'}</p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* District */}
+                      <div className="space-y-2.5">
+                        <Label htmlFor="district" className="text-sm font-semibold">District</Label>
+                        {isEditing ? (
+                          <Input 
+                            id="district" 
+                            value={formData.district} 
+                            onChange={e => setFormData({...formData, district: e.target.value})} 
+                            className="h-12 text-base border-border/50 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200" 
+                          />
+                        ) : (
+                          <div className="h-12 px-4 rounded-xl bg-gradient-to-r from-muted/70 to-muted/40 border border-border/50 flex items-center">
+                            <p className="font-medium">{formData.district || 'Not set'}</p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Province */}
+                      <div className="space-y-2.5">
+                        <Label htmlFor="province" className="text-sm font-semibold">Province</Label>
+                        {isEditing ? (
+                          <Input 
+                            id="province" 
+                            value={formData.province} 
+                            onChange={e => setFormData({...formData, province: e.target.value})} 
+                            className="h-12 text-base border-border/50 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200" 
+                          />
+                        ) : (
+                          <div className="h-12 px-4 rounded-xl bg-gradient-to-r from-muted/70 to-muted/40 border border-border/50 flex items-center">
+                            <p className="font-medium">{formData.province || 'Not set'}</p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Postal Code */}
+                      <div className="space-y-2.5">
+                        <Label htmlFor="postalCode" className="text-sm font-semibold">Postal Code</Label>
+                        {isEditing ? (
+                          <Input 
+                            id="postalCode" 
+                            value={formData.postalCode} 
+                            onChange={e => setFormData({...formData, postalCode: e.target.value})} 
+                            className="h-12 text-base border-border/50 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200" 
+                          />
+                        ) : (
+                          <div className="h-12 px-4 rounded-xl bg-gradient-to-r from-muted/70 to-muted/40 border border-border/50 flex items-center">
+                            <p className="font-medium">{formData.postalCode || 'Not set'}</p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Country */}
+                      <div className="space-y-2.5">
+                        <Label htmlFor="country" className="text-sm font-semibold">Country</Label>
+                        {isEditing ? (
+                          <Input 
+                            id="country" 
+                            value={formData.country} 
+                            onChange={e => setFormData({...formData, country: e.target.value})} 
+                            className="h-12 text-base border-border/50 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200" 
+                          />
+                        ) : (
+                          <div className="h-12 px-4 rounded-xl bg-gradient-to-r from-muted/70 to-muted/40 border border-border/50 flex items-center">
+                            <p className="font-medium">{formData.country || 'Not set'}</p>
+                          </div>
+                        )}
+                      </div>
                     </div>
 
-                    <div className="space-y-2.5">
-                      <Label htmlFor="bio" className="text-sm font-semibold">Biography</Label>
-                      {isEditing ? (
-                        <Textarea 
-                          id="bio" 
-                          rows={4} 
-                          value={formData.bio} 
-                          onChange={e => setFormData({...formData, bio: e.target.value})} 
-                          className="text-base border-border/50 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200" 
-                          placeholder="Tell us about yourself..." 
-                        />
-                      ) : (
-                        <div className="p-4 rounded-xl bg-gradient-to-r from-muted/70 to-muted/40 border border-border/50">
-                          <p className="text-sm leading-relaxed">{formData.bio}</p>
+                    {/* Professional Information Section */}
+                    <div className="mt-8 pt-6 border-t border-border/50">
+                      <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                        <Briefcase className="h-5 w-5 text-primary" />
+                        Professional Information
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Occupation */}
+                        <div className="space-y-2.5">
+                          <Label htmlFor="occupation" className="text-sm font-semibold">Occupation</Label>
+                          {isEditing ? (
+                            <Input 
+                              id="occupation" 
+                              value={formData.occupation} 
+                              onChange={e => setFormData({...formData, occupation: e.target.value})} 
+                              placeholder="e.g., Teacher, Engineer"
+                              className="h-12 text-base border-border/50 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200" 
+                            />
+                          ) : (
+                            <div className="h-12 px-4 rounded-xl bg-gradient-to-r from-muted/70 to-muted/40 border border-border/50 flex items-center gap-3">
+                              <Briefcase className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                              <p className="font-medium">{formData.occupation || 'Not set'}</p>
+                            </div>
+                          )}
                         </div>
-                      )}
+
+                        {/* Workplace */}
+                        <div className="space-y-2.5">
+                          <Label htmlFor="workplace" className="text-sm font-semibold">Workplace</Label>
+                          {isEditing ? (
+                            <Input 
+                              id="workplace" 
+                              value={formData.workplace} 
+                              onChange={e => setFormData({...formData, workplace: e.target.value})} 
+                              placeholder="Company or organization name"
+                              className="h-12 text-base border-border/50 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200" 
+                            />
+                          ) : (
+                            <div className="h-12 px-4 rounded-xl bg-gradient-to-r from-muted/70 to-muted/40 border border-border/50 flex items-center">
+                              <p className="font-medium">{formData.workplace || 'Not set'}</p>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Work Phone */}
+                        <div className="space-y-2.5">
+                          <Label htmlFor="workPhone" className="text-sm font-semibold">Work Phone</Label>
+                          {isEditing ? (
+                            <div className="relative">
+                              <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                              <Input 
+                                id="workPhone" 
+                                value={formData.workPhone} 
+                                onChange={e => setFormData({...formData, workPhone: e.target.value})} 
+                                placeholder="+94XXXXXXXXX"
+                                className="h-12 text-base pl-11 border-border/50 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200" 
+                              />
+                            </div>
+                          ) : (
+                            <div className="h-12 px-4 rounded-xl bg-gradient-to-r from-muted/70 to-muted/40 border border-border/50 flex items-center gap-3">
+                              <Phone className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                              <p className="font-medium">{formData.workPhone || 'Not set'}</p>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Education Level */}
+                        <div className="space-y-2.5">
+                          <Label htmlFor="educationLevel" className="text-sm font-semibold">Education Level</Label>
+                          {isEditing ? (
+                            <div className="relative">
+                              <GraduationCap className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                              <Input 
+                                id="educationLevel" 
+                                value={formData.educationLevel} 
+                                onChange={e => setFormData({...formData, educationLevel: e.target.value})} 
+                                placeholder="e.g., BSc in Computer Science"
+                                className="h-12 text-base pl-11 border-border/50 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200" 
+                              />
+                            </div>
+                          ) : (
+                            <div className="h-12 px-4 rounded-xl bg-gradient-to-r from-muted/70 to-muted/40 border border-border/50 flex items-center gap-3">
+                              <GraduationCap className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                              <p className="font-medium">{formData.educationLevel || 'Not set'}</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Account Information Section */}
+                    <div className="mt-8 pt-6 border-t border-border/50">
+                      <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                        <CreditCard className="h-5 w-5 text-primary" />
+                        Account Information
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Subscription Plan */}
+                        <div className="space-y-2.5">
+                          <Label className="text-sm font-semibold">Subscription Plan</Label>
+                          <div className="h-12 px-4 rounded-xl bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20 flex items-center gap-3">
+                            <CreditCard className="h-5 w-5 text-primary flex-shrink-0" />
+                            <p className="font-semibold text-primary">{formData.subscriptionPlan || 'FREE'}</p>
+                          </div>
+                        </div>
+
+                        {/* Language */}
+                        <div className="space-y-2.5">
+                          <Label htmlFor="language" className="text-sm font-semibold">Language</Label>
+                          {isEditing ? (
+                            <div className="relative">
+                              <Languages className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                              <Input 
+                                id="language" 
+                                value={formData.language} 
+                                onChange={e => setFormData({...formData, language: e.target.value})} 
+                                placeholder="E for English, S for Sinhala"
+                                className="h-12 text-base pl-11 border-border/50 focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200" 
+                              />
+                            </div>
+                          ) : (
+                            <div className="h-12 px-4 rounded-xl bg-gradient-to-r from-muted/70 to-muted/40 border border-border/50 flex items-center gap-3">
+                              <Languages className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                              <p className="font-medium">{formData.language === 'E' ? 'English' : formData.language === 'S' ? 'Sinhala' : formData.language || 'Not set'}</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -712,63 +1057,6 @@ const Profile = () => {
                           {passwordLoading ? "Updating..." : "Update Password"}
                         </Button>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-              
-              <TabsContent value="user-id" className="space-y-6">
-                <Card className="border-0 shadow-lg bg-card/50 backdrop-blur-sm">
-                  <CardHeader className="pb-6">
-                    <div className="flex items-center gap-3">
-                      <div className="p-3 rounded-xl bg-primary/10">
-                        <CreditCard className="h-6 w-6 text-primary" />
-                      </div>
-                      <div>
-                        <CardTitle className="text-2xl font-bold">User ID Management</CardTitle>
-                        <CardDescription className="text-sm mt-1">
-                          Manage identification documents and digital credentials
-                        </CardDescription>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid gap-3">
-                      <Button variant="outline" className="h-auto w-full justify-start p-4 border hover:border-primary/30 hover:bg-accent/50 transition-all duration-200 group">
-                        <div className="flex items-center gap-3 w-full">
-                          <div className="p-2.5 rounded-lg bg-primary/10 group-hover:bg-primary/15 transition-colors">
-                            <Download className="h-5 w-5 text-primary" />
-                          </div>
-                          <div className="text-left flex-1">
-                            <div className="font-semibold text-sm">Download ID Card</div>
-                            <div className="text-xs text-muted-foreground">Get your official ID document</div>
-                          </div>
-                        </div>
-                      </Button>
-                      
-                      <Button variant="outline" className="h-auto w-full justify-start p-4 border hover:border-primary/30 hover:bg-accent/50 transition-all duration-200 group">
-                        <div className="flex items-center gap-3 w-full">
-                          <div className="p-2.5 rounded-lg bg-primary/10 group-hover:bg-primary/15 transition-colors">
-                            <FileText className="h-5 w-5 text-primary" />
-                          </div>
-                          <div className="text-left flex-1">
-                            <div className="font-semibold text-sm">Request Physical ID Card</div>
-                            <div className="text-xs text-muted-foreground">Apply for a new ID document</div>
-                          </div>
-                        </div>
-                      </Button>
-                      
-                      <Button variant="outline" className="h-auto w-full justify-start p-4 border hover:border-primary/30 hover:bg-accent/50 transition-all duration-200 group">
-                        <div className="flex items-center gap-3 w-full">
-                          <div className="p-2.5 rounded-lg bg-primary/10 group-hover:bg-primary/15 transition-colors">
-                            <CreditCard className="h-5 w-5 text-primary" />
-                          </div>
-                          <div className="text-left flex-1">
-                            <div className="font-semibold text-sm">Virtual ID Card</div>
-                            <div className="text-xs text-muted-foreground">Access your digital ID card</div>
-                          </div>
-                        </div>
-                      </Button>
                     </div>
                   </CardContent>
                 </Card>

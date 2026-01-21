@@ -14,12 +14,14 @@ import jsQR from 'jsqr';
 import { childAttendanceApi, MarkAttendanceByCardRequest, MarkAttendanceRequest } from '@/api/childAttendance.api';
 import { useInstituteRole } from '@/hooks/useInstituteRole';
 import { buildAttendanceAddress } from '@/utils/attendanceAddress';
+import { AttendanceStatus, ALL_ATTENDANCE_STATUSES, ATTENDANCE_STATUS_CONFIG } from '@/types/attendance.types';
+
 interface AttendanceAlert {
   id: string;
   type: 'success' | 'error';
   studentName?: string;
   studentId?: string;
-  status?: 'present' | 'absent' | 'late';
+  status?: AttendanceStatus;
   message: string;
   timestamp: Date;
 }
@@ -36,7 +38,7 @@ const QRAttendance = () => {
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [location, setLocation] = useState<{ latitude: number; longitude: number; address: string } | null>(null);
   const [locationLoading, setLocationLoading] = useState(false);
-  const [status, setStatus] = useState<'present' | 'absent' | 'late'>('present');
+  const [status, setStatus] = useState<AttendanceStatus>('present');
   const [attendanceAlerts, setAttendanceAlerts] = useState<AttendanceAlert[]>([]);
   const [showMethodDialog, setShowMethodDialog] = useState(false);
   const [selectedMethod, setSelectedMethod] = useState<'qr' | 'barcode' | 'rfid/nfc'>('qr');
@@ -828,14 +830,16 @@ const QRAttendance = () => {
                  <div className="space-y-4">
                    <div>
                      <p className="text-sm font-medium mb-2">Status</p>
-                     <Select value={status} onValueChange={(value) => setStatus(value as 'present' | 'absent' | 'late')}>
+                     <Select value={status} onValueChange={(value) => setStatus(value as AttendanceStatus)}>
                        <SelectTrigger className="w-full">
                          <SelectValue />
                        </SelectTrigger>
                        <SelectContent className="bg-white dark:bg-gray-800 z-50">
-                         <SelectItem value="present">Present</SelectItem>
-                         <SelectItem value="absent">Absent</SelectItem>
-                         <SelectItem value="late">Late</SelectItem>
+                          {ALL_ATTENDANCE_STATUSES.map((statusOption) => (
+                            <SelectItem key={statusOption} value={statusOption}>
+                              {ATTENDANCE_STATUS_CONFIG[statusOption].label}
+                            </SelectItem>
+                          ))}
                        </SelectContent>
                      </Select>
                    </div>
@@ -858,19 +862,21 @@ const QRAttendance = () => {
              ) : (
                <div className="space-y-4 sm:space-y-6">
                  {/* Status Selector while scanning */}
-                 <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border">
-                   <p className="text-sm font-medium mb-2">Status</p>
-                   <Select value={status} onValueChange={(value) => setStatus(value as 'present' | 'absent' | 'late')}>
-                     <SelectTrigger className="w-full">
-                       <SelectValue />
-                     </SelectTrigger>
-                     <SelectContent className="bg-white dark:bg-gray-800 z-50">
-                       <SelectItem value="present">Present</SelectItem>
-                       <SelectItem value="absent">Absent</SelectItem>
-                       <SelectItem value="late">Late</SelectItem>
-                     </SelectContent>
-                   </Select>
-                 </div>
+                  <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border">
+                    <p className="text-sm font-medium mb-2">Status</p>
+                    <Select value={status} onValueChange={(value) => setStatus(value as AttendanceStatus)}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-white dark:bg-gray-800 z-50">
+                         {ALL_ATTENDANCE_STATUSES.map((statusOption) => (
+                           <SelectItem key={statusOption} value={statusOption}>
+                             {ATTENDANCE_STATUS_CONFIG[statusOption].label}
+                           </SelectItem>
+                         ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                  
                  {/* Mobile Responsive Camera View */}
                   <div className="relative w-full h-[70vh] sm:h-[500px] md:h-[600px] lg:h-[700px] bg-black rounded-lg sm:rounded-2xl overflow-hidden shadow-2xl">
@@ -951,14 +957,16 @@ const QRAttendance = () => {
              <div className="space-y-4">
                <div>
                  <p className="text-sm font-medium mb-2">Status</p>
-                 <Select value={status} onValueChange={(value) => setStatus(value as 'present' | 'absent' | 'late')}>
+                 <Select value={status} onValueChange={(value) => setStatus(value as AttendanceStatus)}>
                    <SelectTrigger className="w-full">
                      <SelectValue />
                    </SelectTrigger>
                    <SelectContent className="bg-white dark:bg-gray-800 z-50">
-                     <SelectItem value="present">Present</SelectItem>
-                     <SelectItem value="absent">Absent</SelectItem>
-                     <SelectItem value="late">Late</SelectItem>
+                      {ALL_ATTENDANCE_STATUSES.map((statusOption) => (
+                        <SelectItem key={statusOption} value={statusOption}>
+                          {ATTENDANCE_STATUS_CONFIG[statusOption].label}
+                        </SelectItem>
+                      ))}
                    </SelectContent>
                  </Select>
                </div>

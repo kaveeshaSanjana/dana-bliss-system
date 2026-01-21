@@ -329,6 +329,15 @@ const Classes = () => {
   const paginatedClasses = filteredClasses.slice(page * rowsPerPage, (page + 1) * rowsPerPage);
   const columns = [
     {
+      key: 'id',
+      header: 'Class ID',
+      render: (value: string) => (
+        <span className="inline-flex items-center rounded-md border border-border bg-muted px-2 py-1 font-mono text-sm sm:text-base font-semibold text-foreground">
+          {value}
+        </span>
+      )
+    },
+    {
       key: 'imageUrl',
       header: 'Image',
       render: (value: string, row: any) => (

@@ -5,9 +5,12 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, AlertCircle, CheckCircle } from 'lucide-react';
+import { Loader2, AlertCircle, CheckCircle, Key, Unlock, BookOpen, GraduationCap, Users, Search, Clock } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
+import { TeacherAutocomplete } from '@/components/ui/teacher-autocomplete';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAuth } from '@/contexts/AuthContext';
 import { useInstituteRole } from '@/hooks/useInstituteRole';
 import { useToast } from '@/hooks/use-toast';
@@ -51,14 +54,14 @@ const AssignSubjectToClassForm: React.FC<AssignSubjectToClassFormProps> = ({
   onSuccess,
   onCancel
 }) => {
-  const { currentInstituteId, user, selectedInstitute, selectedInstituteType } = useAuth();
+  const { currentInstituteId, user, selectedInstitute } = useAuth();
   const userRole = useInstituteRole();
   const { toast } = useToast();
 
   // Check if user is InstituteAdmin or Teacher
   if (userRole !== 'Teacher' && userRole !== 'InstituteAdmin') {
     return (
-      <div className="p-6 text-center">
+      <div className="p-4 sm:p-6 text-center">
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
@@ -81,6 +84,23 @@ const AssignSubjectToClassForm: React.FC<AssignSubjectToClassFormProps> = ({
   const [classSearchQuery, setClassSearchQuery] = useState('');
   const [showClassSelector, setShowClassSelector] = useState(true);
   const [assignResult, setAssignResult] = useState<AssignResponse | null>(null);
+  // Per-subject enrollment settings: { subjectId: { enabled: boolean, key: string } }
+  const [subjectEnrollmentSettings, setSubjectEnrollmentSettings] = useState<Record<string, { enabled: boolean; key: string }>>({});
+
+  // Helper functions for per-subject enrollment
+  const getSubjectEnrollment = (subjectId: string) => {
+    return subjectEnrollmentSettings[subjectId] || { enabled: false, key: '' };
+  };
+
+  const updateSubjectEnrollment = (subjectId: string, field: 'enabled' | 'key', value: boolean | string) => {
+    setSubjectEnrollmentSettings(prev => ({
+      ...prev,
+      [subjectId]: {
+        ...prev[subjectId] || { enabled: false, key: '' },
+        [field]: value
+      }
+    }));
+  };
 
   const getAuthToken = () => {
     const token = localStorage.getItem('access_token') || 
@@ -104,14 +124,23 @@ const AssignSubjectToClassForm: React.FC<AssignSubjectToClassFormProps> = ({
   };
 
   const handleLoadSubjects = async (forceRefresh = false) => {
+    if (!currentInstituteId) {
+      toast({
+        title: "Error",
+        description: "Please select an institute first.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setSubjectsLoading(true);
     try {
-      const params: Record<string, any> = { page: '1', limit: '50' };
-      if (selectedInstituteType) {
-        params.instituteType = selectedInstituteType;
-      }
+      const params: Record<string, any> = { 
+        page: '1', 
+        limit: '50',
+        instituteId: currentInstituteId
+      };
       
-      // Use enhanced cached client
       const result: Subject[] = await enhancedCachedClient.get(
         '/subjects',
         params,
@@ -152,7 +181,6 @@ const AssignSubjectToClassForm: React.FC<AssignSubjectToClassFormProps> = ({
       let classData: any[] = [];
       
       if (userRole === 'Teacher' && user?.id) {
-        // Use teacher-specific API for Teachers with caching
         const result = await enhancedCachedClient.get(
           `/institute-classes/${currentInstituteId}/teacher/${user.id}`,
           { page: '1', limit: '10' },
@@ -167,7 +195,6 @@ const AssignSubjectToClassForm: React.FC<AssignSubjectToClassFormProps> = ({
         
         classData = result.data || [];
       } else if (userRole === 'InstituteAdmin') {
-        // Use regular API for InstituteAdmin with caching
         const result = await enhancedCachedClient.get(
           `/institute-classes/institute/${currentInstituteId}`,
           {},
@@ -186,7 +213,6 @@ const AssignSubjectToClassForm: React.FC<AssignSubjectToClassFormProps> = ({
       let mappedClasses: any[] = [];
       
       if (userRole === 'Teacher') {
-        // For teachers, map from class-subject assignments
         mappedClasses = classData.map((item: any) => ({
           id: item.class.id,
           name: item.class.name,
@@ -195,7 +221,6 @@ const AssignSubjectToClassForm: React.FC<AssignSubjectToClassFormProps> = ({
           specialty: item.class.specialty
         }));
       } else {
-        // For InstituteAdmin, map directly from classes
         mappedClasses = classData.map((cls: any) => ({
           id: cls.id,
           name: cls.name,
@@ -260,8 +285,18 @@ const AssignSubjectToClassForm: React.FC<AssignSubjectToClassFormProps> = ({
       const baseUrl = getBaseUrl();
       const headers = getApiHeaders();
       
+      // Build subjects array with per-subject enrollment settings
+      const subjectsWithEnrollment = selectedSubjectIds.map(subjectId => {
+        const enrollment = getSubjectEnrollment(subjectId);
+        return {
+          subjectId,
+          enrollmentEnabled: enrollment.enabled,
+          enrollmentKey: enrollment.enabled && enrollment.key ? enrollment.key : undefined
+        };
+      });
+
       const requestBody = {
-        subjectIds: selectedSubjectIds,
+        subjects: subjectsWithEnrollment,
         defaultTeacherId: defaultTeacherId || user?.id || undefined
       };
 
@@ -311,18 +346,25 @@ const AssignSubjectToClassForm: React.FC<AssignSubjectToClassFormProps> = ({
   const selectedClass = classes.find(cls => cls.id === selectedClassId);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6 max-h-[80vh] overflow-hidden flex flex-col">
       {showClassSelector ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Select Class or Classes</CardTitle>
+        <Card className="border-dashed">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <GraduationCap className="h-5 w-5 text-primary" />
+              Select Class
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-center py-8">
+            <div className="text-center py-6 sm:py-8">
+              <p className="text-sm text-muted-foreground mb-4">
+                Click below to load available classes
+              </p>
               <Button 
                 onClick={() => handleLoadClasses(false)}
                 disabled={classesLoading}
-                className="bg-blue-600 hover:bg-blue-700"
+                size="lg"
+                className="w-full sm:w-auto"
               >
                 {classesLoading ? (
                   <>
@@ -330,30 +372,40 @@ const AssignSubjectToClassForm: React.FC<AssignSubjectToClassFormProps> = ({
                     Loading Classes...
                   </>
                 ) : (
-                  'Load Classes'
+                  <>
+                    <GraduationCap className="h-4 w-4 mr-2" />
+                    Load Classes
+                  </>
                 )}
               </Button>
             </div>
           </CardContent>
         </Card>
       ) : (
-        <>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="class-select">Select Class</Label>
-              <Select value={selectedClassId} onValueChange={setSelectedClassId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Choose a class..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <div className="p-2">
+        <div className="flex-1 overflow-y-auto space-y-4 sm:space-y-5 pr-1">
+          {/* Class Selection */}
+          <div className="space-y-3">
+            <Label htmlFor="class-select" className="text-sm font-medium flex items-center gap-2">
+              <GraduationCap className="h-4 w-4 text-primary" />
+              Select Class
+            </Label>
+            <Select value={selectedClassId} onValueChange={setSelectedClassId}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Choose a class..." />
+              </SelectTrigger>
+              <SelectContent>
+                <div className="p-2 sticky top-0 bg-popover">
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input
                       placeholder="Search classes..."
-                      className="mb-2"
+                      className="pl-8"
                       value={classSearchQuery}
                       onChange={(e) => setClassSearchQuery(e.target.value)}
                     />
                   </div>
+                </div>
+                <ScrollArea className="max-h-48">
                   {classes
                     .filter((cls) => 
                       cls.name.toLowerCase().includes(classSearchQuery.toLowerCase()) ||
@@ -362,167 +414,276 @@ const AssignSubjectToClassForm: React.FC<AssignSubjectToClassFormProps> = ({
                     )
                     .map((cls) => (
                       <SelectItem key={cls.id} value={cls.id}>
-                        {cls.name} ({cls.code}) - Grade {cls.grade}
+                        <span className="flex items-center gap-2">
+                          <span className="font-medium">{cls.name}</span>
+                          <Badge variant="secondary" className="text-xs">{cls.code}</Badge>
+                          <Badge variant="outline" className="text-xs">Grade {cls.grade}</Badge>
+                        </span>
                       </SelectItem>
                     ))}
-                </SelectContent>
-              </Select>
-            </div>
+                </ScrollArea>
+              </SelectContent>
+            </Select>
+          </div>
 
-            {selectedClass && (
-              <Card className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
-                <CardContent className="pt-4">
-                  <div className="flex items-center gap-2">
-                    <Badge variant="secondary">{selectedClass.code}</Badge>
-                    <span className="font-medium">{selectedClass.name}</span>
-                    <Badge variant="outline">Grade {selectedClass.grade}</Badge>
-                    {selectedClass.specialty && (
-                      <Badge variant="outline">{selectedClass.specialty}</Badge>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            <div>
-              <Label htmlFor="teacher-id">Default Teacher ID (Optional)</Label>
-              <Input
-                id="teacher-id"
-                type="text"
-                value={defaultTeacherId}
-                onChange={(e) => setDefaultTeacherId(e.target.value)}
-                placeholder="Enter teacher ID or leave empty"
-              />
-            </div>
-
-            <div>
-              <div className="flex flex-col items-center mb-3">
-                <Label className="mb-3">Select Subjects to Assign</Label>
-                {subjects.length === 0 && (
-                  <Button 
-                    onClick={() => handleLoadSubjects(false)}
-                    disabled={subjectsLoading}
-                    className="bg-blue-600 hover:bg-blue-700"
-                  >
-                    {subjectsLoading ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Loading...
-                      </>
-                    ) : (
-                      'Load Subjects'
-                    )}
-                  </Button>
-                )}
-              </div>
-              
-              {subjects.length > 0 && (
-                <div className="mb-3">
-                  <Input
-                    placeholder="Search subjects by name, category, or code..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full"
-                  />
+          {/* Selected Class Card */}
+          {selectedClass && (
+            <Card className="bg-primary/5 border-primary/20">
+              <CardContent className="py-3 px-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge className="bg-primary/10 text-primary border-primary/20">
+                    {selectedClass.code}
+                  </Badge>
+                  <span className="font-medium text-sm">{selectedClass.name}</span>
+                  <Badge variant="outline" className="text-xs">Grade {selectedClass.grade}</Badge>
+                  {selectedClass.specialty && (
+                    <Badge variant="secondary" className="text-xs">{selectedClass.specialty}</Badge>
+                  )}
                 </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Teacher Selection */}
+          <div className="space-y-3">
+            <Label htmlFor="teacher-id" className="text-sm font-medium flex items-center gap-2">
+              <Users className="h-4 w-4 text-primary" />
+              Default Teacher
+              <span className="text-muted-foreground font-normal">(Optional)</span>
+            </Label>
+            <TeacherAutocomplete
+              value={defaultTeacherId}
+              onChange={(teacherId) => setDefaultTeacherId(teacherId)}
+              placeholder="Search teacher by name..."
+            />
+          </div>
+
+          {/* Subject Selection */}
+          <div className="space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <Label className="text-sm font-medium flex items-center gap-2">
+                <BookOpen className="h-4 w-4 text-primary" />
+                Select Subjects to Assign
+              </Label>
+              {subjects.length === 0 && (
+                <Button 
+                  onClick={() => handleLoadSubjects(false)}
+                  disabled={subjectsLoading}
+                  size="sm"
+                  variant="outline"
+                >
+                  {subjectsLoading ? (
+                    <>
+                      <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
+                      Loading...
+                    </>
+                  ) : (
+                    <>
+                      <BookOpen className="h-3 w-3 mr-1.5" />
+                      Load Subjects
+                    </>
+                  )}
+                </Button>
               )}
-              
-              {subjects.length > 0 ? (
-                <div className="mt-2 space-y-2 max-h-60 overflow-y-auto border rounded-md p-3">
+            </div>
+            
+            {subjects.length > 0 && (
+              <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search subjects by name, category, or code..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-8"
+                />
+              </div>
+            )}
+            
+            {subjects.length > 0 ? (
+              <ScrollArea className="h-48 sm:h-56 border rounded-lg">
+                <div className="p-2 space-y-1">
                   {filteredSubjects.map((subject) => (
-                    <div key={subject.id} className="flex items-center space-x-2">
+                    <div 
+                      key={subject.id} 
+                      className={`flex items-center gap-3 p-2.5 rounded-md cursor-pointer transition-colors hover:bg-accent/50 ${
+                        selectedSubjectIds.includes(subject.id) ? 'bg-primary/10 border border-primary/20' : 'border border-transparent'
+                      }`}
+                      onClick={() => handleSubjectChange(subject.id, !selectedSubjectIds.includes(subject.id))}
+                    >
                       <Checkbox
                         id={subject.id}
                         checked={selectedSubjectIds.includes(subject.id)}
-                        onCheckedChange={(checked) => 
-                          handleSubjectChange(subject.id, checked as boolean)
-                        }
+                        onCheckedChange={(checked) => handleSubjectChange(subject.id, checked as boolean)}
+                        onClick={(e) => e.stopPropagation()}
                       />
-                      <Label 
-                        htmlFor={subject.id} 
-                        className="flex-1 text-sm cursor-pointer"
-                      >
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <span className="font-medium">{subject.name}</span>
-                          </div>
-                          <div className="flex gap-1">
-                            <Badge variant="outline" className="text-xs">
-                              {subject.category}
-                            </Badge>
-                            <Badge variant="secondary" className="text-xs">
-                              {subject.creditHours}h
-                            </Badge>
-                          </div>
-                        </div>
-                      </Label>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm truncate">{subject.name}</p>
+                        <p className="text-xs text-muted-foreground truncate">{subject.code}</p>
+                      </div>
+                      <div className="flex flex-wrap gap-1 justify-end">
+                        <Badge variant="outline" className="text-xs whitespace-nowrap">
+                          {subject.category}
+                        </Badge>
+                        <Badge variant="secondary" className="text-xs whitespace-nowrap">
+                          <Clock className="h-3 w-3 mr-1" />
+                          {subject.creditHours}h
+                        </Badge>
+                      </div>
                     </div>
                   ))}
                   {filteredSubjects.length === 0 && searchQuery && (
-                    <p className="text-center text-gray-500 py-4">
+                    <p className="text-center text-muted-foreground py-6 text-sm">
                       No subjects found matching "{searchQuery}"
                     </p>
                   )}
                 </div>
-              ) : (
-                <div className="mt-2 border rounded-md p-8 text-center text-gray-500">
+              </ScrollArea>
+            ) : (
+              <div className="border rounded-lg p-6 sm:p-8 text-center bg-muted/30">
+                <BookOpen className="h-8 w-8 mx-auto mb-2 text-muted-foreground/50" />
+                <p className="text-sm text-muted-foreground">
                   Click "Load Subjects" to view available subjects
-                </div>
-              )}
-              
-              {selectedSubjectIds.length > 0 && (
-                <p className="text-sm text-gray-600 mt-2">
-                  {selectedSubjectIds.length} subject(s) selected
                 </p>
-              )}
-            </div>
+              </div>
+            )}
+            
+            {selectedSubjectIds.length > 0 && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-sm">
+                  <Badge variant="default" className="rounded-full">
+                    {selectedSubjectIds.length}
+                  </Badge>
+                  <span className="text-muted-foreground">subject(s) selected</span>
+                </div>
+
+                {/* Per-Subject Enrollment Settings */}
+                <Card className="border-dashed">
+                  <CardHeader className="pb-2 pt-3 px-4">
+                    <CardTitle className="text-sm font-medium flex items-center gap-2">
+                      <Key className="h-4 w-4 text-primary" />
+                      Enrollment Settings
+                      <span className="text-muted-foreground font-normal">(Per Subject)</span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="px-4 pb-4">
+                    <p className="text-xs text-muted-foreground mb-3">
+                      Configure self-enrollment for each selected subject
+                    </p>
+                    <ScrollArea className="max-h-48">
+                      <div className="space-y-3">
+                        {selectedSubjectIds.map((subjectId) => {
+                          const subject = subjects.find(s => s.id === subjectId);
+                          const enrollment = getSubjectEnrollment(subjectId);
+                          if (!subject) return null;
+                          
+                          return (
+                            <div 
+                              key={subjectId} 
+                              className="p-3 rounded-lg border bg-card space-y-3"
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <BookOpen className="h-4 w-4 text-primary shrink-0" />
+                                  <span className="font-medium text-sm truncate">{subject.name}</span>
+                                  <Badge variant="outline" className="text-xs shrink-0">{subject.code}</Badge>
+                                </div>
+                                <Switch
+                                  checked={enrollment.enabled}
+                                  onCheckedChange={(checked) => updateSubjectEnrollment(subjectId, 'enabled', checked)}
+                                />
+                              </div>
+                              
+                              {enrollment.enabled && (
+                                <div className="space-y-2 animate-in fade-in slide-in-from-top-1 duration-150">
+                                  <div className="flex items-center gap-2">
+                                    {enrollment.key ? (
+                                      <Badge variant="secondary" className="text-xs">
+                                        <Key className="h-3 w-3 mr-1" />
+                                        Key Required
+                                      </Badge>
+                                    ) : (
+                                      <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-xs">
+                                        <Unlock className="h-3 w-3 mr-1" />
+                                        Open
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  <div className="relative">
+                                    <Key className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                                    <Input
+                                      placeholder="e.g., MATH-2026 (empty = open)"
+                                      value={enrollment.key}
+                                      onChange={(e) => updateSubjectEnrollment(subjectId, 'key', e.target.value.toUpperCase())}
+                                      maxLength={50}
+                                      className="pl-8 h-9 text-sm"
+                                    />
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </ScrollArea>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
           </div>
 
+          {/* Assignment Result */}
           {assignResult && (
-            <Alert className={assignResult.success ? "border-green-200 bg-green-50" : "border-red-200 bg-red-50"}>
+            <Alert className={assignResult.success ? "border-emerald-500/30 bg-emerald-500/10" : "border-destructive/30 bg-destructive/10"}>
               {assignResult.success ? (
-                <CheckCircle className="h-4 w-4 text-green-600" />
+                <CheckCircle className="h-4 w-4 text-emerald-600" />
               ) : (
-                <AlertCircle className="h-4 w-4 text-red-600" />
+                <AlertCircle className="h-4 w-4 text-destructive" />
               )}
               <AlertDescription className="text-sm">
                 <div className="space-y-1">
-                  <p>{assignResult.message}</p>
+                  <p className="font-medium">{assignResult.message}</p>
                   {assignResult.assignedCount > 0 && (
-                    <p className="text-green-700">✓ {assignResult.assignedCount} subjects assigned successfully</p>
+                    <p className="text-emerald-600">✓ {assignResult.assignedCount} subjects assigned successfully</p>
                   )}
                   {assignResult.skippedCount > 0 && (
-                    <p className="text-yellow-700">⚠ {assignResult.skippedCount} subjects were skipped (already assigned)</p>
+                    <p className="text-amber-600">⚠ {assignResult.skippedCount} subjects were skipped (already assigned)</p>
                   )}
                 </div>
               </AlertDescription>
             </Alert>
           )}
+        </div>
+      )}
 
-          <div className="flex justify-end gap-2 pt-4">
-            <Button
-              variant="outline"
-              onClick={onCancel}
-              disabled={isLoading}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleAssignSubjects}
-              disabled={isLoading || !selectedClassId || selectedSubjectIds.length === 0}
-              className="bg-purple-600 hover:bg-purple-700"
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Assigning...
-                </>
-              ) : (
-                'Assign Subjects'
-              )}
-            </Button>
-          </div>
-        </>
+      {/* Footer Actions */}
+      {!showClassSelector && (
+        <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 pt-4 border-t bg-background sticky bottom-0">
+          <Button
+            variant="outline"
+            onClick={onCancel}
+            disabled={isLoading}
+            className="w-full sm:w-auto"
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleAssignSubjects}
+            disabled={isLoading || !selectedClassId || selectedSubjectIds.length === 0}
+            className="w-full sm:w-auto"
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Assigning...
+              </>
+            ) : (
+              <>
+                <CheckCircle className="h-4 w-4 mr-2" />
+                Assign {selectedSubjectIds.length > 0 ? `${selectedSubjectIds.length} ` : ''}Subjects
+              </>
+            )}
+          </Button>
+        </div>
       )}
     </div>
   );

@@ -22,7 +22,8 @@ import ModalRouter from '@/components/ModalRouter';
 
 import Grades from '@/components/Grades';
 import Classes from '@/components/Classes';
-import Subjects from '@/components/Subjects';
+// Subjects component merged into InstituteSubjects
+import ClassSubjects from '@/components/ClassSubjects';
 import Institutes from '@/components/Institutes';
 import Grading from '@/components/Grading';
 import Attendance from '@/components/Attendance';
@@ -86,6 +87,7 @@ import HomeworkSubmissions from '@/pages/HomeworkSubmissions';
 import ExamResults from '@/pages/ExamResults';
 import CreateExamResults from '@/pages/CreateExamResults';
 import InstituteSubjects from '@/pages/InstituteSubjects';
+import TeacherEnrollmentManagement from '@/pages/TeacherEnrollmentManagement';
 
 interface AppContentProps {
   initialPage?: string;
@@ -99,12 +101,12 @@ const AppContent = ({ initialPage }: AppContentProps) => {
   const [hasNavigatedAfterLogin, setHasNavigatedAfterLogin] = React.useState(false);
   
   // Sync URL context with AuthContext and validate access (403 if unauthorized)
-  const { isValidating } = useRouteContext();
+  const { isValidating, instituteId: urlInstituteId } = useRouteContext();
   
   // Institute-specific role - always uses selectedInstitute.userRole
   const userRole = useInstituteRole();
   
-  console.log('🎯 AppContent - Role:', userRole, 'Institute UserType:', selectedInstitute?.userRole);
+  console.log('🎯 AppContent - Role:', userRole, 'Institute UserType:', selectedInstitute?.userRole, 'isValidating:', isValidating);
   
   // Derive current page from URL pathname
   const currentPage = React.useMemo(() => {
@@ -146,21 +148,34 @@ const AppContent = ({ initialPage }: AppContentProps) => {
   
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   
-  // Auto-navigate to Select Institute page after login
+  // Check if we're loading context from URL (direct navigation)
+  const isLoadingContextFromUrl = urlInstituteId && !selectedInstitute && isValidating;
+  
+  // Auto-navigate to Select Institute page after login (only if not loading from URL)
   React.useEffect(() => {
+    // Don't auto-navigate if we have an institute ID in URL (direct navigation)
+    if (urlInstituteId) {
+      console.log('🔗 Direct URL navigation detected, waiting for context to load...');
+      return;
+    }
+    
     if (user && !hasNavigatedAfterLogin && !selectedInstitute && (location.pathname === '/dashboard' || location.pathname === '/')) {
       console.log('🏢 Auto-navigating to Select Institute after login');
       setHasNavigatedAfterLogin(true);
       navigate('/select-institute');
     }
-  }, [user, hasNavigatedAfterLogin, selectedInstitute, location.pathname, navigate]);
+  }, [user, hasNavigatedAfterLogin, selectedInstitute, location.pathname, navigate, urlInstituteId]);
   
-  // Reset the flag when user logs out
+  // Reset the flag when user logs out and navigate to root
   React.useEffect(() => {
     if (!user) {
       setHasNavigatedAfterLogin(false);
+      // Navigate to root (login page) when user logs out
+      if (location.pathname !== '/') {
+        navigate('/', { replace: true });
+      }
     }
-  }, [user]);
+  }, [user, location.pathname, navigate]);
   const [showCreateOrgForm, setShowCreateOrgForm] = useState(false);
   const [organizationCurrentPage, setOrganizationCurrentPage] = useState('organizations');
 
@@ -428,6 +443,18 @@ const AppContent = ({ initialPage }: AppContentProps) => {
   };
 
   const renderComponent = () => {
+    // CRITICAL: Show loading state when loading context from direct URL navigation
+    if (isLoadingContextFromUrl) {
+      return (
+        <div className="flex items-center justify-center h-screen">
+          <div className="flex flex-col items-center gap-4">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+            <p className="text-muted-foreground">Loading institute data...</p>
+          </div>
+        </div>
+      );
+    }
+    
     // CRITICAL: Handle child routes FIRST - regardless of user role
     // When a child is selected and URL matches child routes, render the child pages
     if (selectedChild && nestedRouteComponent) {
@@ -529,7 +556,8 @@ const AppContent = ({ initialPage }: AppContentProps) => {
         // This should be handled by the auth context
       }
       
-      if (!selectedInstitute && currentPage !== 'institutes' && currentPage !== 'select-institute') {
+      // Only redirect to InstituteSelector if no institute AND not loading from URL
+      if (!selectedInstitute && !urlInstituteId && currentPage !== 'institutes' && currentPage !== 'select-institute') {
         return <InstituteSelector />;
       }
 
@@ -610,7 +638,7 @@ const AppContent = ({ initialPage }: AppContentProps) => {
 
       // For Parent role, when "Select Institute" is clicked (dashboard page), 
       // use InstituteSelector but pass the selected child's ID
-      if (currentPage === 'dashboard' && selectedChild && !selectedInstitute) {
+      if (currentPage === 'dashboard' && selectedChild && !selectedInstitute && !urlInstituteId) {
         return <InstituteSelector useChildId={true} />;
       }
 
@@ -648,7 +676,8 @@ const AppContent = ({ initialPage }: AppContentProps) => {
 
     // For Teacher role
     if (userRole === 'Teacher') {
-      if (!selectedInstitute && currentPage !== 'institutes' && currentPage !== 'select-institute') {
+      // Only redirect to InstituteSelector if no institute AND not loading from URL
+      if (!selectedInstitute && !urlInstituteId && currentPage !== 'institutes' && currentPage !== 'select-institute') {
         return <InstituteSelector />;
       }
 
@@ -687,7 +716,10 @@ const AppContent = ({ initialPage }: AppContentProps) => {
         case 'classes':
           return <Classes />;
         case 'subjects':
-          return <Subjects />;
+        case 'institute-subjects':
+          return <InstituteSubjects />;
+        case 'class-subjects':
+          return <ClassSubjects />;
         case 'select-institute':
           return <InstituteSelector />;
         case 'grading':
@@ -736,6 +768,8 @@ const AppContent = ({ initialPage }: AppContentProps) => {
           return <MySubmissions />;
         case 'subject-pay-submission':
           return <SubjectPaymentSubmissions />;
+        case 'enrollment-management':
+          return <TeacherEnrollmentManagement />;
         default:
           return <Dashboard />;
       }
@@ -743,7 +777,8 @@ const AppContent = ({ initialPage }: AppContentProps) => {
 
     // For AttendanceMarker role
     if (userRole === 'AttendanceMarker') {
-      if (!selectedInstitute && currentPage !== 'select-institute') {
+      // Only redirect to InstituteSelector if no institute AND not loading from URL
+      if (!selectedInstitute && !urlInstituteId && currentPage !== 'select-institute') {
         return <InstituteSelector />;
       }
 
@@ -813,8 +848,8 @@ const AppContent = ({ initialPage }: AppContentProps) => {
       isInExceptionList: pagesWithoutClassRequirement.includes(currentPage)
     });
     
-    // Only redirect to institute selector if institute is not selected AND page is not in exception list
-    if (!selectedInstitute && currentPage !== 'institutes' && currentPage !== 'select-institute' && currentPage !== 'organizations' && !pagesWithoutClassRequirement.includes(currentPage)) {
+    // Only redirect to institute selector if institute is not selected AND not loading from URL AND page is not in exception list
+    if (!selectedInstitute && !urlInstituteId && currentPage !== 'institutes' && currentPage !== 'select-institute' && currentPage !== 'organizations' && !pagesWithoutClassRequirement.includes(currentPage)) {
       console.log('❌ Redirecting to InstituteSelector');
       return <InstituteSelector />;
     }
@@ -880,9 +915,10 @@ const AppContent = ({ initialPage }: AppContentProps) => {
       case 'classes':
         return <Classes />;
       case 'subjects':
-        return <Subjects />;
       case 'institute-subjects':
         return <InstituteSubjects />;
+      case 'class-subjects':
+        return <ClassSubjects />;
       case 'institutes':
         return <Institutes />;
       case 'institute-organizations':
@@ -955,6 +991,8 @@ const AppContent = ({ initialPage }: AppContentProps) => {
         return <MySubmissions />;
       case 'subject-pay-submission':
         return <SubjectPaymentSubmissions />;
+      case 'enrollment-management':
+        return <TeacherEnrollmentManagement />;
       case 'my-children':
         return <MyChildren />;
       case 'child/:childId/dashboard':

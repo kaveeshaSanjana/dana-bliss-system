@@ -1,6 +1,7 @@
 import { attendanceApiClient } from './attendanceClient';
 import { getAttendanceUrl, getApiHeaders, getBaseUrl } from '@/contexts/utils/auth.api';
 import { attendanceDuplicateChecker } from '@/utils/attendanceDuplicateCheck';
+import { AttendanceStatus, AttendanceSummary, normalizeAttendanceSummary } from '@/types/attendance.types';
 
 export interface ChildAttendanceRecord {
   attendanceId?: string;
@@ -13,7 +14,7 @@ export interface ChildAttendanceRecord {
   subjectId?: string;
   subjectName?: string;
   date: string;
-  status: 'present' | 'absent' | 'late';
+  status: AttendanceStatus;
   location: string;
   markingMethod: string;
   address?: string;
@@ -33,12 +34,7 @@ export interface ChildAttendanceResponse {
     hasPrevPage: boolean;
   };
   data: ChildAttendanceRecord[];
-  summary: {
-    totalPresent: number;
-    totalAbsent: number;
-    totalLate: number;
-    attendanceRate: number;
-  };
+  summary: AttendanceSummary;
 }
 
 export interface ChildAttendanceParams {
@@ -61,7 +57,7 @@ export interface MarkAttendanceByCardRequest {
   subjectName?: string;
   address: string;
   markingMethod: 'qr' | 'barcode' | 'rfid/nfc';
-  status: 'present' | 'absent' | 'late';
+  status: AttendanceStatus;
 }
 
 export interface MarkAttendanceByCardResponse {
@@ -70,7 +66,7 @@ export interface MarkAttendanceByCardResponse {
   attendanceId: string;
   action: string;
   imageUrl?: string;
-  status: 'present' | 'absent' | 'late';
+  status: AttendanceStatus;
   name?: string;
 }
 
@@ -85,7 +81,7 @@ export interface MarkAttendanceRequest {
   subjectName?: string;
   address: string;
   markingMethod: 'manual';
-  status: 'present' | 'absent' | 'late';
+  status: AttendanceStatus;
 }
 
 export interface MarkAttendanceResponse {
@@ -94,7 +90,7 @@ export interface MarkAttendanceResponse {
   attendanceId: string;
   action: string;
   imageUrl?: string;
-  status: 'present' | 'absent' | 'late';
+  status: AttendanceStatus;
   name?: string;
 }
 

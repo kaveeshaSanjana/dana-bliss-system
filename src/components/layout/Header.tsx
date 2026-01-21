@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Menu, LogOut, User, Camera } from 'lucide-react';
+import { Menu, LogOut, User } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { 
@@ -11,27 +11,17 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import ProfileImageUpload from '@/components/ProfileImageUpload';
 import surakshaLogo from '@/assets/suraksha-logo.png';
 import { enhancedCachedClient } from '@/api/enhancedCachedClient';
 import SafeImage from '@/components/ui/SafeImage';
+import { getImageUrl } from '@/utils/imageUrlHelper';
+
 interface HeaderProps {
   onMenuClick: () => void;
 }
 
 const Header = ({ onMenuClick }: HeaderProps) => {
-  const { user, logout, selectedInstitute, validateUserToken } = useAuth();
-  const [showImageUpload, setShowImageUpload] = useState(false);
-  const [currentImageUrl, setCurrentImageUrl] = useState('');
-
-  // Sync user image URL whenever it changes
-  React.useEffect(() => {
-    if (user?.imageUrl) {
-      setCurrentImageUrl(user.imageUrl);
-    } else {
-      setCurrentImageUrl('');
-    }
-  }, [user?.imageUrl]);
+  const { user, logout, selectedInstitute } = useAuth();
 
   // Map backend instituteUserType to display role
   const mapInstituteRoleToDisplayRole = (raw?: string) => {
@@ -76,16 +66,11 @@ const Header = ({ onMenuClick }: HeaderProps) => {
   const handleLogout = () => {
     logout();
   };
-  const handleImageUpdate = async (newImageUrl: string) => {
-    setCurrentImageUrl(newImageUrl);
-    setShowImageUpload(false);
-    // Refresh user data from backend to persist the image
-    try {
-      await validateUserToken();
-    } catch (error) {
-      console.error('Failed to refresh user data:', error);
-    }
-  };
+
+  // Avatar image priority: institute user image → user profile image → fallback
+  const avatarImageUrl = instituteAvatarUrl 
+    ? getImageUrl(instituteAvatarUrl) 
+    : (user?.imageUrl ? getImageUrl(user.imageUrl) : '');
 
   return (
     <header className="lg:hidden bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 px-3 sm:px-4 py-3 sticky top-0 z-40">
@@ -121,13 +106,13 @@ const Header = ({ onMenuClick }: HeaderProps) => {
                 aria-label="User menu"
               >
                 <Avatar className="h-9 w-9 border-2 border-border transition-all group-hover:border-primary">
-                  {instituteAvatarUrl ? (
+                  {avatarImageUrl && (
                     <AvatarImage 
-                      src={instituteAvatarUrl}
+                      src={avatarImageUrl}
                       alt={user?.name}
                       className="object-cover"
                     />
-                  ) : null}
+                  )}
                   <AvatarFallback className="bg-muted">
                     <User className="h-5 w-5" />
                   </AvatarFallback>
@@ -150,13 +135,6 @@ const Header = ({ onMenuClick }: HeaderProps) => {
               </DropdownMenuItem>
               <DropdownMenuSeparator className="bg-gray-200" />
               <DropdownMenuItem 
-                onClick={() => setShowImageUpload(true)}
-                className="cursor-pointer hover:bg-gray-100"
-              >
-                <Camera className="mr-2 h-4 w-4" />
-                Change Photo
-              </DropdownMenuItem>
-              <DropdownMenuItem 
                 onClick={handleLogout}
                 className="cursor-pointer hover:bg-gray-100"
               >
@@ -168,15 +146,6 @@ const Header = ({ onMenuClick }: HeaderProps) => {
         </div>
       </div>
 
-      {showImageUpload && (
-        <ProfileImageUpload
-          currentImageUrl={currentImageUrl}
-          onImageUpdate={handleImageUpdate}
-          isOpen={showImageUpload}
-          onClose={() => setShowImageUpload(false)}
-          dialogOnly={true}
-        />
-      )}
     </header>
   );
 };

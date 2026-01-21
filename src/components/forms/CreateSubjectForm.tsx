@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'; // Keep for category field
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Switch } from '@/components/ui/switch';
@@ -17,9 +17,7 @@ import {
   subjectsApi, 
   SUBJECT_TYPE_OPTIONS, 
   BASKET_CATEGORY_OPTIONS, 
-  requiresBasketCategory,
-  type SubjectType,
-  type BasketCategory 
+  requiresBasketCategory
 } from '@/api/subjects.api';
 
 const subjectSchema = z.object({
@@ -109,8 +107,8 @@ const CreateSubjectForm = ({ onSubmit, onCancel, initialData }: CreateSubjectFor
           category: data.category,
           creditHours: data.creditHours,
           isActive: data.isActive,
-          subjectType: data.subjectType as SubjectType,
-          basketCategory: showBasketCategory ? (data.basketCategory as BasketCategory) : undefined,
+          subjectType: data.subjectType,
+          basketCategory: showBasketCategory ? data.basketCategory : undefined,
           instituteId: currentInstituteId,
           imgUrl: imagePreviewUrl || undefined
         });
@@ -126,8 +124,8 @@ const CreateSubjectForm = ({ onSubmit, onCancel, initialData }: CreateSubjectFor
           category: data.category,
           creditHours: data.creditHours,
           isActive: data.isActive,
-          subjectType: data.subjectType as SubjectType,
-          basketCategory: showBasketCategory ? (data.basketCategory as BasketCategory) : undefined,
+          subjectType: data.subjectType,
+          basketCategory: showBasketCategory ? data.basketCategory : undefined,
           imgUrl: imagePreviewUrl || undefined
         }, currentInstituteId);
         
@@ -258,25 +256,24 @@ const CreateSubjectForm = ({ onSubmit, onCancel, initialData }: CreateSubjectFor
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Subject Type *</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select subject type" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {SUBJECT_TYPE_OPTIONS.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            <div className="flex flex-col">
-                              <span>{option.label}</span>
-                              <span className="text-xs text-muted-foreground">{option.description}</span>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <FormControl>
+                      <>
+                        <Input 
+                          placeholder="Type or select subject type" 
+                          list="subject-type-options"
+                          {...field} 
+                        />
+                        <datalist id="subject-type-options">
+                          {SUBJECT_TYPE_OPTIONS.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </datalist>
+                      </>
+                    </FormControl>
                     <FormDescription>
-                      {SUBJECT_TYPE_OPTIONS.find(o => o.value === field.value)?.description}
+                      {SUBJECT_TYPE_OPTIONS.find(o => o.value === field.value)?.description || 'Enter custom type or select from suggestions'}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -290,25 +287,24 @@ const CreateSubjectForm = ({ onSubmit, onCancel, initialData }: CreateSubjectFor
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Basket Category *</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select basket category" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {BASKET_CATEGORY_OPTIONS.map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
-                              <div className="flex flex-col">
-                                <span>{option.label}</span>
-                                <span className="text-xs text-muted-foreground">{option.description}</span>
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <FormControl>
+                        <>
+                          <Input 
+                            placeholder="Type or select basket category" 
+                            list="basket-category-options"
+                            {...field} 
+                          />
+                          <datalist id="basket-category-options">
+                            {BASKET_CATEGORY_OPTIONS.map((option) => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </datalist>
+                        </>
+                      </FormControl>
                       <FormDescription>
-                        Required for basket subject types
+                        Required for basket subject types. Type custom or select from suggestions.
                       </FormDescription>
                       <FormMessage />
                     </FormItem>

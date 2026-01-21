@@ -158,9 +158,15 @@ class CachedApiClient {
       console.log('⚠️ Force refresh enabled, skipping cache for:', endpoint);
     }
     
-    // Check cooldown period to prevent spam (AFTER checking cache)
+    // Check if there's already a pending request for the same data
+    if (this.pendingRequests.has(requestKey)) {
+      console.log('♻️ Reusing pending request for:', requestKey);
+      return this.pendingRequests.get(requestKey)!;
+    }
+
+    // Check cooldown period to prevent spam (AFTER checking cache and pending requests)
     if (this.isInCooldown(requestKey) && !forceRefresh) {
-      console.log('⏱️ Request in cooldown, returning cached data or waiting:', requestKey);
+      console.log('⏱️ Request in cooldown, checking for stale cache:', requestKey);
       // Return cached data if available (even if expired)
       try {
         const staleCachedData = await apiCache.getCache<T>(endpoint, params, { 
@@ -175,17 +181,9 @@ class CachedApiClient {
       } catch (error) {
         console.warn('No cached data available during cooldown');
       }
-      // If there's already a pending request, wait for it
-      if (this.pendingRequests.has(requestKey)) {
-        console.log('♻️ Reusing pending request for:', requestKey);
-        return this.pendingRequests.get(requestKey)!;
-      }
-    }
-
-    // Check if there's already a pending request for the same data (not in cooldown check)
-    if (!this.isInCooldown(requestKey) && this.pendingRequests.has(requestKey)) {
-      console.log('♻️ Reusing pending request for:', requestKey);
-      return this.pendingRequests.get(requestKey)!;
+      // No cache available and in cooldown - allow the request to proceed anyway
+      // This prevents the "Request in cooldown period and no cache available" error
+      console.log('⚠️ No cache during cooldown, proceeding with request:', requestKey);
     }
 
     // Create new request

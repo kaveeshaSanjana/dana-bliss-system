@@ -130,5 +130,20 @@ export type {
   TransportEnrollmentsResponse
 } from './transport.api';
 
+// User Card API
+export { userCardApi } from './userCard.api';
+export type {
+  Card,
+  CardPayment,
+  UserIdCardOrder,
+  CardType,
+  CardStatus,
+  OrderStatus,
+  PaymentType,
+  PaymentStatus,
+  PaginatedCardsResponse,
+  PaginatedOrdersResponse,
+} from './userCard.api';
+
 // Re-export auth API utilities
 export { getBaseUrl, getApiHeaders } from '@/contexts/utils/auth.api';

@@ -44,6 +44,7 @@ const CreateUserForm = ({ onSubmit, onCancel, loading = false, initialData }: Cr
   };
 
   const [formData, setFormData] = useState({
+    nameWithInitials: initialData?.nameWithInitials || '',
     firstName: initialData?.firstName || '',
     lastName: initialData?.lastName || '',
     email: initialData?.email || '',
@@ -53,7 +54,6 @@ const CreateUserForm = ({ onSubmit, onCancel, loading = false, initialData }: Cr
     gender: initialData?.gender || '',
     nic: initialData?.nic || '',
     addressLine1: initialData?.addressLine1 || '',
-    addressLine2: initialData?.addressLine2 || '',
     city: initialData?.city || '',
     district: initialData?.district || '',
     province: initialData?.province || '',
@@ -98,6 +98,7 @@ const CreateUserForm = ({ onSubmit, onCancel, loading = false, initialData }: Cr
     
     try {
       const formattedData: any = {
+        nameWithInitials: formData.nameWithInitials,
         firstName: formData.firstName,
         lastName: formData.lastName,
         email: formData.email,
@@ -107,7 +108,6 @@ const CreateUserForm = ({ onSubmit, onCancel, loading = false, initialData }: Cr
         gender: formData.gender,
         nic: formData.nic,
         addressLine1: formData.addressLine1,
-        addressLine2: formData.addressLine2,
         city: formData.city,
         district: formData.district,
         province: formData.province,
@@ -191,6 +191,17 @@ const CreateUserForm = ({ onSubmit, onCancel, loading = false, initialData }: Cr
                 </h3>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <Label htmlFor="nameWithInitials" className="text-base font-semibold text-foreground">Name with Initials *</Label>
+                    <Input
+                      id="nameWithInitials"
+                      value={formData.nameWithInitials}
+                      onChange={(e) => handleInputChange('nameWithInitials', e.target.value)}
+                      className="mt-2 h-12 text-base"
+                      placeholder="e.g., J. Doe"
+                      required
+                    />
+                  </div>
                   <div>
                     <Label htmlFor="firstName" className="text-base font-semibold text-foreground">First Name *</Label>
                     <Input
@@ -528,25 +539,14 @@ const CreateUserForm = ({ onSubmit, onCancel, loading = false, initialData }: Cr
                 </h3>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
+                  <div className="md:col-span-2">
                     <Label htmlFor="addressLine1" className="text-base font-semibold">Address Line 1</Label>
                     <Input
                       id="addressLine1"
                       value={formData.addressLine1}
                       onChange={(e) => handleInputChange('addressLine1', e.target.value)}
                       className="mt-2 h-12 text-base"
-                      placeholder="Street address"
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="addressLine2" className="text-base font-semibold">Address Line 2</Label>
-                    <Input
-                      id="addressLine2"
-                      value={formData.addressLine2}
-                      onChange={(e) => handleInputChange('addressLine2', e.target.value)}
-                      className="mt-2 h-12 text-base"
-                      placeholder="Area, landmark"
+                      placeholder="Street address, area, landmark"
                     />
                   </div>
 

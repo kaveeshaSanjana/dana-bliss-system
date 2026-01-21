@@ -1,28 +1,11 @@
 import { enhancedCachedClient } from './enhancedCachedClient';
 
-// Subject Types Enum (12 options)
-export type SubjectType = 
-  | 'MAIN'                      // Regular mandatory subject
-  | 'BASKET'                    // Legacy basket (deprecated)
-  | 'COMMON'                    // Common across all grades
-  | 'GRADE_6TO9_BASKET'         // Middle school basket
-  | 'GRADE_10TO11_BASKET_1'     // O/L Basket 1
-  | 'GRADE_10TO11_BASKET_2'     // O/L Basket 2
-  | 'GRADE_10TO11_BASKET_3'     // O/L Basket 3
-  | 'GRADE_10TO11_BASKET_4'     // O/L Basket 4
-  | 'GRADE_12TO13_BASKET_1'     // A/L Basket 1
-  | 'GRADE_12TO13_BASKET_2'     // A/L Basket 2
-  | 'GRADE_12TO13_BASKET_3'     // A/L Basket 3
-  | 'GRADE_12TO13_BASKET_4';    // A/L Basket 4
+// Subject Types - plain strings (no enums)
+// 12 options: MAIN, BASKET, COMMON, GRADE_6TO9_BASKET, 
+// GRADE_10TO11_BASKET_1-4, GRADE_12TO13_BASKET_1-4
 
-// Basket Categories (6 options)
-export type BasketCategory = 
-  | 'LANGUAGE'     // Language subjects
-  | 'ARTS'         // Arts and creative subjects
-  | 'TECHNOLOGY'   // Technology subjects
-  | 'COMMERCE'     // Commerce subjects
-  | 'SCIENCE'      // Science subjects
-  | 'RELIGION';    // Religion subjects
+// Basket Categories - plain strings (no enums)
+// 6 options: LANGUAGE, ARTS, TECHNOLOGY, COMMERCE, SCIENCE, RELIGION
 
 export interface Subject {
   id: string;
@@ -32,9 +15,9 @@ export interface Subject {
   category: string;
   creditHours: number;
   isActive: boolean;
-  subjectType: SubjectType;
-  basketCategory: BasketCategory | null;
-  instituteId: string;  // NEW: Replaced instituteType
+  subjectType: string;
+  basketCategory: string | null;
+  instituteId: string;
   imgUrl: string | null;
   createdAt: string;
   updatedAt: string;
@@ -56,8 +39,8 @@ export interface SubjectQueryParams {
   isActive?: boolean;
   search?: string;
   category?: string;
-  subjectType?: SubjectType;
-  basketCategory?: BasketCategory;
+  subjectType?: string;
+  basketCategory?: string;
   page?: number;
   limit?: number;
   sortBy?: string;
@@ -71,9 +54,9 @@ export interface CreateSubjectDto {
   category?: string;
   creditHours?: number;
   isActive?: boolean;
-  subjectType?: SubjectType;
-  basketCategory?: BasketCategory;
-  instituteId: string;  // Required
+  subjectType?: string;
+  basketCategory?: string;
+  instituteId: string;
   imgUrl?: string;
 }
 
@@ -84,13 +67,13 @@ export interface UpdateSubjectDto {
   category?: string;
   creditHours?: number;
   isActive?: boolean;
-  subjectType?: SubjectType;
-  basketCategory?: BasketCategory;
+  subjectType?: string;
+  basketCategory?: string;
   imgUrl?: string;
 }
 
-// Subject type options for dropdowns
-export const SUBJECT_TYPE_OPTIONS: { value: SubjectType; label: string; description: string }[] = [
+// Subject type options for dropdowns (plain strings, no enums)
+export const SUBJECT_TYPE_OPTIONS: { value: string; label: string; description: string }[] = [
   { value: 'MAIN', label: 'Main Subject', description: 'Regular mandatory subject' },
   { value: 'COMMON', label: 'Common Subject', description: 'Common across all grades' },
   { value: 'GRADE_6TO9_BASKET', label: 'Grade 6-9 Basket', description: 'Middle school basket subject' },
@@ -105,8 +88,8 @@ export const SUBJECT_TYPE_OPTIONS: { value: SubjectType; label: string; descript
   { value: 'BASKET', label: 'Legacy Basket', description: '(Deprecated) Generic basket' },
 ];
 
-// Basket category options for dropdowns
-export const BASKET_CATEGORY_OPTIONS: { value: BasketCategory; label: string; description: string }[] = [
+// Basket category options for dropdowns (plain strings, no enums)
+export const BASKET_CATEGORY_OPTIONS: { value: string; label: string; description: string }[] = [
   { value: 'LANGUAGE', label: 'Language', description: 'Language subjects (English, Tamil, Sinhala, etc.)' },
   { value: 'ARTS', label: 'Arts', description: 'Arts and creative subjects (Music, Dancing, Drama, etc.)' },
   { value: 'TECHNOLOGY', label: 'Technology', description: 'Technology subjects (IT, Engineering, etc.)' },
@@ -116,7 +99,7 @@ export const BASKET_CATEGORY_OPTIONS: { value: BasketCategory; label: string; de
 ];
 
 // Helper to check if subject type requires basket category
-export const requiresBasketCategory = (subjectType: SubjectType | string): boolean => {
+export const requiresBasketCategory = (subjectType: string): boolean => {
   return subjectType.includes('BASKET');
 };
 

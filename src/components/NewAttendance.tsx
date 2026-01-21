@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { RefreshCw, Search, Filter, Calendar, User, Clock, CheckCircle, MapPin, School, BookOpen, UserCheck, UserX, TrendingUp } from 'lucide-react';
+import { RefreshCw, Search, Filter, Calendar, User, Clock, CheckCircle, MapPin, School, BookOpen, UserCheck, UserX, TrendingUp, LogOut, DoorOpen } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useInstituteRole } from '@/hooks/useInstituteRole';
 import { useToast } from '@/hooks/use-toast';
@@ -29,7 +29,7 @@ interface AttendanceRecord {
   subjectName?: string;
   date: string;
   markedAt?: string;
-  status: 'present' | 'absent' | 'late';
+  status: 'present' | 'absent' | 'late' | 'left' | 'left_early' | 'left_lately';
   location?: string;
   markingMethod: string;
   markedBy?: string;
@@ -332,6 +332,12 @@ const NewAttendance = () => {
         return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
       case 'late':
         return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
+      case 'left':
+        return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200';
+      case 'left_early':
+        return 'bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200';
+      case 'left_lately':
+        return 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200';
       default:
         return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200';
     }
@@ -376,14 +382,20 @@ const NewAttendance = () => {
     let totalPresent = 0;
     let totalAbsent = 0;
     let totalLate = 0;
+    let totalLeft = 0;
+    let totalLeftEarly = 0;
+    let totalLeftLately = 0;
 
     for (const r of records) {
       if (r.status === 'present') totalPresent += 1;
       else if (r.status === 'absent') totalAbsent += 1;
       else if (r.status === 'late') totalLate += 1;
+      else if (r.status === 'left') totalLeft += 1;
+      else if (r.status === 'left_early') totalLeftEarly += 1;
+      else if (r.status === 'left_lately') totalLeftLately += 1;
     }
 
-    return { totalPresent, totalAbsent, totalLate };
+    return { totalPresent, totalAbsent, totalLate, totalLeft, totalLeftEarly, totalLeftLately };
   }, [attendanceData?.data]);
 
   // Mobile Card Component
@@ -586,6 +598,24 @@ const NewAttendance = () => {
                         Late
                       </span>
                     </SelectItem>
+                    <SelectItem value="left">
+                      <span className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-purple-500" />
+                        Left
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="left_early">
+                      <span className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-pink-500" />
+                        Left Early
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="left_lately">
+                      <span className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-indigo-500" />
+                        Left Late
+                      </span>
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -640,19 +670,18 @@ const NewAttendance = () => {
 
       {/* Summary Cards */}
       {attendanceData && (
-        <section aria-label="Attendance totals" className="max-w-4xl mx-auto">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <section aria-label="Attendance totals" className="max-w-6xl mx-auto">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
             {/* Present */}
             <Card className="card-premium hover-lift">
-              <CardContent className="p-5">
-                <div className="flex items-start justify-between gap-4">
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="text-xs font-medium text-muted-foreground">Total Present</p>
-                    <p className="mt-2 text-3xl font-bold text-success">{totals.totalPresent}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">Students marked present</p>
+                    <p className="text-xs font-medium text-muted-foreground">Present</p>
+                    <p className="mt-1 text-2xl font-bold text-success">{totals.totalPresent}</p>
                   </div>
-                  <div className="shrink-0 rounded-xl bg-success/10 border border-success/20 p-2.5">
-                    <UserCheck className="h-5 w-5 text-success" />
+                  <div className="shrink-0 rounded-lg bg-success/10 border border-success/20 p-2">
+                    <UserCheck className="h-4 w-4 text-success" />
                   </div>
                 </div>
               </CardContent>
@@ -660,15 +689,14 @@ const NewAttendance = () => {
 
             {/* Absent */}
             <Card className="card-premium hover-lift">
-              <CardContent className="p-5">
-                <div className="flex items-start justify-between gap-4">
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="text-xs font-medium text-muted-foreground">Total Absent</p>
-                    <p className="mt-2 text-3xl font-bold text-destructive">{totals.totalAbsent}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">Students marked absent</p>
+                    <p className="text-xs font-medium text-muted-foreground">Absent</p>
+                    <p className="mt-1 text-2xl font-bold text-destructive">{totals.totalAbsent}</p>
                   </div>
-                  <div className="shrink-0 rounded-xl bg-destructive/10 border border-destructive/20 p-2.5">
-                    <UserX className="h-5 w-5 text-destructive" />
+                  <div className="shrink-0 rounded-lg bg-destructive/10 border border-destructive/20 p-2">
+                    <UserX className="h-4 w-4 text-destructive" />
                   </div>
                 </div>
               </CardContent>
@@ -676,15 +704,59 @@ const NewAttendance = () => {
 
             {/* Late */}
             <Card className="card-premium hover-lift">
-              <CardContent className="p-5">
-                <div className="flex items-start justify-between gap-4">
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="text-xs font-medium text-muted-foreground">Total Late</p>
-                    <p className="mt-2 text-3xl font-bold text-warning">{totals.totalLate}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">Students arrived late</p>
+                    <p className="text-xs font-medium text-muted-foreground">Late</p>
+                    <p className="mt-1 text-2xl font-bold text-warning">{totals.totalLate}</p>
                   </div>
-                  <div className="shrink-0 rounded-xl bg-warning/10 border border-warning/20 p-2.5">
-                    <Clock className="h-5 w-5 text-warning" />
+                  <div className="shrink-0 rounded-lg bg-warning/10 border border-warning/20 p-2">
+                    <Clock className="h-4 w-4 text-warning" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Left */}
+            <Card className="card-premium hover-lift">
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium text-muted-foreground">Left</p>
+                    <p className="mt-1 text-2xl font-bold text-purple-600">{totals.totalLeft}</p>
+                  </div>
+                  <div className="shrink-0 rounded-lg bg-purple-500/10 border border-purple-500/20 p-2">
+                    <LogOut className="h-4 w-4 text-purple-600" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Left Early */}
+            <Card className="card-premium hover-lift">
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium text-muted-foreground">Left Early</p>
+                    <p className="mt-1 text-2xl font-bold text-pink-600">{totals.totalLeftEarly}</p>
+                  </div>
+                  <div className="shrink-0 rounded-lg bg-pink-500/10 border border-pink-500/20 p-2">
+                    <DoorOpen className="h-4 w-4 text-pink-600" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Left Late */}
+            <Card className="card-premium hover-lift">
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium text-muted-foreground">Left Late</p>
+                    <p className="mt-1 text-2xl font-bold text-indigo-600">{totals.totalLeftLately}</p>
+                  </div>
+                  <div className="shrink-0 rounded-lg bg-indigo-500/10 border border-indigo-500/20 p-2">
+                    <Clock className="h-4 w-4 text-indigo-600" />
                   </div>
                 </div>
               </CardContent>

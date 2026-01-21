@@ -36,7 +36,8 @@ import {
   ImageIcon,
   IdCard,
   MessageSquare,
-  Wifi
+  Wifi,
+  Lock
 } from 'lucide-react';
 import surakshaLogoSidebar from '@/assets/suraksha-logo-sidebar.png';
 
@@ -139,12 +140,21 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
             label: 'Organizations',
             icon: Building2,
             permission: 'view-organizations',
-            alwaysShow: true
+            alwaysShow: true,
+            locked: true
           },
           {
             id: 'transport',
             label: 'Transport',
             icon: Truck,
+            permission: 'view-dashboard',
+            alwaysShow: true,
+            locked: true
+          },
+          {
+            id: 'id-cards',
+            label: 'ID Cards',
+            icon: IdCard,
             permission: 'view-dashboard',
             alwaysShow: true
           }
@@ -317,8 +327,8 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
             alwaysShow: false
           },
           {
-            id: 'subjects',
-            label: 'All Subjects',
+            id: 'institute-subjects',
+            label: 'Institute Subjects',
             icon: BookOpen,
             permission: 'view-subjects',
             alwaysShow: false,
@@ -372,6 +382,13 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
             permission: 'view-students',
             alwaysShow: false
           },
+          {
+            id: 'unverified-students',
+            label: 'Verify Students',
+            icon: UserCheck,
+            permission: 'view-students',
+            alwaysShow: false
+          }
         ];
       }
 
@@ -396,6 +413,13 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
             id: 'students',
             label: 'Students',
             icon: GraduationCap,
+            permission: 'view-students',
+            alwaysShow: false
+          },
+          {
+            id: 'unverified-students',
+            label: 'Verify Students',
+            icon: UserCheck,
             permission: 'view-students',
             alwaysShow: false
           },
@@ -435,7 +459,8 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
             label: 'Organizations',
             icon: Building2,
             permission: 'view-organizations',
-            alwaysShow: true
+            alwaysShow: true,
+            locked: true
           }
         ];
       }
@@ -486,15 +511,8 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
             alwaysShow: false
           },
           {
-            id: 'subjects',
-            label: 'All Subjects',
-            icon: BookOpen,
-            permission: 'view-subjects',
-            alwaysShow: false
-          },
-          {
             id: 'institute-subjects',
-            label: 'Manage Subjects',
+            label: 'Institute Subjects',
             icon: BookOpen,
             permission: 'view-subjects',
             alwaysShow: false
@@ -541,17 +559,22 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
             alwaysShow: false
           },
           {
+            id: 'unverified-students',
+            label: 'Verify Students',
+            icon: UserCheck,
+            permission: 'view-students',
+            alwaysShow: false
+          },
+          {
             id: 'parents',
             label: 'Parents',
             icon: Users,
             permission: 'view-parents',
             alwaysShow: false
           },
-          // Parents is class-scoped only (do not show under subject context)
-
           {
-            id: 'institute-subjects',
-            label: 'Institute Subjects',
+            id: 'class-subjects',
+            label: 'Class Subjects',
             icon: BookOpen,
             permission: 'view-subjects',
             alwaysShow: false
@@ -580,6 +603,13 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
             id: 'students',
             label: 'Students',
             icon: GraduationCap,
+            permission: 'view-students',
+            alwaysShow: false
+          },
+          {
+            id: 'unverified-students',
+            label: 'Verify Students',
+            icon: UserCheck,
             permission: 'view-students',
             alwaysShow: false
           },
@@ -629,6 +659,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
             icon: Truck,
             permission: 'view-transport',
             alwaysShow: true,
+            locked: true,
             subItems: [
               {
                 id: 'transport',
@@ -725,6 +756,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
             icon: Truck,
             permission: 'view-transport',
             alwaysShow: true,
+            locked: true,
             subItems: [
               {
                 id: 'transport',
@@ -810,7 +842,8 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
         label: 'Organizations',
         icon: Building2,
         permission: 'view-organizations',
-        alwaysShow: true // Always show organizations for all users
+        alwaysShow: true,
+        locked: !selectedInstitute
       }
     ];
 
@@ -824,6 +857,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
           icon: Truck,
           permission: 'view-transport',
           alwaysShow: true,
+          locked: true,
           subItems: [
             {
               id: 'transport',
@@ -885,8 +919,8 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
         alwaysShow: false
       },
       {
-        id: 'subjects',
-        label: 'All Subjects',
+        id: 'institute-subjects',
+        label: 'Institute Subjects',
         icon: BookOpen,
         permission: 'view-subjects',
         alwaysShow: false
@@ -1519,6 +1553,27 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
   const smsItemsDisplay = [...(smsItems || [])];
   const settingsItemsDisplay = [...settingsItems];
 
+  // Only show "ID Cards" in sidebar when NO institute is selected
+  // Insert right after "Profile" in settings section for consistent placement
+  if (!selectedInstitute) {
+    const idCardsItem = {
+      id: 'id-cards',
+      label: 'ID Cards',
+      icon: IdCard,
+      permission: 'view-dashboard',
+      alwaysShow: true
+    };
+
+    // Insert ID Cards after Profile in settingsItemsDisplay
+    const profileIndex = settingsItemsDisplay.findIndex(item => item.id === 'profile');
+    if (profileIndex !== -1) {
+      settingsItemsDisplay.splice(profileIndex + 1, 0, idCardsItem);
+    } else {
+      // Fallback: add at beginning if no profile found
+      settingsItemsDisplay.unshift(idCardsItem);
+    }
+  }
+
   const activeExists = [
     menuItemsDisplay,
     attendanceItemsDisplay,
@@ -1548,6 +1603,11 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       
       // Don't show institute-specific pages in sidebar when no institute is selected
       if (!selectedInstitute && instituteSpecificPages.test(currentPage)) {
+        allowPush = false;
+      }
+
+      // NEVER auto-add "Verify Students" for students/parents/etc.
+      if (currentPage === 'unverified-students' && !['InstituteAdmin', 'Teacher'].includes(userRole)) {
         allowPush = false;
       }
 
@@ -1666,12 +1726,20 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
               className={`w-full ${isCollapsed ? 'justify-center px-2' : 'justify-start px-3'} h-9 sm:h-10 text-sm ${
                 sidebarHighlightPage === item.id 
                   ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-r-2 border-blue-500' 
-                  : 'text-foreground/70 hover:bg-muted hover:text-foreground'
+                  : item.locked 
+                    ? 'text-muted-foreground/50 cursor-not-allowed opacity-60' 
+                    : 'text-foreground/70 hover:bg-muted hover:text-foreground'
               }`}
-              onClick={() => handleItemClick(item.id)}
+              onClick={() => !item.locked && handleItemClick(item.id)}
+              disabled={item.locked}
             >
               <item.icon className={`${isCollapsed ? '' : 'mr-3'} h-4 w-4 flex-shrink-0`} />
-              {!isCollapsed && item.label}
+              {!isCollapsed && (
+                <span className="flex items-center gap-2">
+                  {item.label}
+                  {item.locked && <Lock className="h-3 w-3" />}
+                </span>
+              )}
             </Button>
           ))}
         </div>
@@ -1765,7 +1833,10 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                   <div className="text-blue-600 dark:text-blue-400"><span className="font-medium">Organization:</span> <span className="ml-1 truncate">{selectedOrganization.name}</span></div>
                 )}
                 {selectedInstitute && (
-                  <div className="text-blue-600 dark:text-blue-400"><span className="font-medium">Institute:</span> <span className="ml-1 truncate">{selectedInstitute.name}</span></div>
+                  <div className="text-blue-600 dark:text-blue-400">
+                    <span className="font-medium">Institute:</span>
+                    <span className="ml-1 text-sm font-semibold break-words whitespace-normal leading-snug">{selectedInstitute.name}</span>
+                  </div>
                 )}
                 {selectedClass && (
                   <div className="text-blue-600 dark:text-blue-400"><span className="font-medium">Class:</span> <span className="ml-1 truncate">{selectedClass.name}</span></div>

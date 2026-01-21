@@ -156,24 +156,6 @@ class EnhancedCachedApiClient {
 
     const requestKey = this.generateRequestKey(endpoint, params);
     
-    // Check cooldown to prevent request spam
-    if (!forceRefresh && this.isInCooldown(requestKey)) {
-      console.log('⏸️ Request in cooldown period:', requestKey);
-      
-      // Return cached data if available during cooldown
-      const cached = await secureCache.getCache<T>(endpoint, params, {
-        context: this.extractContext(options),
-        ttl: ttl * 2, // Accept older cache during cooldown
-        forceRefresh: false
-      });
-      
-      if (cached) {
-        return cached;
-      }
-      
-      throw new Error('Request in cooldown period and no cache available');
-    }
-
     // Try to get from cache first (unless forcing refresh)
     if (!forceRefresh) {
       try {
@@ -182,7 +164,7 @@ class EnhancedCachedApiClient {
           ttl,
           forceRefresh
         });
-        
+
         if (cachedData !== null) {
           // Stale-while-revalidate: return cache immediately, fetch in background
           if (useStaleWhileRevalidate) {
@@ -195,11 +177,35 @@ class EnhancedCachedApiClient {
       }
     }
 
-    // Check if there's already a pending request
+    // If there's already a pending request, reuse it
     if (this.pendingRequests.has(requestKey)) {
       console.log('♻️ Reusing pending request:', requestKey);
       return this.pendingRequests.get(requestKey)!;
     }
+
+    // Check cooldown to prevent request spam (AFTER cache + pending request checks)
+    if (!forceRefresh && this.isInCooldown(requestKey)) {
+      console.log('⏸️ Request in cooldown period (no fresh cache):', requestKey);
+
+      // Try returning slightly older cache during cooldown
+      try {
+        const staleCached = await secureCache.getCache<T>(endpoint, params, {
+          context: this.extractContext(options),
+          ttl: ttl * 2, // Accept older cache during cooldown
+          forceRefresh: false
+        });
+
+        if (staleCached !== null) {
+          return staleCached;
+        }
+      } catch (error) {
+        console.warn('⚠️ No cached data available during cooldown');
+      }
+
+      // No cache and no pending request; proceed with request instead of throwing.
+      console.log('⚠️ No cache during cooldown; proceeding with request:', requestKey);
+    }
+
 
     // Create new request
     const requestPromise = this.executeRequest<T>(endpoint, params, options, ttl);

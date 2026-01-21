@@ -1,4 +1,5 @@
 import { enhancedCachedClient } from './enhancedCachedClient';
+import { AttendanceStatus, AttendanceSummary, normalizeAttendanceSummary } from '@/types/attendance.types';
 
 export interface StudentAttendanceRecord {
   studentId: string;
@@ -10,7 +11,7 @@ export interface StudentAttendanceRecord {
   subjectId?: string;
   subjectName?: string;
   date: string;
-  status: 'present' | 'absent' | 'late';
+  status: AttendanceStatus;
   location: string;
   markingMethod: string;
 }
@@ -27,12 +28,7 @@ export interface StudentAttendanceResponse {
     hasPrevPage: boolean;
   };
   data: StudentAttendanceRecord[];
-  summary: {
-    totalPresent: number;
-    totalAbsent: number;
-    totalLate?: number;
-    attendanceRate: number;
-  };
+  summary: AttendanceSummary;
 }
 
 export interface StudentAttendanceParams {

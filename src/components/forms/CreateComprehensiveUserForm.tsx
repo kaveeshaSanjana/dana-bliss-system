@@ -258,6 +258,7 @@ const CreateComprehensiveUserForm = ({
 
   // Basic user data
   const [formData, setFormData] = useState({
+    nameWithInitials: '',
     firstName: '',
     lastName: '',
     email: '',
@@ -267,7 +268,6 @@ const CreateComprehensiveUserForm = ({
     nic: '',
     birthCertificateNo: '',
     addressLine1: '',
-    addressLine2: '',
     city: '',
     district: '',
     province: '',
@@ -337,6 +337,7 @@ const CreateComprehensiveUserForm = ({
       }
 
       const payload: any = {
+        nameWithInitials: formData.nameWithInitials,
         firstName: formData.firstName,
         lastName: formData.lastName,
         email: formData.email,
@@ -351,7 +352,6 @@ const CreateComprehensiveUserForm = ({
       if (formData.nic) payload.nic = formData.nic;
       if (formData.birthCertificateNo) payload.birthCertificateNo = formData.birthCertificateNo;
       if (formData.addressLine1) payload.addressLine1 = formData.addressLine1;
-      if (formData.addressLine2) payload.addressLine2 = formData.addressLine2;
       if (formData.city) payload.city = formData.city;
       if (formData.district) payload.district = formData.district;
       if (formData.province) payload.province = formData.province;
@@ -495,6 +495,17 @@ const CreateComprehensiveUserForm = ({
               <h3 className="font-semibold text-sm text-primary-foreground bg-primary px-3 py-2 rounded-md">Personal Information</h3>
               
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                <div className="col-span-1 sm:col-span-2 space-y-1.5">
+                  <Label className="text-sm">Name with Initials *</Label>
+                  <Input
+                    value={formData.nameWithInitials}
+                    onChange={e => handleInputChange('nameWithInitials', e.target.value)}
+                    placeholder="e.g., J. Doe"
+                    required
+                    className="h-10 sm:h-9"
+                  />
+                </div>
+
                 <div className="space-y-1.5">
                   <Label className="text-sm">First Name *</Label>
                   <Input
@@ -597,17 +608,7 @@ const CreateComprehensiveUserForm = ({
                   <Input
                     value={formData.addressLine1}
                     onChange={e => handleInputChange('addressLine1', e.target.value)}
-                    placeholder="Street address, house number"
-                    className="h-10 sm:h-9"
-                  />
-                </div>
-
-                <div className="col-span-1 sm:col-span-2 space-y-1.5">
-                  <Label className="text-sm">Address Line 2</Label>
-                  <Input
-                    value={formData.addressLine2}
-                    onChange={e => handleInputChange('addressLine2', e.target.value)}
-                    placeholder="Apartment, building, floor"
+                    placeholder="Street address, area, landmark"
                     className="h-10 sm:h-9"
                   />
                 </div>

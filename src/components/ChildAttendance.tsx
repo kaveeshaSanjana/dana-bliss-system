@@ -11,12 +11,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Calendar, Clock, MapPin, User, RefreshCw, AlertTriangle, TrendingUp, UserCheck, UserX } from 'lucide-react';
+import { Calendar, Clock, MapPin, User, RefreshCw, AlertTriangle, TrendingUp, UserCheck, UserX, LogOut, DoorOpen } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { useInstituteRole } from '@/hooks/useInstituteRole';
 import { childAttendanceApi, type ChildAttendanceRecord, type ChildAttendanceResponse } from '@/api/childAttendance.api';
 import { useApiRequest } from '@/hooks/useApiRequest';
+import { AttendanceStatus, ATTENDANCE_STATUS_CONFIG, normalizeAttendanceSummary } from '@/types/attendance.types';
 
 const ChildAttendance = () => {
   const { selectedChild, user } = useAuth();
@@ -92,30 +93,24 @@ const ChildAttendance = () => {
   };
 
   const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
-      case 'present':
-        return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
-      case 'absent':
-        return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
-      case 'late':
-        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
-      default:
-        return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200';
-    }
+    const config = ATTENDANCE_STATUS_CONFIG[status?.toLowerCase() as AttendanceStatus];
+    if (!config) return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200';
+    return `${config.bgColor} ${config.color}`;
   };
 
   const getStatusIcon = (status: string) => {
-    switch (status.toLowerCase()) {
-      case 'present':
-        return <UserCheck className="h-4 w-4" />;
-      case 'absent':
-        return <UserX className="h-4 w-4" />;
-      case 'late':
-        return <Clock className="h-4 w-4" />;
-      default:
-        return <User className="h-4 w-4" />;
-    }
+    const normalizedStatus = status?.toLowerCase() as AttendanceStatus;
+    const iconMap: Record<AttendanceStatus, React.ReactNode> = {
+      present: <UserCheck className="h-4 w-4" />,
+      absent: <UserX className="h-4 w-4" />,
+      late: <Clock className="h-4 w-4" />,
+      left: <LogOut className="h-4 w-4" />,
+      left_early: <DoorOpen className="h-4 w-4" />,
+      left_lately: <Clock className="h-4 w-4" />
+    };
+    return iconMap[normalizedStatus] || <User className="h-4 w-4" />;
   };
+
 
   if (!selectedChild) {
     return (
@@ -193,51 +188,87 @@ const ChildAttendance = () => {
 
       {/* Summary Cards */}
       {attendanceData?.summary && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Present</CardTitle>
-              <UserCheck className="h-4 w-4 text-green-600" />
+              <CardTitle className="text-sm font-medium">Present</CardTitle>
+              <UserCheck className="h-4 w-4 text-emerald-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-green-600">
-                {attendanceData.summary.totalPresent}
+              <div className="text-2xl font-bold text-emerald-600">
+                {attendanceData.summary.totalPresent || 0}
               </div>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Absent</CardTitle>
+              <CardTitle className="text-sm font-medium">Absent</CardTitle>
               <UserX className="h-4 w-4 text-red-600" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-red-600">
-                {attendanceData.summary.totalAbsent}
+                {attendanceData.summary.totalAbsent || 0}
               </div>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Late</CardTitle>
-              <Clock className="h-4 w-4 text-yellow-600" />
+              <CardTitle className="text-sm font-medium">Late</CardTitle>
+              <Clock className="h-4 w-4 text-amber-600" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-yellow-600">
-                {attendanceData.summary.totalLate}
+              <div className="text-2xl font-bold text-amber-600">
+                {attendanceData.summary.totalLate || 0}
               </div>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Attendance Rate</CardTitle>
+              <CardTitle className="text-sm font-medium">Left</CardTitle>
+              <LogOut className="h-4 w-4 text-purple-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-purple-600">
+                {attendanceData.summary.totalLeft || 0}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Left Early</CardTitle>
+              <DoorOpen className="h-4 w-4 text-pink-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-pink-600">
+                {attendanceData.summary.totalLeftEarly || 0}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Left Late</CardTitle>
+              <Clock className="h-4 w-4 text-indigo-600" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-indigo-600">
+                {attendanceData.summary.totalLeftLately || 0}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Rate</CardTitle>
               <TrendingUp className="h-4 w-4 text-blue-600" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-blue-600">
-                {attendanceData.summary.attendanceRate}%
+                {attendanceData.summary.attendanceRate || 0}%
               </div>
             </CardContent>
           </Card>

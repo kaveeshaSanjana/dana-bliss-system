@@ -5,10 +5,11 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { enrollmentApi, ApiError, EnrollmentSettingsResponse } from '@/api/enrollment.api';
 import { studentsApi } from '@/api/students.api';
-import { Settings, Copy, Users, UserPlus, Loader2, Key } from 'lucide-react';
+import { Settings, Copy, Users, UserPlus, Loader2, Key, Lock, Unlock } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
@@ -88,6 +89,9 @@ const TeacherEnrollmentManager: React.FC<TeacherEnrollmentManagerProps> = ({
     }
   };
 
+  const [showKeyInput, setShowKeyInput] = useState(false);
+  const [customKey, setCustomKey] = useState('');
+
   const toggleEnrollment = async (enabled: boolean) => {
     setIsLoading(true);
     try {
@@ -95,7 +99,8 @@ const TeacherEnrollmentManager: React.FC<TeacherEnrollmentManagerProps> = ({
         instituteId,
         classId,
         subjectId,
-        enabled
+        enabled,
+        enabled ? undefined : '' // Clear key when disabling
       );
       setSettings(result);
       toast({
@@ -114,6 +119,43 @@ const TeacherEnrollmentManager: React.FC<TeacherEnrollmentManagerProps> = ({
         toast({
           title: "Error",
           description: "Failed to update enrollment settings",
+          variant: "destructive",
+        });
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const updateEnrollmentKey = async (key: string) => {
+    setIsLoading(true);
+    try {
+      const result = await enrollmentApi.updateEnrollmentSettings(
+        instituteId,
+        classId,
+        subjectId,
+        true,
+        key || undefined // Empty = open enrollment, value = key-required
+      );
+      setSettings(result);
+      setShowKeyInput(false);
+      setCustomKey('');
+      toast({
+        title: "Key Updated",
+        description: key ? "Enrollment key set successfully" : "Switched to open enrollment",
+      });
+    } catch (error) {
+      console.error('Failed to update enrollment key:', error);
+      if (error instanceof ApiError) {
+        toast({
+          title: "Update Failed",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to update enrollment key",
           variant: "destructive",
         });
       }
@@ -259,25 +301,107 @@ const TeacherEnrollmentManager: React.FC<TeacherEnrollmentManagerProps> = ({
                 />
               </div>
 
-              {settings.enrollmentEnabled && settings.enrollmentKey && (
+              {settings.enrollmentEnabled && (
                 <div className="space-y-4 p-4 border rounded-lg bg-muted/50">
-                  <div className="flex items-center gap-2">
-                    <Key className="h-4 w-4" />
-                    <Label className="font-medium">Enrollment Key</Label>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      {settings.enrollmentKey ? (
+                        <Lock className="h-4 w-4 text-amber-600" />
+                      ) : (
+                        <Unlock className="h-4 w-4 text-green-600" />
+                      )}
+                      <Label className="font-medium">
+                        {settings.enrollmentKey ? 'Key-Required Enrollment' : 'Open Enrollment'}
+                      </Label>
+                    </div>
+                    <Badge variant={settings.enrollmentKey ? "secondary" : "default"}>
+                      {settings.enrollmentKey ? 'Key Required' : 'Open'}
+                    </Badge>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <code className="flex-1 p-2 bg-background border rounded font-mono text-sm">
-                      {settings.enrollmentKey}
-                    </code>
-                    <Button size="sm" variant="outline" onClick={copyEnrollmentKey}>
-                      <Copy className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  <Alert>
-                    <AlertDescription>
-                      Share this key with students to allow self-enrollment in this subject.
-                    </AlertDescription>
-                  </Alert>
+
+                  {settings.enrollmentKey ? (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <code className="flex-1 p-2 bg-background border rounded font-mono text-sm">
+                          {settings.enrollmentKey}
+                        </code>
+                        <Button size="sm" variant="outline" onClick={copyEnrollmentKey}>
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <Alert>
+                        <AlertDescription>
+                          Share this key with students to allow self-enrollment.
+                        </AlertDescription>
+                      </Alert>
+                    </div>
+                  ) : (
+                    <Alert>
+                      <AlertDescription>
+                        Any student can enroll without needing a key.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
+                  {/* Toggle between open and key-required */}
+                  {!showKeyInput ? (
+                    <div className="flex gap-2">
+                      {settings.enrollmentKey ? (
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          onClick={() => updateEnrollmentKey('')}
+                          disabled={isLoading}
+                        >
+                          <Unlock className="h-4 w-4 mr-2" />
+                          Switch to Open Enrollment
+                        </Button>
+                      ) : (
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          onClick={() => setShowKeyInput(true)}
+                          disabled={isLoading}
+                        >
+                          <Key className="h-4 w-4 mr-2" />
+                          Set Enrollment Key
+                        </Button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <Input
+                          placeholder="Enter custom key (e.g., MATH-2026)"
+                          value={customKey}
+                          onChange={(e) => setCustomKey(e.target.value)}
+                          maxLength={50}
+                          className="flex-1"
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <Button 
+                          size="sm" 
+                          onClick={() => updateEnrollmentKey(customKey)}
+                          disabled={isLoading || !customKey.trim()}
+                        >
+                          {isLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Key className="h-4 w-4 mr-2" />}
+                          Set Key
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          onClick={() => {
+                            setShowKeyInput(false);
+                            setCustomKey('');
+                          }}
+                          disabled={isLoading}
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 

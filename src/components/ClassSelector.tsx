@@ -128,6 +128,7 @@ interface ClassCardData {
   classType: string;
   isActive: boolean;
   imageUrl?: string;
+  isVerified?: boolean; // For student enrolled classes - true means verified, false means pending
 }
 const ClassSelector = () => {
   const {
@@ -283,7 +284,7 @@ const ClassSelector = () => {
         pagination.total = result.total || result.data.length;
         pagination.totalPages = result.totalPages || Math.ceil(pagination.total / (result.limit || 10));
       }
-      classesArray = studentClasses.map((item: StudentClassData): ClassData => ({
+      classesArray = studentClasses.map((item: StudentClassData): ClassData & { isVerified?: boolean } => ({
         id: item.class.id,
         name: item.class.name,
         code: item.class.code,
@@ -298,6 +299,7 @@ const ClassSelector = () => {
         instituteId: item.instituteId,
         imageUrl: item.class.imageUrl,
         // Now includes imageUrl from response
+        isVerified: item.isVerified, // Track verification status for students
         _count: {
           students: 0,
           // Not provided in student response
@@ -392,7 +394,8 @@ const ClassSelector = () => {
       specialty: classItem.specialty || classItem.classType || 'General',
       classType: classItem.classType || 'Regular',
       isActive: (classItem as any).isActive !== false,
-      imageUrl: resolveImageUrl((classItem as any).imageUrl || (classItem as any).image || (classItem as any).logo || (classItem as any).coverImageUrl)
+      imageUrl: resolveImageUrl((classItem as any).imageUrl || (classItem as any).image || (classItem as any).logo || (classItem as any).coverImageUrl),
+      isVerified: (classItem as any).isVerified // Preserve verification status
     }));
     console.log('Transformed classes:', transformedClasses);
     setClassesData(transformedClasses);
@@ -815,15 +818,23 @@ const ClassSelector = () => {
                       {expandedIds[classItem.id] ? 'Hide Details' : 'Read More'}
                     </button>
                     
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleSelectClass(classItem);
-                      }}
-                      className="select-none rounded-lg bg-blue-500 py-3 px-6 w-full text-center align-middle font-sans text-xs font-bold uppercase text-white shadow-md shadow-blue-500/20 transition-all hover:shadow-lg hover:shadow-blue-500/40 focus:opacity-[0.85] focus:shadow-none active:opacity-[0.85] active:shadow-none"
-                    >
-                      Select Class
-                    </button>
+                    {/* Show Select button only for verified classes (or non-student roles) */}
+                    {classItem.isVerified === false ? (
+                      <div className="select-none rounded-lg bg-amber-100 dark:bg-amber-900/30 py-3 px-6 w-full text-center align-middle font-sans text-xs font-bold uppercase text-amber-700 dark:text-amber-400 border border-amber-300 dark:border-amber-700">
+                        <Clock className="h-4 w-4 inline-block mr-2" />
+                        Pending Verification
+                      </div>
+                    ) : (
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleSelectClass(classItem);
+                        }}
+                        className="select-none rounded-lg bg-blue-500 py-3 px-6 w-full text-center align-middle font-sans text-xs font-bold uppercase text-white shadow-md shadow-blue-500/20 transition-all hover:shadow-lg hover:shadow-blue-500/40 focus:opacity-[0.85] focus:shadow-none active:opacity-[0.85] active:shadow-none"
+                      >
+                        Select Class
+                      </button>
+                    )}
                   </div>
                 </div>)}
             </div>
@@ -927,15 +938,23 @@ const ClassSelector = () => {
                       {expandedIds[classItem.id] ? 'Hide Details' : 'Read More'}
                     </button>
                     
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleSelectClass(classItem);
-                      }}
-                      className="select-none rounded-lg bg-blue-500 py-3 px-6 w-full text-center align-middle font-sans text-xs font-bold uppercase text-white shadow-md shadow-blue-500/20 transition-all hover:shadow-lg hover:shadow-blue-500/40 focus:opacity-[0.85] focus:shadow-none active:opacity-[0.85] active:shadow-none"
-                    >
-                      Select Class
-                    </button>
+                    {/* Show Select button only for verified classes (or non-student roles) */}
+                    {classItem.isVerified === false ? (
+                      <div className="select-none rounded-lg bg-amber-100 dark:bg-amber-900/30 py-3 px-6 w-full text-center align-middle font-sans text-xs font-bold uppercase text-amber-700 dark:text-amber-400 border border-amber-300 dark:border-amber-700">
+                        <Clock className="h-4 w-4 inline-block mr-2" />
+                        Pending Verification
+                      </div>
+                    ) : (
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleSelectClass(classItem);
+                        }}
+                        className="select-none rounded-lg bg-blue-500 py-3 px-6 w-full text-center align-middle font-sans text-xs font-bold uppercase text-white shadow-md shadow-blue-500/20 transition-all hover:shadow-lg hover:shadow-blue-500/40 focus:opacity-[0.85] focus:shadow-none active:opacity-[0.85] active:shadow-none"
+                      >
+                        Select Class
+                      </button>
+                    )}
                   </div>
                 </div>)}
             </div>

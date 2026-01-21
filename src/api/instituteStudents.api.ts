@@ -53,6 +53,8 @@ export interface StudentListResponse {
   };
 }
 
+import { AttendanceStatus, AttendanceSummary } from '@/types/attendance.types';
+
 export interface StudentAttendanceRecord {
   studentId: string;
   studentName: string;
@@ -63,7 +65,7 @@ export interface StudentAttendanceRecord {
   subjectId?: string;
   subjectName?: string;
   date: string;
-  status: 'present' | 'absent' | 'late';
+  status: AttendanceStatus;
   location: string;
   markingMethod: string;
 }
@@ -80,11 +82,7 @@ export interface StudentAttendanceResponse {
     hasPrevPage: boolean;
   };
   data: StudentAttendanceRecord[];
-  summary?: {
-    totalPresent: number;
-    totalAbsent: number;
-    attendanceRate: number;
-  };
+  summary?: AttendanceSummary;
 }
 
 export interface StudentAttendanceParams {

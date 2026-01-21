@@ -40,6 +40,7 @@ export interface TeacherAssignResponse {
 
 export interface EnrollmentSettingsRequest {
   enrollmentEnabled: boolean;
+  enrollmentKey?: string;  // Optional - if provided, students need key; empty = open enrollment
 }
 
 export interface EnrollmentSettingsResponse {
@@ -125,12 +126,17 @@ export const enrollmentApi = {
     classId: string,
     subjectId: string,
     enrollmentEnabled: boolean,
+    enrollmentKey?: string,
     params?: EnrollmentQueryParams
   ): Promise<EnrollmentSettingsResponse> {
     try {
+      const body: EnrollmentSettingsRequest = { enrollmentEnabled };
+      if (enrollmentKey !== undefined) {
+        body.enrollmentKey = enrollmentKey;
+      }
       return await enhancedCachedClient.patch(
         `/institute-class-subject-students/enrollment-settings/${instituteId}/${classId}/${subjectId}`,
-        { enrollmentEnabled },
+        body,
         {
           userId: params?.userId,
           instituteId,

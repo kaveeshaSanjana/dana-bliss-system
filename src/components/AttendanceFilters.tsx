@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Filter, ChevronDown, X, Calendar, Search, Users } from 'lucide-react';
+import { ALL_ATTENDANCE_STATUSES, ATTENDANCE_STATUS_CONFIG } from '@/types/attendance.types';
 
 export interface AttendanceFilterParams {
   searchTerm?: string;
@@ -99,9 +100,11 @@ const AttendanceFilters: React.FC<AttendanceFiltersProps> = ({
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Statuses</SelectItem>
-                    <SelectItem value="present">Present</SelectItem>
-                    <SelectItem value="absent">Absent</SelectItem>
-                    <SelectItem value="late">Late</SelectItem>
+                    {ALL_ATTENDANCE_STATUSES.map((statusOption) => (
+                      <SelectItem key={statusOption} value={statusOption}>
+                        {ATTENDANCE_STATUS_CONFIG[statusOption].icon} {ATTENDANCE_STATUS_CONFIG[statusOption].label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>

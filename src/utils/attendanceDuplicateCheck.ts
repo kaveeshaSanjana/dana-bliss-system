@@ -5,6 +5,8 @@
  * This is a client-side check to avoid unnecessary API calls.
  */
 
+import { AttendanceStatus } from '@/types/attendance.types';
+
 interface AttendanceRecord {
   userId: string;
   studentId?: string;
@@ -12,7 +14,7 @@ interface AttendanceRecord {
   instituteId: string;
   classId?: string;
   subjectId?: string;
-  status: 'present' | 'absent' | 'late';
+  status: AttendanceStatus;
   timestamp: number;
   method: 'manual' | 'qr' | 'barcode' | 'rfid/nfc';
 }
@@ -69,7 +71,7 @@ class AttendanceDuplicateChecker {
     instituteId: string;
     classId?: string;
     subjectId?: string;
-    status: 'present' | 'absent' | 'late';
+    status: AttendanceStatus;
     method: 'manual' | 'qr' | 'barcode' | 'rfid/nfc';
   }): boolean {
     const now = Date.now();
@@ -146,7 +148,7 @@ class AttendanceDuplicateChecker {
     instituteId: string;
     classId?: string;
     subjectId?: string;
-    status: 'present' | 'absent' | 'late';
+    status: AttendanceStatus;
     method: 'manual' | 'qr' | 'barcode' | 'rfid/nfc';
   }): void {
     const record: AttendanceRecord = {

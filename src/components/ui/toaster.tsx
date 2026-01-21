@@ -9,6 +9,7 @@ import {
   ToastViewport,
 } from "@/components/ui/toast"
 import { getImageUrl } from "@/utils/imageUrlHelper"
+import { AttendanceStatus, ATTENDANCE_STATUS_CONFIG } from "@/types/attendance.types"
 
 export function Toaster() {
   const { toasts } = useToast()
@@ -18,12 +19,28 @@ export function Toaster() {
   const errorToasts = toasts.filter(t => !t.isAttendanceAlert && t.variant === 'destructive');
   const successToasts = toasts.filter(t => !t.isAttendanceAlert && t.variant !== 'destructive');
 
+  // Get toast variant based on status
+  const getToastVariant = (status?: string) => {
+    if (!status) return 'default';
+    const normalizedStatus = status.toLowerCase() as AttendanceStatus;
+    switch (normalizedStatus) {
+      case 'present': return 'success';
+      case 'absent': return 'absent';
+      case 'late': return 'late';
+      case 'left':
+      case 'left_early':
+      case 'left_lately':
+        return 'default'; // Use default for new departure statuses
+      default: return 'default';
+    }
+  };
+
   return (
     <>
       {/* Attendance Alerts - Top Left */}
       <ToastProvider swipeDirection="right">
       {attendanceAlerts.map(function ({ id, title, description, action, imageUrl, status, isAttendanceAlert, ...props }) {
-          const variant = status === 'present' ? 'success' : status === 'absent' ? 'absent' : status === 'late' ? 'late' : 'default';
+          const variant = getToastVariant(status);
           
           return (
             <Toast key={id} {...props} variant={variant} className="min-w-[350px] py-4 px-4">
