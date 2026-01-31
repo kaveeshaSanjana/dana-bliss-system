@@ -25,7 +25,7 @@ interface HomeworkProps {
 
 const Homework = ({ apiLevel = 'institute' }: HomeworkProps) => {
   const navigate = useNavigate();
-  const { user, selectedInstitute, selectedClass, selectedSubject, currentInstituteId, currentClassId, currentSubjectId } = useAuth();
+  const { user, selectedInstitute, selectedClass, selectedSubject, currentInstituteId, currentClassId, currentSubjectId, isViewingAsParent, selectedChild } = useAuth();
   const instituteRole = useInstituteRole();
   const { toast } = useToast();
   const { refresh, isRefreshing, canRefresh, cooldownRemaining } = useRefreshWithCooldown(10);
@@ -343,8 +343,8 @@ const Homework = ({ apiLevel = 'institute' }: HomeworkProps) => {
       }
     ] : []),
     
-    // Actions for Students
-    ...(instituteRole === 'Student' ? [
+    // Actions for Students - disable submit when parent is viewing
+    ...((instituteRole === 'Student' && !isViewingAsParent) ? [
       {
         label: 'Submit',
         action: (homework: any) => handleSubmitHomework(homework),
@@ -542,7 +542,8 @@ const Homework = ({ apiLevel = 'institute' }: HomeworkProps) => {
               format: col.render
             }))}
             onAdd={canAdd ? () => setIsCreateDialogOpen(true) : undefined}
-            onEdit={isStudent ? handleSubmitHomework : (canEdit ? handleEditHomework : undefined)}
+            onEdit={canEdit && !isStudent ? handleEditHomework : undefined}
+            customActions={customActions}
             page={page}
             rowsPerPage={rowsPerPage}
             totalCount={totalCount}
@@ -593,7 +594,7 @@ const Homework = ({ apiLevel = 'institute' }: HomeworkProps) => {
 
       {/* Submit Dialog */}
       <Dialog open={isSubmitDialogOpen} onOpenChange={setIsSubmitDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Submit Homework</DialogTitle>
           </DialogHeader>

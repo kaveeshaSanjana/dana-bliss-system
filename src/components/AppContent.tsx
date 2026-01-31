@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useInstituteRole } from '@/hooks/useInstituteRole';
 import { useContextUrlSync, extractPageFromUrl } from '@/utils/pageNavigation';
 import { useRouteContext } from '@/hooks/useRouteContext';
+import { useMobilePermissions } from '@/hooks/useMobilePermissions';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Building2, BookOpen, GraduationCap, User, Palette, Menu, X, ArrowLeft } from 'lucide-react';
@@ -36,7 +37,7 @@ import RfidAttendance from '@/pages/RFIDAttendance';
 import InstituteMarkAttendance from '@/pages/InstituteMarkAttendance';
 import Lectures from '@/components/Lectures';
 import LiveLectures from '@/components/LiveLectures';
-import Homework from '@/components/Homework';
+import { HomeworkAccordion } from '@/components/homework';
 import Exams from '@/components/Exams';
 import Results from '@/components/Results';
 import Profile from '@/components/Profile';
@@ -88,17 +89,21 @@ import ExamResults from '@/pages/ExamResults';
 import CreateExamResults from '@/pages/CreateExamResults';
 import InstituteSubjects from '@/pages/InstituteSubjects';
 import TeacherEnrollmentManagement from '@/pages/TeacherEnrollmentManagement';
+import NotificationsPage from '@/pages/NotificationsPage';
 
 interface AppContentProps {
   initialPage?: string;
 }
 
 const AppContent = ({ initialPage }: AppContentProps) => {
-  const { user, login, selectedInstitute, selectedClass, selectedSubject, selectedChild, selectedOrganization, setSelectedOrganization, currentInstituteId } = useAuth();
+  const { user, login, selectedInstitute, selectedClass, selectedSubject, selectedChild, selectedOrganization, setSelectedOrganization, currentInstituteId, isViewingAsParent } = useAuth();
   const { navigateToPage, getPageFromPath } = useAppNavigation();
   const location = useLocation();
   const navigate = useNavigate();
   const [hasNavigatedAfterLogin, setHasNavigatedAfterLogin] = React.useState(false);
+  
+  // 📱 Mobile permissions hook - handles permission prompts after login on mobile
+  const { isRequesting: isRequestingPermissions, permissionStatus } = useMobilePermissions();
   
   // Sync URL context with AuthContext and validate access (403 if unauthorized)
   const { isValidating, instituteId: urlInstituteId } = useRouteContext();
@@ -128,6 +133,22 @@ const AppContent = ({ initialPage }: AppContentProps) => {
     if (/\/exam\/[^\/]+\/create-results/.test(path)) {
       return 'exam-create-results';
     }
+    // child/:id/select-institute - Parent selecting institute for child
+    if (/\/child\/[^\/]+\/select-institute/.test(path)) {
+      return 'child-select-institute';
+    }
+    // child/:id/select-class - Parent selecting class for child
+    if (/\/child\/[^\/]+\/select-class/.test(path)) {
+      return 'child-select-class';
+    }
+    // child/:id/select-subject - Parent selecting subject for child
+    if (/\/child\/[^\/]+\/select-subject/.test(path)) {
+      return 'child-select-subject';
+    }
+    // child/:id/dashboard - Child dashboard after selecting institute
+    if (/\/child\/[^\/]+\/dashboard/.test(path)) {
+      return 'child-dashboard';
+    }
     // child/:id/child-results
     if (/\/child\/[^\/]+\/child-results/.test(path)) {
       return 'child-results';
@@ -139,6 +160,22 @@ const AppContent = ({ initialPage }: AppContentProps) => {
     // child/:id/child-transport
     if (/\/child\/[^\/]+\/child-transport/.test(path)) {
       return 'child-transport';
+    }
+    // child/:id/homework - Parent viewing child's homework
+    if (/\/child\/[^\/]+\/homework/.test(path)) {
+      return 'child-homework';
+    }
+    // child/:id/lectures - Parent viewing child's lectures
+    if (/\/child\/[^\/]+\/lectures/.test(path)) {
+      return 'child-lectures';
+    }
+    // child/:id/exams - Parent viewing child's exams
+    if (/\/child\/[^\/]+\/exams/.test(path)) {
+      return 'child-exams';
+    }
+    // child/:id/results - Parent viewing child's results
+    if (/\/child\/[^\/]+\/results/.test(path)) {
+      return 'child-results-page';
     }
     return null;
   }, [location.pathname]);
@@ -455,8 +492,48 @@ const AppContent = ({ initialPage }: AppContentProps) => {
       );
     }
     
-    // CRITICAL: Handle child routes FIRST - regardless of user role
-    // When a child is selected and URL matches child routes, render the child pages
+    // CRITICAL: Handle parent viewing child routes FIRST - regardless of user role
+    // When isViewingAsParent is true and child is selected, show student UI in view-only mode
+    if (isViewingAsParent && selectedChild && nestedRouteComponent) {
+      // Child institute selection
+      if (nestedRouteComponent === 'child-select-institute') {
+        return <InstituteSelector useChildId={true} />;
+      }
+      // Child class selection
+      if (nestedRouteComponent === 'child-select-class') {
+        return <ClassSelector />;
+      }
+      // Child subject selection
+      if (nestedRouteComponent === 'child-select-subject') {
+        return <SubjectSelector />;
+      }
+      // Child dashboard (after selecting institute)
+      if (nestedRouteComponent === 'child-dashboard') {
+        return <Dashboard />;
+      }
+      // Child homework (view-only - isViewingAsParent checked in component)
+      if (nestedRouteComponent === 'child-homework') {
+        return <HomeworkAccordion />;
+      }
+      // Child lectures (view-only)
+      if (nestedRouteComponent === 'child-lectures') {
+        return <Lectures />;
+      }
+      // Child exams (view-only)
+      if (nestedRouteComponent === 'child-exams') {
+        return <Exams />;
+      }
+      // Child results page
+      if (nestedRouteComponent === 'child-results-page') {
+        return <Results />;
+      }
+      // Legacy child routes
+      if (nestedRouteComponent === 'child-results') return <ChildResults />;
+      if (nestedRouteComponent === 'child-attendance') return <ChildAttendancePage />;
+      if (nestedRouteComponent === 'child-transport') return <ChildTransportPage />;
+    }
+    
+    // Non-parent-viewing child routes
     if (selectedChild && nestedRouteComponent) {
       if (nestedRouteComponent === 'child-results') return <ChildResults />;
       if (nestedRouteComponent === 'child-attendance') return <ChildAttendancePage />;
@@ -540,6 +617,9 @@ const AppContent = ({ initialPage }: AppContentProps) => {
           return <Profile />;
         case 'settings':
           return <Settings />;
+        case 'notifications':
+        case 'institute-notifications':
+          return <NotificationsPage />;
         default:
           return <Dashboard />;
       }
@@ -584,7 +664,7 @@ const AppContent = ({ initialPage }: AppContentProps) => {
         case 'free-lectures':
           return <FreeLectures />;
         case 'homework':
-          return <Homework />;
+          return <HomeworkAccordion />;
         case 'homework-submissions':
           return <StudentHomeworkSubmissions />;
         case 'exams':
@@ -616,6 +696,9 @@ const AppContent = ({ initialPage }: AppContentProps) => {
           return <SubjectPaymentSubmissions />;
         case 'my-children':
           return <MyChildren />;
+        case 'notifications':
+        case 'institute-notifications':
+          return <NotificationsPage />;
         default:
           return <Dashboard />;
       }
@@ -648,7 +731,7 @@ const AppContent = ({ initialPage }: AppContentProps) => {
         case 'attendance':
           return <Attendance />;
         case 'homework':
-          return <Homework />;
+          return <HomeworkAccordion />;
         case 'homework-submissions':
           return <StudentHomeworkSubmissions />;
         case 'results':
@@ -669,6 +752,9 @@ const AppContent = ({ initialPage }: AppContentProps) => {
           return <ParentChildrenSelector />;
         case 'appearance':
           return <Appearance />;
+        case 'notifications':
+        case 'institute-notifications':
+          return <NotificationsPage />;
         default:
           return <ParentChildrenSelector />;
       }
@@ -745,7 +831,7 @@ const AppContent = ({ initialPage }: AppContentProps) => {
         case 'live-lectures':
           return <LiveLectures />;
         case 'homework':
-          return userRole === 'Teacher' ? <TeacherHomework /> : <Homework />;
+          return <HomeworkAccordion />;
         case 'homework-submissions':
           return <StudentHomeworkSubmissions />;
         case 'exams':
@@ -770,6 +856,9 @@ const AppContent = ({ initialPage }: AppContentProps) => {
           return <SubjectPaymentSubmissions />;
         case 'enrollment-management':
           return <TeacherEnrollmentManagement />;
+        case 'notifications':
+        case 'institute-notifications':
+          return <NotificationsPage />;
         default:
           return <Dashboard />;
       }
@@ -819,6 +908,9 @@ const AppContent = ({ initialPage }: AppContentProps) => {
         return <InstituteProfile />;
       case 'settings':
           return <Settings />;
+      case 'notifications':
+      case 'institute-notifications':
+        return <NotificationsPage />;
         default:
           return <Dashboard />;
       }
@@ -839,7 +931,9 @@ const AppContent = ({ initialPage }: AppContentProps) => {
       'child/:childId/transport',
       'institute-payments',
       'subject-payments',
-      'my-submissions'
+      'my-submissions',
+      'notifications',
+      'institute-notifications'
     ];
     
     console.log('🔍 Student Role - Debug:', { 
@@ -952,7 +1046,7 @@ const AppContent = ({ initialPage }: AppContentProps) => {
       case 'live-lectures':
         return <LiveLectures />;
       case 'homework':
-        return <Homework />;
+        return <HomeworkAccordion />;
       case 'homework-submissions':
         return <StudentHomeworkSubmissions />;
       case 'exams':
@@ -983,6 +1077,9 @@ const AppContent = ({ initialPage }: AppContentProps) => {
         return <SMS />;
       case 'sms-history':
         return <SMSHistory />;
+      case 'notifications':
+      case 'institute-notifications':
+        return <NotificationsPage />;
       case 'institute-payments':
         return <InstitutePayments />;
       case 'subject-payments':

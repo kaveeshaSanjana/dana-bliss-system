@@ -32,19 +32,22 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const loadUnreadCount = useCallback(async () => {
-    try {
-      if (instituteId) {
-        const result = await notificationApiService.getInstituteUnreadCount(instituteId);
-        setUnreadCount(result.unreadCount || 0);
-      } else {
-        const result = await notificationApiService.getSystemUnreadCount();
-        setUnreadCount(result.unreadCount || 0);
-      }
-    } catch (error) {
-      console.error('Failed to load unread count:', error);
-    }
-  }, [instituteId]);
+  // DISABLED: Unread count API calls commented out to reduce unnecessary API costs
+  // These calls were polling every 30 seconds which is expensive and not needed for basic display
+  // The notification count will only update when user explicitly opens the bell
+  // const loadUnreadCount = useCallback(async () => {
+  //   try {
+  //     if (instituteId) {
+  //       const result = await notificationApiService.getInstituteUnreadCount(instituteId);
+  //       setUnreadCount(result.unreadCount || 0);
+  //     } else {
+  //       const result = await notificationApiService.getSystemUnreadCount();
+  //       setUnreadCount(result.unreadCount || 0);
+  //     }
+  //   } catch (error) {
+  //     console.error('Failed to load unread count:', error);
+  //   }
+  // }, [instituteId]);
 
   const loadRecentNotifications = useCallback(async () => {
     try {
@@ -55,12 +58,16 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
           { page: 1, limit: 5 }
         );
         setNotifications(result.data || []);
+        // Update unread count from the fetched data instead of separate API call
+        setUnreadCount(result.data?.filter(n => !n.isRead).length || 0);
       } else {
         const result = await notificationApiService.getSystemNotifications({
           page: 1,
           limit: 5
         });
         setNotifications(result.data || []);
+        // Update unread count from the fetched data instead of separate API call
+        setUnreadCount(result.data?.filter(n => !n.isRead).length || 0);
       }
     } catch (error) {
       console.error('Failed to load notifications:', error);
@@ -69,13 +76,16 @@ export const NotificationBell: React.FC<NotificationBellProps> = ({
     }
   }, [instituteId]);
 
-  useEffect(() => {
-    loadUnreadCount();
-    // Poll for new notifications every 30 seconds
-    const interval = setInterval(loadUnreadCount, 30000);
-    return () => clearInterval(interval);
-  }, [loadUnreadCount]);
+  // DISABLED: Polling removed to save API costs
+  // Unread count will be calculated from notifications when user opens the bell
+  // useEffect(() => {
+  //   loadUnreadCount();
+  //   // Poll for new notifications every 30 seconds
+  //   const interval = setInterval(loadUnreadCount, 30000);
+  //   return () => clearInterval(interval);
+  // }, [loadUnreadCount]);
 
+  // Load notifications only when bell is opened (cost-effective approach)
   useEffect(() => {
     if (open) {
       loadRecentNotifications();

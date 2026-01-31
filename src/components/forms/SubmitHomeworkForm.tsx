@@ -6,56 +6,71 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { homeworkSubmissionsApi, type HomeworkSubmissionCreateData } from '@/api/homeworkSubmissions.api';
-import { Upload, FileText, File, X, CalendarIcon } from 'lucide-react';
+import { homeworkSubmissionsApi, type GoogleDriveSubmissionData } from '@/api/homeworkSubmissions.api';
+import { 
+  Upload, 
+  FileText, 
+  File, 
+  X, 
+  Cloud, 
+  HardDrive,
+  CheckCircle2,
+  Loader2,
+  ExternalLink
+} from 'lucide-react';
 import { uploadWithSignedUrl } from '@/utils/signedUploadHelper';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { format } from 'date-fns';
+import GoogleDriveUploader from './GoogleDriveUploader';
 import { cn } from '@/lib/utils';
+
 const submissionSchema = z.object({
   submissionDate: z.string().min(1, 'Submission date is required'),
   remarks: z.string().optional()
 });
+
 type SubmissionFormData = z.infer<typeof submissionSchema>;
+
+interface GoogleDriveFile {
+  id: string;
+  name: string;
+  mimeType: string;
+  size?: number;
+}
+
 interface SubmitHomeworkFormProps {
   homework: any;
   onClose: () => void;
   onSuccess: () => void;
 }
+
 const SubmitHomeworkForm = ({
   homework,
   onClose,
   onSuccess
 }: SubmitHomeworkFormProps) => {
-  const {
-    user
-  } = useAuth();
-  const {
-    toast
-  } = useToast();
+  const { user } = useAuth();
+  const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [uploadMethod, setUploadMethod] = useState<'upload' | 'google-drive'>('upload');
+  
+  // Traditional upload state
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadMessage, setUploadMessage] = useState('');
   const [uploadProgress, setUploadProgress] = useState(0);
+  
+  // Google Drive state
+  const [googleDriveFile, setGoogleDriveFile] = useState<GoogleDriveFile | null>(null);
+  const [googleAccessToken, setGoogleAccessToken] = useState<string | null>(null);
 
-  // Early return if homework is not provided
-  if (!homework) {
-    return <div className="text-center py-8">
-        <p className="text-muted-foreground">No homework selected</p>
-      </div>;
-  }
   const {
     register,
     handleSubmit,
-    formState: {
-      errors
-    },
-    watch,
-    setValue
+    formState: { errors },
   } = useForm<SubmissionFormData>({
     resolver: zodResolver(submissionSchema),
     defaultValues: {
@@ -63,10 +78,19 @@ const SubmitHomeworkForm = ({
       remarks: ''
     }
   });
+
+  // Early return if homework is not provided
+  if (!homework) {
+    return (
+      <div className="text-center py-8">
+        <p className="text-muted-foreground">No homework selected</p>
+      </div>
+    );
+  }
+
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      // Check file size (limit to 10MB)
       if (file.size > 10 * 1024 * 1024) {
         toast({
           title: "File too large",
@@ -82,9 +106,23 @@ const SubmitHomeworkForm = ({
       });
     }
   };
+
   const removeFile = () => {
     setSelectedFile(null);
   };
+
+  const handleGoogleDriveFileSelected = (file: GoogleDriveFile, accessToken: string) => {
+    setGoogleDriveFile(file);
+    setGoogleAccessToken(accessToken);
+  };
+
+  const clearGoogleDriveFile = () => {
+    setGoogleDriveFile(null);
+    setGoogleAccessToken(null);
+  };
+
+  const hasFileSelected = uploadMethod === 'upload' ? !!selectedFile : !!googleDriveFile;
+
   const onSubmit = async (data: SubmissionFormData) => {
     if (!user?.id) {
       toast({
@@ -94,7 +132,8 @@ const SubmitHomeworkForm = ({
       });
       return;
     }
-    if (!selectedFile) {
+
+    if (!hasFileSelected) {
       toast({
         title: "Error",
         description: "Please select a file to submit",
@@ -102,55 +141,71 @@ const SubmitHomeworkForm = ({
       });
       return;
     }
-    console.log('Starting homework submission:', {
-      homeworkId: homework.id,
-      homeworkTitle: homework.title,
-      userId: user.id,
-      fileName: selectedFile.name,
-      submissionDate: data.submissionDate
-    });
-    setIsSubmitting(true);
-    setIsUploading(true);
-    try {
-      // Step 1: Upload file and get relativePath using signed URL
-      const relativePath = await uploadWithSignedUrl(
-        selectedFile,
-        'homework-files',
-        (message, progress) => {
-          setUploadMessage(message);
-          setUploadProgress(progress);
-        }
-      );
 
-      // Step 2: Submit homework with relativePath as fileUrl
-      const result = await homeworkSubmissionsApi.submitHomework(
-        homework.id,
-        relativePath,
-        {
-          submissionDate: data.submissionDate,
-          remarks: data.remarks
-        }
-      );
-      console.log('Homework submission result:', result);
-      toast({
-        title: "Success",
-        description: result.message || "Homework submitted successfully!"
-      });
-      onSuccess();
+    setIsSubmitting(true);
+
+    try {
+      if (uploadMethod === 'google-drive' && googleDriveFile && googleAccessToken) {
+        // Submit via Google Drive
+        console.log('Submitting homework via Google Drive:', {
+          homeworkId: homework.id,
+          fileId: googleDriveFile.id,
+          fileName: googleDriveFile.name
+        });
+
+        const result = await homeworkSubmissionsApi.submitViaGoogleDrive({
+          homeworkId: homework.id,
+          fileId: googleDriveFile.id,
+          accessToken: googleAccessToken,
+          fileName: googleDriveFile.name,
+          mimeType: googleDriveFile.mimeType
+        });
+
+        toast({
+          title: "Success",
+          description: result.message || "Homework submitted successfully via Google Drive!"
+        });
+        onSuccess();
+      } else if (uploadMethod === 'upload' && selectedFile) {
+        // Traditional upload
+        setIsUploading(true);
+        
+        const relativePath = await uploadWithSignedUrl(
+          selectedFile,
+          'homework-files',
+          (message, progress) => {
+            setUploadMessage(message);
+            setUploadProgress(progress);
+          }
+        );
+
+        const result = await homeworkSubmissionsApi.submitHomework(
+          homework.id,
+          relativePath,
+          {
+            submissionDate: data.submissionDate,
+            remarks: data.remarks
+          }
+        );
+
+        toast({
+          title: "Success",
+          description: result.message || "Homework submitted successfully!"
+        });
+        onSuccess();
+      }
     } catch (error: any) {
-      console.error('Error submitting homework:', {
-        homeworkId: homework.id,
-        error: error.message,
-        errorDetails: error
-      });
+      console.error('Error submitting homework:', error);
       let errorMessage = "Failed to submit homework. Please try again.";
+      
       if (error.message?.includes("not found")) {
-        errorMessage = "This homework assignment is not available for submission. Please contact your teacher.";
+        errorMessage = "This homework assignment is not available for submission.";
       } else if (error.message?.includes("period")) {
-        errorMessage = "The submission period for this homework has not started yet or has ended.";
+        errorMessage = "The submission period has ended.";
       } else if (error.message) {
         errorMessage = error.message;
       }
+
       toast({
         title: "Submission Failed",
         description: errorMessage,
@@ -161,85 +216,184 @@ const SubmitHomeworkForm = ({
       setIsUploading(false);
     }
   };
-  return <div className="space-y-6">
-      <div className="bg-muted/50 p-4 rounded-lg border">
-        <h3 className="font-semibold text-lg mb-2 flex items-center gap-2">
-          <FileText className="h-5 w-5" />
-          {homework.title}
-        </h3>
-        <p className="text-muted-foreground mb-2">{homework.description}</p>
-        {homework.endDate}
-        {homework.referenceLink && <div className="mt-2">
-            <Button size="sm" variant="outline" onClick={() => window.open(homework.referenceLink, '_blank')}>
-              <FileText className="h-3 w-3 mr-1" />
-              View Reference Material
-            </Button>
-          </div>}
+
+  const formatFileSize = (bytes?: number) => {
+    if (!bytes) return '';
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
+  };
+
+  return (
+    <div className="space-y-3 w-full">
+      {/* Compact Homework Info */}
+      <div className="flex items-start gap-2 p-2 sm:p-3 rounded-lg bg-muted/50 border">
+        <FileText className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+        <div className="min-w-0 flex-1">
+          <h3 className="font-medium text-xs sm:text-sm truncate">{homework.title}</h3>
+          <p className="text-[10px] sm:text-xs text-muted-foreground line-clamp-1 mt-0.5">{homework.description}</p>
+          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+            {homework.endDate && (
+              <Badge variant="secondary" className="text-[10px] h-4 px-1">
+                Due: {new Date(homework.endDate).toLocaleDateString()}
+              </Badge>
+            )}
+            {homework.referenceLink && (
+              <Button 
+                type="button"
+                size="sm" 
+                variant="ghost" 
+                onClick={() => window.open(homework.referenceLink, '_blank')}
+                className="h-4 px-1 text-[10px] text-primary hover:text-primary"
+              >
+                <ExternalLink className="h-2.5 w-2.5 mr-0.5" />
+                Ref
+              </Button>
+            )}
+          </div>
+        </div>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="submissionDate">Submission Date *</Label>
-          <Input id="submissionDate" type="date" {...register('submissionDate')} className="w-full" />
-          {errors.submissionDate && <p className="text-sm text-destructive">{errors.submissionDate.message}</p>}
-        </div>
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
+        {/* Upload Method - Compact Tabs */}
+        <Tabs 
+          value={uploadMethod} 
+          onValueChange={(v) => setUploadMethod(v as 'upload' | 'google-drive')}
+          className="w-full"
+        >
+          <TabsList className="grid w-full grid-cols-2 h-8">
+            <TabsTrigger 
+              value="upload" 
+              className="flex items-center gap-1 text-[10px] sm:text-xs h-6"
+            >
+              <HardDrive className="h-3 w-3" />
+              <span>Upload</span>
+            </TabsTrigger>
+            <TabsTrigger 
+              value="google-drive"
+              className="flex items-center gap-1 text-[10px] sm:text-xs h-6"
+            >
+              <Cloud className="h-3 w-3" />
+              <span>Drive</span>
+            </TabsTrigger>
+          </TabsList>
 
-        {/* File Upload Section */}
-        <div className="space-y-2">
-          <Label>Upload File</Label>
-          
-          {!selectedFile ? <div>
-              <input type="file" id="file-upload" onChange={handleFileSelect} accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png,.zip" className="hidden" disabled={isUploading} />
-              <Label htmlFor="file-upload" className={`flex items-center justify-center w-full h-32 border-2 border-dashed rounded-lg transition-colors ${isUploading ? 'border-blue-300 bg-blue-50 cursor-not-allowed' : 'border-muted-foreground/25 cursor-pointer hover:border-muted-foreground/50'}`}>
-                <div className="text-center">
-                  <Upload className={`h-8 w-8 mx-auto mb-2 ${isUploading ? 'animate-spin text-blue-600' : 'text-muted-foreground'}`} />
-                  <p className="text-sm text-muted-foreground">
-                    {isUploading ? 'Uploading file...' : 'Click to upload your homework file'}
+          {/* Traditional Upload - Compact */}
+          <TabsContent value="upload" className="mt-2">
+            {!selectedFile ? (
+              <div>
+                <input
+                  type="file"
+                  id="file-upload"
+                  onChange={handleFileSelect}
+                  accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png,.zip"
+                  className="hidden"
+                  disabled={isUploading || isSubmitting}
+                />
+                <label
+                  htmlFor="file-upload"
+                  className={cn(
+                    "flex flex-col items-center justify-center w-full py-4 sm:py-5 border-2 border-dashed rounded-lg transition-all cursor-pointer",
+                    isUploading || isSubmitting
+                      ? "border-muted bg-muted/50 cursor-not-allowed"
+                      : "border-muted-foreground/25 hover:border-primary/50 hover:bg-primary/5 active:scale-[0.99]"
+                  )}
+                >
+                  <Upload className={cn(
+                    "h-5 w-5 mb-1",
+                    isUploading ? "animate-spin text-primary" : "text-muted-foreground"
+                  )} />
+                  <p className="text-[10px] sm:text-xs text-muted-foreground font-medium">
+                    {isUploading ? 'Uploading...' : 'Tap to select file'}
                   </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    PDF, DOC, DOCX, TXT, JPG, PNG, ZIP (max 10MB)
+                  <p className="text-[9px] sm:text-[10px] text-muted-foreground/70 mt-0.5">
+                    PDF, DOC, JPG, PNG (max 10MB)
+                  </p>
+                </label>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 p-2 rounded-lg bg-accent/50 border border-primary/20">
+                <CheckCircle2 className="h-3.5 w-3.5 text-primary shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium text-[10px] sm:text-xs truncate">{selectedFile.name}</p>
+                  <p className="text-[9px] text-muted-foreground">
+                    {formatFileSize(selectedFile.size)}
                   </p>
                 </div>
-              </Label>
-            </div> : <div className="border rounded-lg p-4 bg-muted/50">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <File className="h-5 w-5 text-green-600" />
-                  <div>
-                    <p className="text-sm font-medium">{selectedFile.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {(selectedFile.size / 1024 / 1024).toFixed(2)} MB • Uploaded successfully
-                    </p>
-                  </div>
-                </div>
-                <Button type="button" variant="ghost" size="sm" onClick={removeFile} className="h-8 w-8 p-0">
-                  <X className="h-4 w-4" />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={removeFile}
+                  disabled={isSubmitting}
+                  className="h-6 w-6 p-0 hover:text-destructive shrink-0"
+                >
+                  <X className="h-3 w-3" />
                 </Button>
               </div>
-            </div>}
+            )}
+          </TabsContent>
+
+          {/* Google Drive Upload */}
+          <TabsContent value="google-drive" className="mt-2">
+            <GoogleDriveUploader
+              onFileSelected={handleGoogleDriveFileSelected}
+              onClear={clearGoogleDriveFile}
+              selectedFile={googleDriveFile}
+              disabled={isSubmitting}
+            />
+          </TabsContent>
+        </Tabs>
+
+        {/* Remarks - Compact */}
+        <div className="space-y-1">
+          <Label htmlFor="remarks" className="text-[10px] sm:text-xs">Notes (Optional)</Label>
+          <Textarea
+            id="remarks"
+            placeholder="Any comments..."
+            {...register('remarks')}
+            rows={2}
+            className="text-xs sm:text-sm resize-none min-h-[50px]"
+          />
         </div>
 
+        {/* Hidden submission date - auto-filled */}
+        <input type="hidden" {...register('submissionDate')} />
 
-        <div className="space-y-2">
-          <Label htmlFor="remarks">Additional Notes (Optional)</Label>
-          <Textarea id="remarks" placeholder="Any additional notes or comments about your submission..." {...register('remarks')} rows={3} />
-        </div>
-
-        <div className="flex gap-3 pt-4">
-          <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting} className="flex-1">
+        {/* Submit Buttons - Compact */}
+        <div className="flex gap-2 pt-1">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={onClose}
+            disabled={isSubmitting}
+            className="flex-1 h-8 text-xs"
+          >
             Cancel
           </Button>
-          <Button type="submit" disabled={isSubmitting || !selectedFile} className="flex-1">
-            {isSubmitting ? <>
-                <Upload className="h-4 w-4 mr-2 animate-spin" />
-                {uploadMessage || 'Submitting...'}
-              </> : <>
-                <Upload className="h-4 w-4 mr-2" />
-                Submit Homework
-              </>}
+          <Button
+            type="submit"
+            size="sm"
+            disabled={isSubmitting || !hasFileSelected}
+            className="flex-1 h-8 text-xs"
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                <span>{uploadMessage || 'Submitting...'}</span>
+              </>
+            ) : (
+              <>
+                <Upload className="h-3 w-3 mr-1" />
+                <span>Submit</span>
+              </>
+            )}
           </Button>
         </div>
       </form>
-    </div>;
+    </div>
+  );
 };
+
 export default SubmitHomeworkForm;

@@ -37,7 +37,8 @@ import {
   IdCard,
   MessageSquare,
   Wifi,
-  Lock
+  Lock,
+  Bell
 } from 'lucide-react';
 import surakshaLogoSidebar from '@/assets/suraksha-logo-sidebar.png';
 
@@ -51,6 +52,10 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
   const [isCollapsed, setIsCollapsed] = React.useState(false);
   const location = useLocation();
   const navigate = useNavigate();
+  
+  // Check if institute type is tuition_institute for conditional labels
+  const isTuitionInstitute = selectedInstitute?.type === 'tuition_institute';
+  const subjectLabel = isTuitionInstitute ? 'Sub Class' : 'Subject';
   
   // Derive current page from URL (for component rendering)
   const currentPage = React.useMemo(() => extractPageFromUrl(location.pathname), [location.pathname]);
@@ -214,7 +219,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
           },
           {
             id: 'select-subject',
-            label: 'Select Subject',
+            label: isTuitionInstitute ? 'Select Sub Class' : 'Select Subject',
             icon: BookOpen,
             permission: 'view-subjects',
             alwaysShow: false
@@ -269,23 +274,9 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
           },
           {
             id: 'subject-payments',
-            label: 'Subject Payments',
+            label: `${subjectLabel} Payments`,
             icon: CreditCard,
             permission: 'view-payments',
-            alwaysShow: false
-          },
-          {
-            id: 'subject-submissions',
-            label: 'Subject Submissions',
-            icon: FileText,
-            permission: 'view-submissions',
-            alwaysShow: false
-          },
-          {
-            id: 'homework-submissions',
-            label: 'Homework Submissions',
-            icon: Notebook,
-            permission: 'view-homework',
             alwaysShow: false
           }
          ];
@@ -328,7 +319,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
           },
           {
             id: 'institute-subjects',
-            label: 'Institute Subjects',
+            label: `Institute ${subjectLabel}s`,
             icon: BookOpen,
             permission: 'view-subjects',
             alwaysShow: false,
@@ -343,7 +334,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
           },
           {
             id: 'select-subject',
-            label: 'Select Subject',
+            label: isTuitionInstitute ? 'Select Sub Class' : 'Select Subject',
             icon: BookOpen,
             permission: 'view-subjects',
             alwaysShow: false
@@ -370,7 +361,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
           },
           {
             id: 'select-subject',
-            label: 'Select Subject',
+            label: isTuitionInstitute ? 'Select Sub Class' : 'Select Subject',
             icon: BookOpen,
             permission: 'view-subjects',
             alwaysShow: false
@@ -404,7 +395,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
           },
           {
             id: 'select-subject',
-            label: 'Select Subject',
+            label: isTuitionInstitute ? 'Select Sub Class' : 'Select Subject',
             icon: BookOpen,
             permission: 'view-subjects',
             alwaysShow: false
@@ -422,14 +413,8 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
             icon: UserCheck,
             permission: 'view-students',
             alwaysShow: false
-          },
-          {
-            id: 'subject-payments',
-            label: 'Subject Payments',
-            icon: CreditCard,
-            permission: 'view-payments',
-            alwaysShow: false
           }
+          // Note: subject-payments is now shown in the Payments section via getPaymentItems()
         ];
       }
       // Return empty for any other Teacher states
@@ -467,7 +452,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
 
       // If only institute is selected
       if (selectedInstitute && !selectedClass && !selectedSubject) {
-        return [
+        const baseItems = [
           {
             id: 'dashboard',
             label: 'Dashboard',
@@ -475,13 +460,14 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
             permission: 'view-dashboard',
             alwaysShow: false
           },
-          {
+          // Only show Organization menu item if NOT a tuition_institute
+          ...(isTuitionInstitute ? [] : [{
             id: 'institute-organizations',
             label: 'Organization',
             icon: Building2,
             permission: 'view-organizations',
             alwaysShow: true
-          },
+          }]),
           {
             id: 'institute-users',
             label: 'Institute Users',
@@ -512,7 +498,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
           },
           {
             id: 'institute-subjects',
-            label: 'Institute Subjects',
+            label: `Institute ${subjectLabel}s`,
             icon: BookOpen,
             permission: 'view-subjects',
             alwaysShow: false
@@ -526,7 +512,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
           },
           {
             id: 'select-subject',
-            label: 'Select Subject',
+            label: isTuitionInstitute ? 'Select Sub Class' : 'Select Subject',
             icon: BookOpen,
             permission: 'view-subjects',
             alwaysShow: false
@@ -539,6 +525,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
             alwaysShow: false
           }
         ];
+        return baseItems;
       }
 
       // If institute and class are selected (but not subject)
@@ -574,14 +561,14 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
           },
           {
             id: 'class-subjects',
-            label: 'Class Subjects',
+            label: `Class ${subjectLabel}s`,
             icon: BookOpen,
             permission: 'view-subjects',
             alwaysShow: false
           },
           {
             id: 'select-subject',
-            label: 'Select Subject',
+            label: isTuitionInstitute ? 'Select Sub Class' : 'Select Subject',
             icon: BookOpen,
             permission: 'view-subjects',
             alwaysShow: false
@@ -616,18 +603,12 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
           // Parents is class-scoped only (do not show under subject context)
           {
             id: 'select-subject',
-            label: 'Select Subject',
+            label: isTuitionInstitute ? 'Select Sub Class' : 'Select Subject',
             icon: BookOpen,
             permission: 'view-subjects',
             alwaysShow: false
-          },
-          {
-            id: 'subject-payments',
-            label: 'Subject Payments',
-            icon: CreditCard,
-            permission: 'view-payments',
-            alwaysShow: false
           }
+          // Note: subject-payments is now shown in the Payments section via getPaymentItems()
         ];
       }
       // Return empty for any other InstituteAdmin states
@@ -920,7 +901,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       },
       {
         id: 'institute-subjects',
-        label: 'Institute Subjects',
+        label: `Institute ${subjectLabel}s`,
         icon: BookOpen,
         permission: 'view-subjects',
         alwaysShow: false
@@ -1226,28 +1207,12 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
     
     return [
       {
-        id: 'child-results',
-        label: 'Results',
-        icon: Award,
+        id: 'select-institute',
+        label: 'Select Institute',
+        icon: Building2,
         permission: 'view-profile',
         alwaysShow: true,
-        path: `/child/${childId}/results`
-      },
-      {
-        id: 'child-attendance',
-        label: 'Attendance',
-        icon: UserCheck,
-        permission: 'view-profile',
-        alwaysShow: true,
-        path: `/child/${childId}/attendance`
-      },
-      {
-        id: 'child-transport',
-        label: 'Transport',
-        icon: Truck,
-        permission: 'view-profile',
-        alwaysShow: true,
-        path: `/child/${childId}/transport`
+        path: `/child/${childId}/select-institute`
       }
     ];
   };
@@ -1307,7 +1272,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
     if (selectedInstitute && selectedClass && selectedSubject) {
       paymentItems.push({
         id: 'subject-payments',
-        label: 'Subject Payments',
+        label: `${subjectLabel} Payments`,
         icon: CreditCard,
         permission: 'view-profile',
         alwaysShow: false
@@ -1317,7 +1282,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       if (userRole === 'Student') {
         paymentItems.push({
           id: 'subject-pay-submission',
-          label: 'Subject Pay Submission',
+          label: `${subjectLabel} Pay Submission`,
           icon: FileText,
           permission: 'view-profile',
           alwaysShow: false
@@ -1348,6 +1313,38 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       });
     }
     return items;
+  };
+
+  /**
+   * Get Notification menu items based on institute selection
+   * - Before institute selection: Show "Notifications" (system notifications)
+   * - After institute selection: Show "Institute Notifications" with admin/teacher CRUD access
+   */
+  const getNotificationItems = () => {
+    // Before institute selection - show system notifications
+    if (!selectedInstitute) {
+      return [
+        {
+          id: 'notifications',
+          label: 'Notifications',
+          icon: Bell,
+          permission: 'view-dashboard',
+          alwaysShow: true
+        }
+      ];
+    }
+
+    // After institute selection - show institute notifications
+    // Admin/Teacher can also create notifications (handled in the page component)
+    return [
+      {
+        id: 'institute-notifications',
+        label: 'Institute Notifications',
+        icon: Bell,
+        permission: 'view-dashboard',
+        alwaysShow: true
+      }
+    ];
   };
 
   const getSettingsItems = () => {
@@ -1540,6 +1537,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
   const systemPaymentItems = getSystemPaymentItems();
   const paymentItems = getPaymentItems();
   const smsItems = getSmsItems();
+  const notificationItems = getNotificationItems();
   const settingsItems = getSettingsItems();
 
   // Ensure the active page is always visible in the sidebar even if hidden by selection rules
@@ -1551,6 +1549,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
   const systemPaymentItemsDisplay = [...systemPaymentItems];
   const paymentItemsDisplay = [...paymentItems];
   const smsItemsDisplay = [...(smsItems || [])];
+  const notificationItemsDisplay = [...notificationItems];
   const settingsItemsDisplay = [...settingsItems];
 
   // Only show "ID Cards" in sidebar when NO institute is selected
@@ -1583,6 +1582,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
     systemPaymentItemsDisplay,
     paymentItemsDisplay,
     smsItemsDisplay,
+    notificationItemsDisplay,
     settingsItemsDisplay
   ].some(list => list.some(i => i.id === sidebarHighlightPage));
 
@@ -1765,6 +1765,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
         ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
         flex flex-col h-screen
         overflow-hidden
+        pt-safe-top pb-safe-bottom
       `}>
         {/* Header */}
         <div className="flex items-center justify-between p-3 sm:p-4 border-b border-gray-200 dark:border-gray-700">
@@ -1845,7 +1846,14 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                   <div className="text-blue-600 dark:text-blue-400"><span className="font-medium">Subject:</span> <span className="ml-1 truncate">{selectedSubject.name}</span></div>
                 )}
                 {selectedChild && (
-                  <div className="text-blue-600 dark:text-blue-400"><span className="font-medium">Child:</span> <span className="ml-1 truncate">{(selectedChild as any).name || (selectedChild.user ? `${selectedChild.user.firstName} ${selectedChild.user.lastName}` : 'Unknown Child')}</span></div>
+                  <div className="text-blue-600 dark:text-blue-400">
+                    <span className="font-medium">Child:</span>
+                    <span className="ml-1 text-sm font-semibold break-words whitespace-normal leading-snug">
+                      {selectedChild?.user?.nameWithInitials ||
+                        [selectedChild?.user?.firstName, selectedChild?.user?.lastName].filter(Boolean).join(' ') ||
+                        `#${selectedChild.id}`}
+                    </span>
+                  </div>
                 )}
               </div>
             </div>
@@ -1856,7 +1864,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
         <ScrollArea className="flex-1 px-2 sm:px-3 py-3 sm:py-4">
           <div className="space-y-2">
             {selectedChild ? (
-              <SidebarSection title="Child Sections" items={childItemsDisplay} />
+              <SidebarSection title="Select Institute" items={childItemsDisplay} />
             ) : currentPage === 'transport-attendance' ? (
               /* Show ONLY attendance section for transport attendance page */
               <SidebarSection title="Attendance" items={[
@@ -1944,6 +1952,14 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                 
                 {smsItemsDisplay.length > 0 && (
                   <SidebarSection title="SMS" items={smsItemsDisplay} />
+                )}
+                
+                {/* Notifications Section - before Settings */}
+                {notificationItemsDisplay.length > 0 && (
+                  <SidebarSection 
+                    title={selectedInstitute ? "Institute Notifications" : "Notifications"} 
+                    items={notificationItemsDisplay} 
+                  />
                 )}
                 
                 <SidebarSection title="Settings" items={settingsItemsDisplay} />
