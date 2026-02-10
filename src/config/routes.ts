@@ -89,6 +89,7 @@ export const ROUTE_PATTERNS = {
   // Settings & Profile
   PROFILE: '/profile',
   SETTINGS: '/settings',
+  SESSIONS: '/sessions',
   APPEARANCE: '/appearance',
   
   // Special Routes
@@ -202,6 +203,7 @@ export const ROUTES = {
   // Profile & Settings
   profile: () => '/profile',
   settings: () => '/settings',
+  sessions: () => '/sessions',
   appearance: () => '/appearance',
   
   // Special

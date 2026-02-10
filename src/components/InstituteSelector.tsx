@@ -109,8 +109,9 @@ const InstituteSelector = ({
       return;
     }
     setIsLoading(true);
+    // Clear any stale rate limit before loading
+    cachedApiClient.clearRateLimit();
     try {
-      console.log('Loading institutes for user ID:', userId, useChildId ? '(child)' : '(user)');
 
       // For parent selecting child's institutes, use ONLY the parent-institutes endpoint
       // Do NOT fall back to /users/:id/institutes as it returns 403 for other users
@@ -219,15 +220,21 @@ const InstituteSelector = ({
       });
       return;
     }
+    // CRITICAL: When parent selects institute for child, force role to STUDENT
+    // because parent-institutes API returns role=PARENT (parent's relation) not the child's role
+    const effectiveRole = isViewingAsParent
+      ? 'STUDENT'
+      : ((institute as any).instituteUserType || (institute as any).role || '');
+    
     const selectedInstitute = {
       id: institute.id,
       name: institute.name,
       code: institute.id,
-      // Using id as code since it's not in the API response
       description: `${institute.address || ''}, ${institute.city || ''}`.trim(),
       isActive: institute.isActive,
-      type: institute.type,
-      userRole: (institute as any).instituteUserType || (institute as any).role || '',
+      type: institute.type || '',
+      instituteUserType: effectiveRole,
+      userRole: effectiveRole,
       userIdByInstitute: (institute as any).userIdByInstitute || (institute as any).instituteUserId || '',
       shortName: institute.shortName || institute.name,
       logo: institute.logoUrl || '',
@@ -245,10 +252,11 @@ const InstituteSelector = ({
       return;
     }
 
-    // After selecting an institute, go directly to class selection for non-parent roles
-    if (userRole && userRole !== 'Parent') {
-      navigateToPage('select-class');
-    }
+    // After selecting an institute, always go to institute-scoped class selection.
+    // IMPORTANT: don't use navigateToPage here because it depends on selectedInstitute state
+    // which may not be updated yet (causes route to become /select-class and selection to be cleared).
+    navigate(`/institute/${selectedInstitute.id}/select-class`);
+    return;
   };
   return <div className="space-y-2 sm:space-y-4 px-1 sm:px-3 md:px-0">
       {/* Show Current Child Selection for Parent flow */}

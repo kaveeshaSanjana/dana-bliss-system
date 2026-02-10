@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
+import { uploadWithSignedUrl } from '@/utils/signedUploadHelper';
 import { MessageSquare, Send, Users, DollarSign, RefreshCw, Eye, Plus, Lock } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useTableData } from '@/hooks/useTableData';
@@ -239,7 +240,6 @@ const SMS = () => {
       setSubmitting(true);
       
       // Step 1: Upload payment slip using signed URL
-      const { uploadWithSignedUrl } = await import('@/utils/signedUploadHelper');
       const paymentSlipPath = await uploadWithSignedUrl(
         paymentForm.paymentSlip,
         'institute-payment-receipts'

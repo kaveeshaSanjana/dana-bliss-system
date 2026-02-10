@@ -15,6 +15,7 @@ import { useInstituteRole } from '@/hooks/useInstituteRole';
 import { enhancedCachedClient } from '@/api/enhancedCachedClient';
 import { CACHE_TTL } from '@/config/cacheTTL';
 import { useAppNavigation } from '@/hooks/useAppNavigation';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import ChildCurrentSelection from '@/components/ChildCurrentSelection';
 interface Subject {
   id: string;
@@ -132,10 +133,12 @@ const SubjectSelector = () => {
         }
         endpoint = `/institutes/${currentInstituteId}/classes/${currentClassId}/subjects/teacher/${user.id}`;
       } else if (instituteRole === 'Student') {
-        if (!currentInstituteId || !currentClassId || !user.id) {
+        // CRITICAL: When parent views as child, use the CHILD's ID, not the parent's
+        const studentUserId = isViewingAsParent && selectedChild ? selectedChild.id : user.id;
+        if (!currentInstituteId || !currentClassId || !studentUserId) {
           throw new Error('Missing required parameters for student subject fetch');
         }
-        endpoint = `/institute-class-subject-students/${currentInstituteId}/student-subjects/class/${currentClassId}/student/${user.id}`;
+        endpoint = `/institute-class-subject-students/${currentInstituteId}/student-subjects/class/${currentClassId}/student/${studentUserId}`;
       } else {
         // For other roles, use the original subjects endpoint
         endpoint = '/subjects';
@@ -320,8 +323,16 @@ const SubjectSelector = () => {
       return;
     }
     
-    // Auto-navigate to dashboard after selection
-    navigateToPage('dashboard');
+    // Auto-navigate to dashboard after selection.
+    // IMPORTANT: navigate directly using IDs to avoid stale selection state causing URL to miss /subject/:id.
+    const instituteId = currentInstituteId || selectedInstitute?.id;
+    const classId = currentClassId || selectedClass?.id;
+
+    if (instituteId && classId) {
+      navigate(`/institute/${instituteId}/class/${classId}/subject/${subject.id}/dashboard`);
+    } else {
+      navigateToPage('dashboard');
+    }
   };
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= totalPages && newPage !== currentPage) {
@@ -387,7 +398,7 @@ const SubjectSelector = () => {
           <p className="text-muted-foreground">
             No subjects found for this class
           </p>
-        </div> : <div>
+        </div> : <div className="flex flex-col min-h-[calc(100vh-180px)]">
           {/* Unified Card View - Same size on all devices */}
           <div className={`grid grid-cols-1 sm:grid-cols-2 ${sidebarCollapsed ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-x-3 gap-y-8 sm:gap-x-4 sm:gap-y-10 pt-3 md:pt-6 mb-8`}>
             {subjectsData.map(subject => {
@@ -482,34 +493,51 @@ const SubjectSelector = () => {
 
           {/* Pagination */}
           {dataLoaded && totalPages > 0 && (
-            <div className="flex flex-col items-center gap-4 mt-6 pb-6 px-4">
-              <div className="flex items-center gap-3">
-                <Button 
-                  variant="outline" 
-                  onClick={() => handlePageChange(currentPage - 1)} 
-                  disabled={currentPage <= 1 || isLoading}
-                >
-                  <ChevronLeft className="h-4 w-4 mr-1" />
-                  Prev
-                </Button>
-                
-                <span className="text-sm text-muted-foreground font-medium">
-                  Page {currentPage} of {totalPages}
+            <div className="mt-auto bg-background border-t border-border py-2 sm:py-3 px-2 sm:px-4">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-1.5 sm:gap-2">
+                <span className="text-[10px] sm:text-xs text-muted-foreground">
+                  {totalItems} {subjectLabelPlural.toLowerCase()} total
                 </span>
                 
-                <Button 
-                  variant="outline" 
-                  onClick={() => handlePageChange(currentPage + 1)} 
-                  disabled={currentPage >= totalPages || isLoading}
-                >
-                  Next
-                  <ChevronRight className="h-4 w-4 ml-1" />
-                </Button>
+                <div className="flex items-center gap-1.5 sm:gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => handlePageChange(currentPage - 1)} 
+                    disabled={currentPage <= 1 || isLoading}
+                    className="h-6 sm:h-7 text-[10px] sm:text-xs px-1.5 sm:px-2"
+                  >
+                    <ChevronLeft className="h-3 w-3 sm:h-3.5 sm:w-3.5 mr-0.5" />
+                    Prev
+                  </Button>
+                  
+                  <span className="text-[10px] sm:text-xs text-muted-foreground font-medium">
+                    {currentPage} / {totalPages}
+                  </span>
+                  
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => handlePageChange(currentPage + 1)} 
+                    disabled={currentPage >= totalPages || isLoading}
+                    className="h-6 sm:h-7 text-[10px] sm:text-xs px-1.5 sm:px-2"
+                  >
+                    Next
+                    <ChevronRight className="h-3 w-3 sm:h-3.5 sm:w-3.5 ml-0.5" />
+                  </Button>
+                </div>
+
+                <Select value={pageSize.toString()} onValueChange={value => handlePageSizeChange(parseInt(value, 10))}>
+                  <SelectTrigger className="w-[80px] sm:w-[100px] h-6 sm:h-7 text-[10px] sm:text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="10">10 / page</SelectItem>
+                    <SelectItem value="50">50 / page</SelectItem>
+                    <SelectItem value="100">100 / page</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-              
-              <span className="text-sm text-muted-foreground">
-                {totalItems} {subjectLabelPlural.toLowerCase()} total
-              </span>
             </div>
           )}
         </div>}

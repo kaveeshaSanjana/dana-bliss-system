@@ -45,6 +45,7 @@ import ChildTransportPage from "@/pages/ChildTransportPage";
 import CardManagement from "@/pages/CardManagement";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import GoogleAuthCallback from "@/pages/GoogleAuthCallback";
+import ActiveSessionsPage from "@/pages/ActiveSessions";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -97,16 +98,13 @@ const App = () => {
         setTimeout(() => {
           SplashScreen.hide();
         }, 500);
+      }).catch((err) => {
+        console.warn('SplashScreen module not available:', err);
       });
     }
   }, []);
 
-  // Show connection error page only when definitively offline (not during loading)
-  if (Capacitor.isNativePlatform() && !isLoading && !isOnline) {
-    return <CapacitorConnectionError onRetry={retry} />;
-  }
-
-  // Handle Android back button
+  // Handle Android back button - MUST be before any conditional return (Rules of Hooks)
   useEffect(() => {
     if (Capacitor.isNativePlatform()) {
       let listenerHandle: any = null;
@@ -132,6 +130,12 @@ const App = () => {
     }
   }, []);
 
+  // Show connection error page only when definitively offline (not during loading)
+  // IMPORTANT: This must be AFTER all hooks to comply with Rules of Hooks
+  if (Capacitor.isNativePlatform() && !isLoading && !isOnline) {
+    return <CapacitorConnectionError onRetry={retry} />;
+  }
+
   return (
     <ErrorBoundary>
       <ThemeProvider theme={muiTheme}>
@@ -155,6 +159,22 @@ const App = () => {
                 <Route path="/organization/:organizationId/*" element={<Index />} />
                 <Route path="/child/:childId/*" element={<Index />} />
                 <Route path="/transport/:transportId/*" element={<Index />} />
+
+                {/* Common Routes handled by Index/AppContent */}
+                <Route path="/dashboard" element={<Index />} />
+                <Route path="/profile" element={<Index />} />
+                <Route path="/settings" element={<Index />} />
+                <Route path="/appearance" element={<Index />} />
+                <Route path="/institutes" element={<Index />} />
+                <Route path="/organizations" element={<Index />} />
+                <Route path="/qr-attendance" element={<Index />} />
+                <Route path="/rfid-attendance" element={<Index />} />
+                <Route path="/sms-history" element={<Index />} />
+                <Route path="/enrollment-management" element={<Index />} />
+                <Route path="/students" element={<Index />} />
+                <Route path="/teachers" element={<Index />} />
+                <Route path="/parents" element={<Index />} />
+                <Route path="/users" element={<Index />} />
 
                 {/* Dedicated Page Routes (must be protected) */}
                 <Route
@@ -229,9 +249,17 @@ const App = () => {
                     </ProtectedRoute>
                   }
                 />
+                <Route
+                  path="/sessions"
+                  element={
+                    <ProtectedRoute>
+                      <ActiveSessionsPage />
+                    </ProtectedRoute>
+                  }
+                />
 
-                {/* Catch-all - Everything else goes to Index/AppContent */}
-                <Route path="*" element={<Index />} />
+                {/* Catch-all - Show 404 for unknown paths */}
+                <Route path="*" element={<NotFound />} />
               </Routes>
             </AuthProvider>
           </BrowserRouter>

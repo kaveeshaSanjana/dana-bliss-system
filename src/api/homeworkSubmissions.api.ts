@@ -232,18 +232,20 @@ class HomeworkSubmissionsApi {
     forceRefresh = false
   ): Promise<ApiResponse<HomeworkSubmission[]>> {
     console.log('📋 Fetching all submissions for homework:', homeworkId, params);
+    // Separate cache context fields from actual API query params
+    const { userId, role, ...apiParams } = params ?? {};
     return enhancedCachedClient.get<ApiResponse<HomeworkSubmission[]>>(
       this.altBasePath,
-      { ...params, homeworkId },
+      { ...apiParams, homeworkId },
       {
         forceRefresh,
         ttl: 10,
         useStaleWhileRevalidate: true,
-        userId: params?.userId,
-        instituteId: params?.instituteId,
-        classId: params?.classId,
-        subjectId: params?.subjectId,
-        role: params?.role
+        userId,
+        instituteId: apiParams?.instituteId,
+        classId: apiParams?.classId,
+        subjectId: apiParams?.subjectId,
+        role
       }
     );
   }
@@ -260,18 +262,20 @@ class HomeworkSubmissionsApi {
     forceRefresh = false
   ): Promise<ApiResponse<HomeworkSubmission[]>> {
     console.log('📋 Fetching submissions by class/subject:', { instituteId, classId, subjectId });
+    // Separate cache context fields from actual API query params
+    const { userId, role, ...apiParams } = params ?? {};
     return enhancedCachedClient.get<ApiResponse<HomeworkSubmission[]>>(
       `${this.basePath}/institute/${instituteId}/class/${classId}/subject/${subjectId}`,
-      params,
+      Object.keys(apiParams).length > 0 ? apiParams : undefined,
       {
         forceRefresh,
         ttl: 10,
         useStaleWhileRevalidate: true,
-        userId: params?.userId,
+        userId,
         instituteId,
         classId,
         subjectId,
-        role: params?.role
+        role
       }
     );
   }
@@ -303,18 +307,20 @@ class HomeworkSubmissionsApi {
     forceRefresh = false
   ): Promise<ApiResponse<HomeworkSubmission[]>> {
     console.log('📋 Fetching submissions for student:', studentId);
+    // Separate cache context fields from actual API query params
+    const { userId, role, ...apiParams } = params ?? {};
     return enhancedCachedClient.get<ApiResponse<HomeworkSubmission[]>>(
       `${this.basePath}/student/${studentId}/submissions`,
-      params,
+      Object.keys(apiParams).length > 0 ? apiParams : undefined,
       {
         forceRefresh,
         ttl: 10,
         useStaleWhileRevalidate: true,
-        userId: params?.userId,
-        instituteId: params?.instituteId,
-        classId: params?.classId,
-        subjectId: params?.subjectId,
-        role: params?.role
+        userId,
+        instituteId: apiParams?.instituteId,
+        classId: apiParams?.classId,
+        subjectId: apiParams?.subjectId,
+        role
       }
     );
   }
@@ -411,18 +417,20 @@ class HomeworkSubmissionsApi {
 
   async getSubmissions(params?: SubmissionQueryParams, forceRefresh = false): Promise<ApiResponse<HomeworkSubmission[]>> {
     console.log('📋 Fetching homework submissions (legacy):', params, { forceRefresh });
+    // Separate cache context fields from actual API query params
+    const { userId, role, ...apiParams } = params ?? {};
     return enhancedCachedClient.get<ApiResponse<HomeworkSubmission[]>>(
       this.altBasePath, 
-      params, 
+      Object.keys(apiParams).length > 0 ? apiParams : undefined, 
       {
         forceRefresh,
         ttl: 10,
         useStaleWhileRevalidate: true,
-        userId: params?.userId,
-        instituteId: params?.instituteId,
-        classId: params?.classId,
-        subjectId: params?.subjectId,
-        role: params?.role
+        userId,
+        instituteId: apiParams?.instituteId,
+        classId: apiParams?.classId,
+        subjectId: apiParams?.subjectId,
+        role
       }
     );
   }
@@ -508,12 +516,14 @@ class HomeworkSubmissionsApi {
     forceRefresh = false
   ): Promise<{ data: HomeworkSubmission[]; meta: any }> {
     console.log('📋 Fetching student homework submissions (legacy):', { instituteId, classId, subjectId, studentId, params, forceRefresh });
+    // Separate cache context fields from actual API query params
+    const { userId, role, ...apiQueryParams } = params ?? {};
     const queryParams = {
       instituteId,
       classId,
       subjectId,
       studentId,
-      ...params
+      ...apiQueryParams
     };
     return enhancedCachedClient.get<{ data: HomeworkSubmission[]; meta: any }>(
       this.altBasePath, 
@@ -522,11 +532,11 @@ class HomeworkSubmissionsApi {
         forceRefresh,
         ttl: 10,
         useStaleWhileRevalidate: true,
-        userId: params?.userId || studentId,
+        userId: userId || studentId,
         instituteId,
         classId,
         subjectId,
-        role: params?.role
+        role
       }
     );
   }

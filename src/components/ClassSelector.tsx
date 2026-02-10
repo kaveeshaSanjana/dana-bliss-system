@@ -196,14 +196,16 @@ const ClassSelector = () => {
       page,
       limit,
       forceRefresh,
-      dataLoaded
+      dataLoaded,
+      isViewingAsParent
     });
     try {
       let endpoint = '';
       let params: Record<string, any> = {};
       if (effectiveRole === 'Student') {
-        // Use the new student-specific endpoint
-        endpoint = `/institute-classes/${currentInstituteId}/student/${user?.id}`;
+        // CRITICAL: When parent views as child, use the CHILD's ID, not the parent's
+        const studentUserId = isViewingAsParent && selectedChild ? selectedChild.id : user?.id;
+        endpoint = `/institute-classes/${currentInstituteId}/student/${studentUserId}`;
         params = {
           page: page,
           limit: limit
@@ -475,7 +477,14 @@ const ClassSelector = () => {
 
     if (shouldNavigateToSubject) {
       console.log(`${effectiveRole} detected - auto-navigating to select subject`);
-      navigateToPage('select-subject');
+      // IMPORTANT: navigate directly using IDs to avoid using stale selection state
+      // (stale state caused /institute/:id/select-subject or /select-subject and then auto-clearing).
+      const instituteId = currentInstituteId || selectedInstitute?.id;
+      if (instituteId) {
+        navigate(`/institute/${instituteId}/class/${classData.id}/select-subject`);
+      } else {
+        navigate('/select-institute');
+      }
     }
 
     // Explicitly log that no further API calls should happen
@@ -765,7 +774,7 @@ const ClassSelector = () => {
           <p className="text-muted-foreground">
             {searchTerm || gradeFilter !== 'all' || specialtyFilter !== 'all' || classTypeFilter !== 'all' || academicYearFilter !== 'all' || statusFilter !== 'all' ? 'No classes match your current filters.' : 'No enrolled classes found.'}
           </p>
-        </div> : <>
+        </div> : <div className="flex flex-col min-h-[calc(100vh-180px)]">
           {/* Unified Card View - Same size on all devices */}
           <div
             className={`grid grid-cols-1 sm:grid-cols-2 ${sidebarCollapsed ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-x-3 gap-y-8 sm:gap-x-4 sm:gap-y-10 pt-3 md:pt-6 mb-8`}
@@ -874,49 +883,54 @@ const ClassSelector = () => {
             ))}
           </div>
 
-          {/* Pagination */}
-          <div className="flex flex-col items-center gap-4 mt-6 pb-6 px-4">
-            <div className="flex items-center gap-3">
-              <Button 
-                variant="outline" 
-                onClick={() => handlePageChange(currentPage - 1)} 
-                disabled={currentPage <= 1 || isLoading}
-              >
-                <ChevronLeft className="h-4 w-4 mr-1" />
-                Prev
-              </Button>
-              
-              <span className="text-sm text-muted-foreground font-medium">
-                Page {currentPage} of {totalPages}
-              </span>
-              
-              <Button 
-                variant="outline" 
-                onClick={() => handlePageChange(currentPage + 1)} 
-                disabled={currentPage >= totalPages || isLoading}
-              >
-                Next
-                <ChevronRight className="h-4 w-4 ml-1" />
-              </Button>
-            </div>
-            
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">
+          {/* Pagination - Always at bottom */}
+          <div className="mt-auto bg-background border-t border-border py-2 sm:py-3 px-2 sm:px-4">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-1.5 sm:gap-2">
+              <span className="text-[10px] sm:text-xs text-muted-foreground">
                 {totalItems} classes total
               </span>
+              
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => handlePageChange(currentPage - 1)} 
+                  disabled={currentPage <= 1 || isLoading}
+                  className="h-6 sm:h-7 text-[10px] sm:text-xs px-1.5 sm:px-2"
+                >
+                  <ChevronLeft className="h-3 w-3 sm:h-3.5 sm:w-3.5 mr-0.5" />
+                  Prev
+                </Button>
+                
+                <span className="text-[10px] sm:text-xs text-muted-foreground font-medium">
+                  {currentPage} / {totalPages}
+                </span>
+                
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => handlePageChange(currentPage + 1)} 
+                  disabled={currentPage >= totalPages || isLoading}
+                  className="h-6 sm:h-7 text-[10px] sm:text-xs px-1.5 sm:px-2"
+                >
+                  Next
+                  <ChevronRight className="h-3 w-3 sm:h-3.5 sm:w-3.5 ml-0.5" />
+                </Button>
+              </div>
+
               <Select value={pageSize.toString()} onValueChange={value => handlePageSizeChange(parseInt(value, 10))}>
-                <SelectTrigger className="w-[120px]">
+                <SelectTrigger className="w-[80px] sm:w-[100px] h-6 sm:h-7 text-[10px] sm:text-xs">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="10">10 per page</SelectItem>
-                  <SelectItem value="50">50 per page</SelectItem>
-                  <SelectItem value="100">100 per page</SelectItem>
+                  <SelectItem value="10">10 / page</SelectItem>
+                  <SelectItem value="50">50 / page</SelectItem>
+                  <SelectItem value="100">100 / page</SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
-        </>}
+        </div>}
 
       {/* Enrollment Dialog */}
       <Dialog open={enrollDialogOpen} onOpenChange={setEnrollDialogOpen}>

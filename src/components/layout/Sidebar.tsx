@@ -47,6 +47,56 @@ interface SidebarProps {
   onClose: () => void;
 }
 
+// Extracted outside Sidebar to prevent re-creation on every render
+const SidebarSection = React.memo(({ title, items, isCollapsed, sidebarHighlightPage, onItemClick, filterFn }: {
+  title: string;
+  items: any[];
+  isCollapsed: boolean;
+  sidebarHighlightPage: string;
+  onItemClick: (id: string) => void;
+  filterFn: (items: any[]) => any[];
+}) => {
+  const filteredItems = filterFn(items);
+  
+  if (filteredItems.length === 0) return null;
+
+  return (
+    <div className="mb-4 sm:mb-6">
+      {!isCollapsed && (
+        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-3">
+          {title}
+        </h3>
+      )}
+      <div className="space-y-1">
+        {filteredItems.map((item) => (
+          <Button
+            key={item.id}
+            variant={sidebarHighlightPage === item.id ? "secondary" : "ghost"}
+            className={`w-full ${isCollapsed ? 'justify-center px-2' : 'justify-start px-3'} h-9 sm:h-10 text-sm ${
+              sidebarHighlightPage === item.id 
+                ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-r-2 border-blue-500' 
+                : item.locked 
+                  ? 'text-muted-foreground/50 cursor-not-allowed opacity-60' 
+                  : 'text-foreground/70 hover:bg-muted hover:text-foreground'
+            }`}
+            onClick={() => !item.locked && onItemClick(item.id)}
+            disabled={item.locked}
+          >
+            <item.icon className={`${isCollapsed ? '' : 'mr-3'} h-4 w-4 flex-shrink-0`} />
+            {!isCollapsed && (
+              <span className="flex items-center gap-2">
+                {item.label}
+                {item.locked && <Lock className="h-3 w-3" />}
+              </span>
+            )}
+          </Button>
+        ))}
+      </div>
+    </div>
+  );
+});
+SidebarSection.displayName = 'SidebarSection';
+
 const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
   const { user, selectedInstitute, selectedClass, selectedSubject, selectedChild, selectedOrganization, selectedTransport, logout, setSelectedInstitute, setSelectedClass, setSelectedSubject, setSelectedChild, setSelectedOrganization, setSelectedTransport } = useAuth();
   const [isCollapsed, setIsCollapsed] = React.useState(false);
@@ -81,17 +131,11 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
 
   // Get menu items based on current selection state
   const getMenuItems = () => {
-    // Special handling for child selection (Parent viewing child's data)
-    if (selectedChild) {
-      return [
-        {
-          id: 'child-attendance',
-          label: 'Transport Attendance',
-          icon: Truck,
-          permission: 'view-dashboard',
-          alwaysShow: true
-        }
-      ];
+    // Parent viewing child's data:
+    // - Before selecting an institute, we show only the "Child Sections" (Select Institute) entry.
+    // - After selecting institute/class/subject, the normal Student menu should be shown (derived from instituteUserType).
+    if (selectedChild && !selectedInstitute) {
+      return [];
     }
 
     // Special handling for organization selection
@@ -1203,6 +1247,12 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       return [];
     }
 
+    // When institute is already selected for child, don't show "Select Institute" -
+    // the Student sidebar menu items are shown instead via getMenuItems()
+    if (selectedInstitute) {
+      return [];
+    }
+
     const childId = selectedChild.id;
     
     return [
@@ -1621,14 +1671,14 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       else if (/(profile|settings|appearance)/i.test(currentPage)) { target = settingsItemsDisplay; icon = Settings; }
 
       if (allowPush) {
-        target.push({ id: currentPage, label, icon, permission: 'view-dashboard', alwaysShow: true });
+        target.push({ id: currentPage, label, icon, permission: 'view-dashboard', alwaysShow: false });
       }
     }
   }
 
   const filterItemsByPermission = (items: any[]) => {
     return items.filter(item => {
-      // Always show items marked as alwaysShow
+      // Items explicitly defined for the current role context are always shown
       if (item.alwaysShow) {
         return true;
       }
@@ -1692,8 +1742,21 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       setSelectedOrganization(null);
       navigate(`/organizations${queryString}`);
     } else if (selectedChild) {
-      setSelectedChild(null);
-      navigate(`/my-children${queryString}`);
+      const childId = selectedChild.id;
+      // Child hierarchy: subject → class → institute → my-children
+      if (selectedSubject) {
+        setSelectedSubject(null);
+        navigate(`/child/${childId}/select-subject${queryString}`);
+      } else if (selectedClass) {
+        setSelectedClass(null);
+        navigate(`/child/${childId}/select-class${queryString}`);
+      } else if (selectedInstitute) {
+        setSelectedInstitute(null);
+        navigate(`/child/${childId}/select-institute${queryString}`);
+      } else {
+        setSelectedChild(null);
+        navigate(`/my-children${queryString}`);
+      }
     } else if (selectedSubject) {
       setSelectedSubject(null);
       navigate(`/institute/${selectedInstitute?.id}/class/${selectedClass?.id}/dashboard${queryString}`);
@@ -1706,46 +1769,14 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
     }
   };
 
-  const SidebarSection = ({ title, items }: { title: string; items: any[] }) => {
-    const filteredItems = filterItemsByPermission(items);
-    
-    if (filteredItems.length === 0) return null;
+  // Memoize handlers used by SidebarSection
+  const handleItemClickCb = React.useCallback((itemId: string) => {
+    handleItemClick(itemId);
+  }, [selectedInstitute?.id, selectedClass?.id, selectedSubject?.id, selectedChild?.id, selectedOrganization?.id, selectedTransport?.id, location.search]);
 
-    return (
-      <div className="mb-4 sm:mb-6">
-        {!isCollapsed && (
-          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-3">
-            {title}
-          </h3>
-        )}
-        <div className="space-y-1">
-          {filteredItems.map((item) => (
-            <Button
-              key={item.id}
-              variant={sidebarHighlightPage === item.id ? "secondary" : "ghost"}
-              className={`w-full ${isCollapsed ? 'justify-center px-2' : 'justify-start px-3'} h-9 sm:h-10 text-sm ${
-                sidebarHighlightPage === item.id 
-                  ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-r-2 border-blue-500' 
-                  : item.locked 
-                    ? 'text-muted-foreground/50 cursor-not-allowed opacity-60' 
-                    : 'text-foreground/70 hover:bg-muted hover:text-foreground'
-              }`}
-              onClick={() => !item.locked && handleItemClick(item.id)}
-              disabled={item.locked}
-            >
-              <item.icon className={`${isCollapsed ? '' : 'mr-3'} h-4 w-4 flex-shrink-0`} />
-              {!isCollapsed && (
-                <span className="flex items-center gap-2">
-                  {item.label}
-                  {item.locked && <Lock className="h-3 w-3" />}
-                </span>
-              )}
-            </Button>
-          ))}
-        </div>
-      </div>
-    );
-  };
+  const filterItemsByPermissionCb = React.useCallback((items: any[]) => {
+    return filterItemsByPermission(items);
+  }, [userRole]);
 
   return (
     <>
@@ -1763,7 +1794,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
         ${isCollapsed ? 'w-16' : 'w-72 sm:w-80 lg:w-72'} bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700
         transform transition-all duration-300 ease-in-out lg:transform-none
         ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-        flex flex-col h-screen
+        flex flex-col h-dvh
         overflow-hidden
         pt-safe-top pb-safe-bottom
       `}>
@@ -1801,8 +1832,8 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
           </div>
         </div>
 
-        {/* Context Info - Child-only on child routes, otherwise full context like before */}
-        {!isCollapsed && (currentPage.startsWith('child/:childId/') && selectedChild ? (
+        {/* Context Info - Show child context on child routes, with institute if selected */}
+        {!isCollapsed && location.pathname.startsWith('/child/') && selectedChild ? (
           <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border-b border-border">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-medium text-blue-600 dark:text-blue-400">Current Selection</span>
@@ -1811,14 +1842,26 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
               </Button>
             </div>
             <div className="space-y-1 text-xs">
+              {selectedInstitute && (
+                <div className="text-blue-600 dark:text-blue-400">
+                  <span className="font-medium">Institute:</span>
+                  <span className="ml-1 text-sm font-semibold break-words whitespace-normal leading-snug">{selectedInstitute.name}</span>
+                </div>
+              )}
               <div className="text-blue-600 dark:text-blue-400">
                 <span className="font-medium">Child:</span>
-                <span className="ml-1 truncate">{(selectedChild as any).name || (selectedChild?.user ? `${selectedChild.user.firstName} ${selectedChild.user.lastName}` : 'Unknown Child')}</span>
+                <span className="ml-1 truncate">{(selectedChild as any).name || selectedChild?.user?.nameWithInitials || [selectedChild?.user?.firstName, selectedChild?.user?.lastName].filter(Boolean).join(' ') || 'Unknown Child'}</span>
               </div>
+              {selectedClass && (
+                <div className="text-blue-600 dark:text-blue-400"><span className="font-medium">Class:</span> <span className="ml-1 truncate">{selectedClass.name}</span></div>
+              )}
+              {selectedSubject && (
+                <div className="text-blue-600 dark:text-blue-400"><span className="font-medium">Subject:</span> <span className="ml-1 truncate">{selectedSubject.name}</span></div>
+              )}
             </div>
           </div>
         ) : (
-          user?.role !== 'SystemAdmin' && (selectedInstitute || selectedClass || selectedSubject || selectedChild || selectedOrganization || selectedTransport) && (
+          !isCollapsed && user?.role !== 'SystemAdmin' && (selectedInstitute || selectedClass || selectedSubject || selectedOrganization || selectedTransport) && !location.pathname.startsWith('/child/') && (
             <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border-b border-border">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-medium text-blue-600 dark:text-blue-400">Current Selection</span>
@@ -1845,126 +1888,128 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                 {selectedSubject && (
                   <div className="text-blue-600 dark:text-blue-400"><span className="font-medium">Subject:</span> <span className="ml-1 truncate">{selectedSubject.name}</span></div>
                 )}
-                {selectedChild && (
-                  <div className="text-blue-600 dark:text-blue-400">
-                    <span className="font-medium">Child:</span>
-                    <span className="ml-1 text-sm font-semibold break-words whitespace-normal leading-snug">
-                      {selectedChild?.user?.nameWithInitials ||
-                        [selectedChild?.user?.firstName, selectedChild?.user?.lastName].filter(Boolean).join(' ') ||
-                        `#${selectedChild.id}`}
-                    </span>
-                  </div>
-                )}
               </div>
             </div>
           )
-        ))}
+        )}
 
         {/* Navigation */}
         <ScrollArea className="flex-1 px-2 sm:px-3 py-3 sm:py-4">
           <div className="space-y-2">
-            {selectedChild ? (
-              <SidebarSection title="Select Institute" items={childItemsDisplay} />
-            ) : currentPage === 'transport-attendance' ? (
-              /* Show ONLY attendance section for transport attendance page */
-              <SidebarSection title="Attendance" items={[
-                {
-                  id: 'transport-attendance',
-                  label: 'Attendance',
-                  icon: UserCheck,
-                  permission: 'view-dashboard',
-                  alwaysShow: true
-                }
-              ]} />
-            ) : (
-              <>
-                {/* Show Main navigation items ONLY when institute is selected */}
-                {selectedInstitute && (
-                  <>
-                    <SidebarSection title="Main" items={menuItemsDisplay.filter(item => !item.hasOwnProperty('section'))} />
-                    
-                    {/* Main's section for items with section property */}
-                    {menuItemsDisplay.some(item => (item as any).section === "Main's") && (
-                      <SidebarSection title="Main's" items={menuItemsDisplay.filter(item => (item as any).section === "Main's")} />
-                    )}
-                  </>
-                )}
-                
-                {/* Show sections without "Main" label when no institute selected */}
-                {!selectedInstitute && menuItemsDisplay.length > 0 && (
-                  <SidebarSection title="Select Institute" items={menuItemsDisplay.filter(item => !item.hasOwnProperty('section'))} />
-                )}
-                
-                {/* Show attendance section for Teacher based on selection state */}
-                {userRole === 'Teacher' && attendanceItemsDisplay.length > 0 && (
-                  <SidebarSection title="Attendance" items={attendanceItemsDisplay} />
-                )}
-                
-                {/* Show attendance section when institute is selected for InstituteAdmin */}
-                {userRole === 'InstituteAdmin' && selectedInstitute && (
-                  <SidebarSection title="Attendance" items={attendanceItemsDisplay} />
-                )}
-                
-                {/* For AttendanceMarker role, only show Mark Attendance when institute is selected */}
-                {userRole === 'AttendanceMarker' && selectedInstitute && (
-                  <SidebarSection title="Attendance" items={attendanceItemsDisplay} />
-                )}
-                
-                {/* For other roles, show attendance navigation based on role */}
-                {userRole !== 'AttendanceMarker' && userRole !== 'InstituteAdmin' && userRole !== 'Teacher' && userRole !== 'Student' && selectedInstitute && (
-                  <SidebarSection title="Attendance" items={attendanceItemsDisplay} />
-                )}
-                
-                {/* Show academic items for Teacher only when institute, class and subject are all selected */}
-                {userRole === 'Teacher' && systemItemsDisplay.length > 0 && (
-                  <SidebarSection title="Academic" items={systemItemsDisplay} />
-                )}
-                
-                {/* Show academic items for InstituteAdmin only when institute, class and subject are all selected */}
-                {userRole === 'InstituteAdmin' && selectedInstitute && selectedClass && selectedSubject && (
-                  <SidebarSection title="Academic" items={systemItemsDisplay} />
-                )}
-                
-                {/* Show full academic section for other roles (excluding Student) */}
-                {selectedInstitute && userRole !== 'AttendanceMarker' && userRole !== 'InstituteAdmin' && userRole !== 'Teacher' && userRole !== 'Student' && (
-                  <SidebarSection title="Academic" items={systemItemsDisplay} />
-                )}
-                
-                {/* Show My Children section before institute selection for Parents */}
-                {myChildrenItemsDisplay.length > 0 && (
-                  <SidebarSection title="My Children" items={myChildrenItemsDisplay} />
-                )}
-                
-                {/* Show Child specific navigation when child is selected */}
-                {childItemsDisplay.length > 0 && (
-                  <SidebarSection title="Child Sections" items={childItemsDisplay} />
-                )}
-                
-                {/* Show System Payments section before institute selection */}
-                {systemPaymentItemsDisplay.length > 0 && (
-                  <SidebarSection title="System Payments" items={systemPaymentItemsDisplay} />
-                )}
-                
-                {/* Show Payment section for specific user types based on new rules */}
-                {paymentItemsDisplay.length > 0 && (
-                  <SidebarSection title="Payments" items={paymentItemsDisplay} />
-                )}
-                
-                {smsItemsDisplay.length > 0 && (
-                  <SidebarSection title="SMS" items={smsItemsDisplay} />
-                )}
-                
-                {/* Notifications Section - before Settings */}
-                {notificationItemsDisplay.length > 0 && (
-                  <SidebarSection 
-                    title={selectedInstitute ? "Institute Notifications" : "Notifications"} 
-                    items={notificationItemsDisplay} 
-                  />
-                )}
-                
-                <SidebarSection title="Settings" items={settingsItemsDisplay} />
-              </>
-            )}
+            {(() => {
+              // Shared props for all SidebarSection instances
+              const sectionProps = {
+                isCollapsed,
+                sidebarHighlightPage,
+                onItemClick: handleItemClickCb,
+                filterFn: filterItemsByPermissionCb,
+              };
+              
+              if (currentPage === 'transport-attendance') {
+                return (
+                  <SidebarSection {...sectionProps} title="Attendance" items={[
+                    {
+                      id: 'transport-attendance',
+                      label: 'Attendance',
+                      icon: UserCheck,
+                      permission: 'view-dashboard',
+                      alwaysShow: true
+                    }
+                  ]} />
+                );
+              }
+              
+              return (
+                <>
+                  {/* Show Main navigation items ONLY when institute is selected */}
+                  {selectedInstitute && (
+                    <>
+                      <SidebarSection {...sectionProps} title="Main" items={menuItemsDisplay.filter(item => !item.hasOwnProperty('section'))} />
+                      
+                      {/* Main's section for items with section property */}
+                      {menuItemsDisplay.some(item => (item as any).section === "Main's") && (
+                        <SidebarSection {...sectionProps} title="Main's" items={menuItemsDisplay.filter(item => (item as any).section === "Main's")} />
+                      )}
+                    </>
+                  )}
+                  
+                  {/* Show sections without "Main" label when no institute selected */}
+                  {!selectedInstitute && menuItemsDisplay.length > 0 && (
+                    <SidebarSection {...sectionProps} title="Select Institute" items={menuItemsDisplay.filter(item => !item.hasOwnProperty('section'))} />
+                  )}
+                  
+                  {/* Show attendance section for Teacher based on selection state */}
+                  {userRole === 'Teacher' && attendanceItemsDisplay.length > 0 && (
+                    <SidebarSection {...sectionProps} title="Attendance" items={attendanceItemsDisplay} />
+                  )}
+                  
+                  {/* Show attendance section when institute is selected for InstituteAdmin */}
+                  {userRole === 'InstituteAdmin' && selectedInstitute && (
+                    <SidebarSection {...sectionProps} title="Attendance" items={attendanceItemsDisplay} />
+                  )}
+                  
+                  {/* For AttendanceMarker role, only show Mark Attendance when institute is selected */}
+                  {userRole === 'AttendanceMarker' && selectedInstitute && (
+                    <SidebarSection {...sectionProps} title="Attendance" items={attendanceItemsDisplay} />
+                  )}
+                  
+                  {/* For other roles, show attendance navigation based on role */}
+                  {userRole !== 'AttendanceMarker' && userRole !== 'InstituteAdmin' && userRole !== 'Teacher' && userRole !== 'Student' && selectedInstitute && (
+                    <SidebarSection {...sectionProps} title="Attendance" items={attendanceItemsDisplay} />
+                  )}
+                  
+                  {/* Show academic items for Teacher only when institute, class and subject are all selected */}
+                  {userRole === 'Teacher' && systemItemsDisplay.length > 0 && (
+                    <SidebarSection {...sectionProps} title="Academic" items={systemItemsDisplay} />
+                  )}
+                  
+                  {/* Show academic items for InstituteAdmin only when institute, class and subject are all selected */}
+                  {userRole === 'InstituteAdmin' && selectedInstitute && selectedClass && selectedSubject && (
+                    <SidebarSection {...sectionProps} title="Academic" items={systemItemsDisplay} />
+                  )}
+                  
+                  {/* Show full academic section for other roles (excluding Student) */}
+                  {selectedInstitute && userRole !== 'AttendanceMarker' && userRole !== 'InstituteAdmin' && userRole !== 'Teacher' && userRole !== 'Student' && (
+                    <SidebarSection {...sectionProps} title="Academic" items={systemItemsDisplay} />
+                  )}
+                  
+                  {/* Show My Children section before institute selection for Parents */}
+                  {myChildrenItemsDisplay.length > 0 && (
+                    <SidebarSection {...sectionProps} title="My Children" items={myChildrenItemsDisplay} />
+                  )}
+                  
+                  {/* Show Child specific navigation when child is selected */}
+                  {childItemsDisplay.length > 0 && (
+                    <SidebarSection {...sectionProps} title="Child Sections" items={childItemsDisplay} />
+                  )}
+                  
+                  {/* Show System Payments section before institute selection */}
+                  {systemPaymentItemsDisplay.length > 0 && (
+                    <SidebarSection {...sectionProps} title="System Payments" items={systemPaymentItemsDisplay} />
+                  )}
+                  
+                  {/* Show Payment section for specific user types based on new rules */}
+                  {paymentItemsDisplay.length > 0 && (
+                    <SidebarSection {...sectionProps} title="Payments" items={paymentItemsDisplay} />
+                  )}
+                  
+                  {smsItemsDisplay.length > 0 && (
+                    <SidebarSection {...sectionProps} title="SMS" items={smsItemsDisplay} />
+                  )}
+                  
+                  {/* Notifications Section - before Settings */}
+                  {notificationItemsDisplay.length > 0 && (
+                    <SidebarSection 
+                      {...sectionProps}
+                      title={selectedInstitute ? "Institute Notifications" : "Notifications"} 
+                      items={notificationItemsDisplay} 
+                    />
+                  )}
+                  
+                  <SidebarSection {...sectionProps} title="Settings" items={settingsItemsDisplay} />
+                </>
+              );
+            })()}
           </div>
         </ScrollArea>
 
