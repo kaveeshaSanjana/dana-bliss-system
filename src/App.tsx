@@ -176,6 +176,53 @@ const App = () => {
                 <Route path="/parents" element={<Index />} />
                 <Route path="/users" element={<Index />} />
 
+                {/* Selection Routes */}
+                <Route path="/select-institute" element={<Index />} />
+                <Route path="/select-class" element={<Index />} />
+                <Route path="/select-subject" element={<Index />} />
+
+                {/* Additional pages handled by AppContent */}
+                <Route path="/classes" element={<Index />} />
+                <Route path="/subjects" element={<Index />} />
+                <Route path="/attendance" element={<Index />} />
+                <Route path="/daily-attendance" element={<Index />} />
+                <Route path="/lectures" element={<Index />} />
+                <Route path="/free-lectures" element={<Index />} />
+                <Route path="/live-lectures" element={<Index />} />
+                <Route path="/institute-lectures" element={<Index />} />
+                <Route path="/homework" element={<Index />} />
+                <Route path="/homework-submissions" element={<Index />} />
+                <Route path="/exams" element={<Index />} />
+                <Route path="/results" element={<Index />} />
+                <Route path="/grades" element={<Index />} />
+                <Route path="/grading" element={<Index />} />
+                <Route path="/institute-details" element={<Index />} />
+                <Route path="/institute-profile" element={<Index />} />
+                <Route path="/institute-users" element={<Index />} />
+                <Route path="/institute-payments" element={<Index />} />
+                <Route path="/institute-subjects" element={<Index />} />
+                <Route path="/institute-organizations" element={<Index />} />
+                <Route path="/institute-mark-attendance" element={<Index />} />
+                <Route path="/subject-payments" element={<Index />} />
+                <Route path="/subject-submissions" element={<Index />} />
+                <Route path="/subject-pay-submission" element={<Index />} />
+                <Route path="/my-submissions" element={<Index />} />
+                <Route path="/sms" element={<Index />} />
+                <Route path="/notifications" element={<Index />} />
+                <Route path="/institute-notifications" element={<Index />} />
+                <Route path="/setup-guide" element={<Index />} />
+                <Route path="/verify-image" element={<Index />} />
+                <Route path="/enroll-class" element={<Index />} />
+                <Route path="/enroll-subject" element={<Index />} />
+                <Route path="/my-attendance" element={<Index />} />
+                <Route path="/attendance-markers" element={<Index />} />
+                <Route path="/unverified-students" element={<Index />} />
+                <Route path="/class-subjects" element={<Index />} />
+                <Route path="/teacher-students" element={<Index />} />
+                <Route path="/teacher-homework" element={<Index />} />
+                <Route path="/teacher-exams" element={<Index />} />
+                <Route path="/teacher-lectures" element={<Index />} />
+
                 {/* Dedicated Page Routes (must be protected) */}
                 <Route
                   path="/my-children"
