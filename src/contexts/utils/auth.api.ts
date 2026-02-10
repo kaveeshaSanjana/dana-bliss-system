@@ -81,6 +81,9 @@ export const loginUser = async (credentials: LoginCredentials): Promise<ApiRespo
 
   const loginEndpoint = isMobile ? '/v2/auth/login/mobile' : '/v2/auth/login';
 
+  // Store rememberMe preference BEFORE the request (so it's available for token storage)
+  await tokenStorageService.setRememberMe(!!credentials.rememberMe);
+
   const response = await fetch(`${baseUrl}${loginEndpoint}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -106,8 +109,8 @@ export const loginUser = async (credentials: LoginCredentials): Promise<ApiRespo
     await tokenStorageService.setAccessToken(data.access_token);
   }
 
-  // Store refresh token (mobile only — web uses httpOnly cookie)
-  if (isMobile && data.refresh_token) {
+  // Store refresh token (mobile always; web when rememberMe for cookie fallback)
+  if (data.refresh_token) {
     await tokenStorageService.setRefreshToken(data.refresh_token);
   }
 
@@ -155,6 +158,7 @@ export const refreshAccessToken = async (): Promise<ApiUserResponse> => {
       let response: Response;
 
       if (isMobile) {
+        // Mobile: always use stored refresh token
         const refreshToken = await tokenStorageService.getRefreshToken();
         if (!refreshToken) {
           throw new Error('No refresh token available');
@@ -169,13 +173,27 @@ export const refreshAccessToken = async (): Promise<ApiUserResponse> => {
           })
         });
       } else {
-        // Web: use /v2/auth/refresh with httpOnly cookie
+        // Web: try cookie-based refresh first
         response = await fetch(`${baseUrl}/v2/auth/refresh`, {
           method: 'POST',
-          credentials: 'include', // CRITICAL: sends refresh_token cookie
+          credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({}) // Empty body — token comes from cookie
+          body: JSON.stringify({})
         });
+
+        // If cookie-based refresh fails, try stored refresh token as fallback
+        if (!response.ok) {
+          console.log('🔁 Cookie-based refresh failed, trying stored refresh token...');
+          const storedRefreshToken = await tokenStorageService.getRefreshToken();
+          if (storedRefreshToken) {
+            response = await fetch(`${baseUrl}/v2/auth/refresh`, {
+              method: 'POST',
+              credentials: 'include',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ refresh_token: storedRefreshToken })
+            });
+          }
+        }
       }
 
       if (!response.ok) {
@@ -192,8 +210,8 @@ export const refreshAccessToken = async (): Promise<ApiUserResponse> => {
         await tokenStorageService.setAccessToken(data.access_token);
       }
 
-      // Store new refresh token (mobile only — token rotation)
-      if (isMobile && data.refresh_token) {
+      // Store new refresh token (token rotation — both web and mobile)
+      if (data.refresh_token) {
         await tokenStorageService.setRefreshToken(data.refresh_token);
       }
 

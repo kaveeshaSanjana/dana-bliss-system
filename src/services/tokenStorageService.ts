@@ -31,10 +31,11 @@ export const getPlatform = (): 'web' | 'android' | 'ios' => {
 
 const KEYS = {
   ACCESS_TOKEN: 'access_token',
-  REFRESH_TOKEN: 'refresh_token', // Only used on mobile
+  REFRESH_TOKEN: 'refresh_token', // Mobile always; Web only when rememberMe
   USER_DATA: 'user_data',
   DEVICE_ID: 'device_id',
   TOKEN_EXPIRY: 'token_expiry',
+  REMEMBER_ME: 'remember_me',
 } as const;
 
 // ============= IN-MEMORY TOKEN STORE =============
@@ -155,30 +156,43 @@ export const tokenStorageService = {
     }
   },
 
-  // ============= REFRESH TOKEN (Mobile Only) =============
+  // ============= REFRESH TOKEN =============
 
   async setRefreshToken(token: string): Promise<void> {
+    memoryStore.refreshToken = token;
     if (isNativePlatform()) {
-      memoryStore.refreshToken = token;
       await Preferences.set({ key: KEYS.REFRESH_TOKEN, value: token });
+    } else {
+      // Web: also store if rememberMe is enabled (fallback for httpOnly cookie)
+      const rememberMe = localStorage.getItem(KEYS.REMEMBER_ME);
+      if (rememberMe === 'true') {
+        localStorage.setItem(KEYS.REFRESH_TOKEN, token);
+      }
     }
-    // Web: handled by httpOnly cookie
   },
 
   async getRefreshToken(): Promise<string | null> {
+    if (memoryStore.refreshToken) return memoryStore.refreshToken;
     if (isNativePlatform()) {
-      if (memoryStore.refreshToken) return memoryStore.refreshToken;
       const result = await Preferences.get({ key: KEYS.REFRESH_TOKEN });
       memoryStore.refreshToken = result.value;
       return result.value;
     }
-    return null; // Web: not accessible (httpOnly cookie)
+    // Web: check localStorage fallback (rememberMe sessions)
+    const stored = localStorage.getItem(KEYS.REFRESH_TOKEN);
+    if (stored) {
+      memoryStore.refreshToken = stored;
+      return stored;
+    }
+    return null;
   },
 
   async removeRefreshToken(): Promise<void> {
     memoryStore.refreshToken = null;
     if (isNativePlatform()) {
       await Preferences.remove({ key: KEYS.REFRESH_TOKEN });
+    } else {
+      localStorage.removeItem(KEYS.REFRESH_TOKEN);
     }
   },
 
@@ -258,6 +272,24 @@ export const tokenStorageService = {
     return deviceId;
   },
 
+  // ============= REMEMBER ME =============
+
+  async setRememberMe(value: boolean): Promise<void> {
+    if (isNativePlatform()) {
+      await Preferences.set({ key: KEYS.REMEMBER_ME, value: value.toString() });
+    } else {
+      localStorage.setItem(KEYS.REMEMBER_ME, value.toString());
+    }
+  },
+
+  async getRememberMe(): Promise<boolean> {
+    if (isNativePlatform()) {
+      const result = await Preferences.get({ key: KEYS.REMEMBER_ME });
+      return result.value === 'true';
+    }
+    return localStorage.getItem(KEYS.REMEMBER_ME) === 'true';
+  },
+
   // ============= CLEAR ALL =============
 
   async clearAll(): Promise<void> {
@@ -270,15 +302,17 @@ export const tokenStorageService = {
         Preferences.remove({ key: KEYS.REFRESH_TOKEN }),
         Preferences.remove({ key: KEYS.USER_DATA }),
         Preferences.remove({ key: KEYS.TOKEN_EXPIRY }),
+        Preferences.remove({ key: KEYS.REMEMBER_ME }),
       ]);
     } else {
-      // Web: clear user data from localStorage (tokens are memory-only)
+      // Web: clear all auth data from localStorage
       localStorage.removeItem(KEYS.USER_DATA);
+      localStorage.removeItem(KEYS.REFRESH_TOKEN);
+      localStorage.removeItem(KEYS.REMEMBER_ME);
       // Also clear legacy keys
       localStorage.removeItem('token');
       localStorage.removeItem('authToken');
       localStorage.removeItem('org_access_token');
-      // Remove old localStorage access_token if it was there from before
       localStorage.removeItem(KEYS.ACCESS_TOKEN);
       localStorage.removeItem(KEYS.TOKEN_EXPIRY);
     }
