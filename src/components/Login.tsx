@@ -628,33 +628,34 @@ const Login = ({
       }}
     />;
   }
-  return <div className="min-h-[100dvh] flex flex-col md:flex-row overflow-x-hidden">
+  return <div className="min-h-[100dvh] flex flex-col md:flex-row overflow-x-hidden bg-gradient-to-b from-primary/5 via-background to-background md:bg-none">
       {/* Top Illustration - Mobile Only */}
-      <div className="block md:hidden w-full relative h-28 shrink-0">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-primary/5" />
+      <div className="block md:hidden w-full relative h-36 shrink-0">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-primary/5" />
         <img src={loginIllustration} alt="AI-powered education illustration" className="absolute inset-0 w-full h-full object-cover mix-blend-multiply" loading="lazy" onError={e => {
         (e.currentTarget as HTMLImageElement).style.display = 'none';
       }} />
+        <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-background to-transparent" />
       </div>
 
       {/* Left Side - Form */}
-      <div className="w-full md:w-1/2 lg:w-2/5 flex flex-col items-center justify-start md:justify-center px-4 py-3 sm:p-6 md:p-8 bg-background -mt-6 md:mt-0 rounded-t-[2rem] md:rounded-none relative z-10 flex-1 md:min-h-screen overflow-y-auto">
-        <div className="w-full max-w-md space-y-2 md:space-y-6">
+      <div className="w-full md:w-1/2 lg:w-2/5 flex flex-col items-center justify-start md:justify-center px-5 py-4 sm:p-6 md:p-8 bg-background -mt-8 md:mt-0 rounded-t-[2rem] md:rounded-none relative z-10 flex-1 md:min-h-screen overflow-y-auto">
+        <div className="w-full max-w-md space-y-4 md:space-y-6">
           {/* Logo and Header */}
-          <div className="space-y-0.5 text-center">
-            <div className="flex flex-col items-center justify-center mb-1 md:mb-6">
-              <div className="w-10 h-10 md:w-24 md:h-24 rounded-lg overflow-hidden bg-transparent mb-0.5">
+          <div className="space-y-1 text-center">
+            <div className="flex flex-col items-center justify-center mb-2 md:mb-6">
+              <div className="w-14 h-14 md:w-24 md:h-24 rounded-2xl overflow-hidden bg-transparent mb-1 shadow-sm">
                 <img src={surakshaLogo} alt="SurakshaLMS logo" className="w-full h-full object-contain" loading="lazy" />
               </div>
-              <span className="text-xl md:text-4xl font-bold text-foreground">SurakshaLMS</span>
+              <span className="text-2xl md:text-4xl font-bold text-foreground tracking-tight">SurakshaLMS</span>
             </div>
-            <h1 className="text-base md:text-2xl font-bold text-foreground">Welcome back</h1>
-            <p className="text-xs text-muted-foreground">Please enter your details</p>
+            <h1 className="text-lg md:text-2xl font-semibold text-foreground">Welcome back</h1>
+            <p className="text-sm text-muted-foreground">Please enter your details to continue</p>
           </div>
 
           {/* Main Login/First Login/Forgot Password Card */}
-          <Card className="border-border shadow-sm">
-            <CardContent className="pt-4 px-4 pb-4 md:pt-8 md:px-8 md:pb-8">
+          <Card className="border-border/50 shadow-lg md:shadow-sm">
+            <CardContent className="pt-5 px-5 pb-5 md:pt-8 md:px-8 md:pb-8">
             {/* Regular Login Form */}
             {loginStep === 'login' && <form onSubmit={handleLogin} className="space-y-4 md:space-y-6">
                 {/* Role Selection - Only show for mock login */}
@@ -723,9 +724,9 @@ const Login = ({
                 </Button>
 
                 {/* First Time Login Link */}
-                {useApiLogin && <div className="text-center pt-1">
-                    <span className="text-xs md:text-sm text-muted-foreground">Registered by your institute? </span>
-                    <Button type="button" variant="link" onClick={() => setShowFirstLoginV2(true)} className="text-xs md:text-sm text-primary hover:text-primary/80 p-0 h-auto">
+                {useApiLogin && <div className="text-center pt-2">
+                    <span className="text-xs md:text-sm text-muted-foreground">Don't have a password? </span>
+                    <Button type="button" variant="link" onClick={() => setShowFirstLoginV2(true)} className="text-xs md:text-sm text-primary hover:text-primary/80 p-0 h-auto font-semibold">
                       Activate your account
                     </Button>
                   </div>}
