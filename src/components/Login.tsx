@@ -628,9 +628,9 @@ const Login = ({
       }}
     />;
   }
-  return <div className="min-h-[100dvh] flex flex-col md:flex-row overflow-x-hidden bg-gradient-to-b from-primary/5 via-background to-background md:bg-none">
-      {/* Top Illustration - Mobile Only */}
-      <div className="block md:hidden w-full relative h-32 shrink-0">
+  return <div className="min-h-[100dvh] flex flex-col overflow-x-hidden bg-background">
+      {/* Top Illustration - All screens */}
+      <div className="w-full relative h-28 md:h-44 shrink-0">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-primary/5" />
         <img src={loginIllustration} alt="AI-powered education illustration" className="absolute inset-0 w-full h-full object-cover mix-blend-multiply" loading="lazy" onError={e => {
         (e.currentTarget as HTMLImageElement).style.display = 'none';
@@ -638,24 +638,28 @@ const Login = ({
         <div className="absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-background to-transparent" />
       </div>
 
-      {/* Left Side - Form */}
-      <div className="w-full md:w-1/2 lg:w-2/5 flex flex-col items-center justify-center px-4 py-2 sm:p-6 md:p-8 bg-background -mt-5 md:mt-0 rounded-t-3xl md:rounded-none relative z-10 flex-1 md:min-h-screen overflow-y-auto">
-        <div className="w-full max-w-md space-y-3 md:space-y-6">
+      {/* Form Section - centered */}
+      <div className="flex-1 flex items-start md:items-center justify-center px-4 py-2 md:py-6 -mt-5 relative z-10">
+        {/* Decorative side lines */}
+        <div className="hidden md:block absolute left-[10%] top-1/4 bottom-1/4 w-px bg-gradient-to-b from-transparent via-border to-transparent" />
+        <div className="hidden md:block absolute right-[10%] top-1/4 bottom-1/4 w-px bg-gradient-to-b from-transparent via-border to-transparent" />
+        
+        <div className="w-full max-w-md space-y-3 md:space-y-4">
           {/* Logo and Header */}
           <div className="space-y-0.5 text-center">
-            <div className="flex flex-col items-center justify-center mb-1.5 md:mb-6">
-              <div className="w-12 h-12 md:w-24 md:h-24 rounded-xl overflow-hidden bg-transparent mb-0 shadow-sm">
+            <div className="flex flex-col items-center justify-center mb-1.5 md:mb-3">
+              <div className="w-12 h-12 md:w-16 md:h-16 rounded-xl overflow-hidden bg-transparent shadow-sm">
                 <img src={surakshaLogo} alt="SurakshaLMS logo" className="w-full h-full object-contain" loading="lazy" />
               </div>
-              <span className="text-lg md:text-4xl font-bold text-foreground tracking-tight">SurakshaLMS</span>
+              <span className="text-lg md:text-2xl font-bold text-foreground tracking-tight mt-1">SurakshaLMS</span>
             </div>
-            <h1 className="text-base md:text-2xl font-semibold text-foreground">Welcome back</h1>
+            <h1 className="text-base md:text-xl font-semibold text-foreground">Welcome back</h1>
             <p className="text-xs md:text-sm text-muted-foreground">Please enter your details to continue</p>
           </div>
 
           {/* Main Login/First Login/Forgot Password Card */}
-          <Card className="border-border/50 shadow-lg md:shadow-sm">
-            <CardContent className="pt-4 px-4 pb-4 md:pt-8 md:px-8 md:pb-8">
+          <Card className="border-border/50 shadow-lg">
+            <CardContent className="pt-4 px-4 pb-4 md:pt-6 md:px-6 md:pb-6">
             {/* Regular Login Form */}
             {loginStep === 'login' && <form onSubmit={handleLogin} className="space-y-3 md:space-y-6">
                 {/* Role Selection - Only show for mock login */}
@@ -995,17 +999,6 @@ const Login = ({
               <div><strong>Organization Manager:</strong> orgmanager@company.com / orgmanager123</div>
             </CardContent>
           </Card>}
-        </div>
-      </div>
-
-      {/* Right Side - Illustration */}
-      <div className="hidden md:flex md:w-1/2 lg:w-3/5 relative min-h-[300px] md:min-h-screen">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-primary/5" />
-        <img src={loginIllustration} alt="AI-powered education illustration" className="absolute inset-0 w-full h-full object-cover mix-blend-multiply" loading="lazy" onError={e => {
-        (e.currentTarget as HTMLImageElement).style.display = 'none';
-      }} />
-        <div className="absolute inset-0 flex items-center justify-center p-8">
-          
         </div>
       </div>
     </div>;
