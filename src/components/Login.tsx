@@ -639,7 +639,7 @@ const Login = ({
       </div>
 
       {/* Left Side - Form */}
-      <div className="w-full md:w-1/2 lg:w-2/5 flex flex-col items-center justify-start md:justify-center px-4 py-2 sm:p-6 md:p-8 bg-background -mt-5 md:mt-0 rounded-t-3xl md:rounded-none relative z-10 flex-1 md:min-h-screen overflow-y-auto">
+      <div className="w-full md:w-1/2 lg:w-2/5 flex flex-col items-center justify-center px-4 py-2 sm:p-6 md:p-8 bg-background -mt-5 md:mt-0 rounded-t-3xl md:rounded-none relative z-10 flex-1 md:min-h-screen overflow-y-auto">
         <div className="w-full max-w-md space-y-3 md:space-y-6">
           {/* Logo and Header */}
           <div className="space-y-0.5 text-center">
