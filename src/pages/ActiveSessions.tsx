@@ -12,13 +12,39 @@ import AppLayout from '@/components/layout/AppLayout';
 interface Session {
   id: string;
   platform: 'web' | 'android' | 'ios';
-  deviceId: string | null;
   deviceName: string | null;
-  ipAddress: string | null;
-  createdAt: string;
-  expiresAt: string;
+  userAgent: string | null;
+  firstLogin: string;
+  tokenExpiry: string;
   isCurrent?: boolean;
 }
+
+const parseBrowser = (ua: string | null): string => {
+  if (!ua) return 'Unknown Browser';
+  if (ua.includes('PostmanRuntime')) return 'Postman';
+  if (ua.includes('Edg/')) return 'Microsoft Edge';
+  if (ua.includes('Chrome') && ua.includes('Safari')) {
+    if (ua.includes('Mobile')) return 'Chrome Mobile';
+    return 'Google Chrome';
+  }
+  if (ua.includes('Firefox')) return 'Mozilla Firefox';
+  if (ua.includes('Safari') && !ua.includes('Chrome')) {
+    if (ua.includes('Mobile')) return 'Safari Mobile';
+    return 'Safari';
+  }
+  return 'Web Browser';
+};
+
+const parseOS = (ua: string | null): string => {
+  if (!ua) return '';
+  if (ua.includes('PostmanRuntime')) return 'API Client';
+  if (ua.includes('iPhone') || ua.includes('iPad')) return 'iOS';
+  if (ua.includes('Android')) return 'Android';
+  if (ua.includes('Windows')) return 'Windows';
+  if (ua.includes('Mac OS')) return 'macOS';
+  if (ua.includes('Linux')) return 'Linux';
+  return '';
+};
 
 const getPlatformIcon = (platform: string) => {
   switch (platform) {
@@ -49,8 +75,8 @@ const ActiveSessionsPage = () => {
   const loadSessions = async () => {
     setLoading(true);
     try {
-      const data = await getActiveSessions();
-      setSessions(Array.isArray(data) ? data : []);
+      const data = await getActiveSessions({ sortBy: 'createdAt', sortOrder: 'DESC' });
+      setSessions(Array.isArray(data.sessions) ? data.sessions : []);
     } catch (error) {
       toast({
         title: 'Error',
@@ -137,16 +163,18 @@ const ActiveSessionsPage = () => {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-medium text-foreground">
-                          {session.deviceName || getPlatformLabel(session.platform)}
+                          {session.deviceName || parseBrowser(session.userAgent)}
                         </span>
                         {session.isCurrent && (
                           <Badge variant="secondary" className="text-xs">This device</Badge>
                         )}
                       </div>
                       <div className="text-xs text-muted-foreground space-y-0.5 mt-0.5">
-                        {session.ipAddress && <p>IP: {session.ipAddress}</p>}
-                        <p>Logged in: {new Date(session.createdAt).toLocaleDateString()}</p>
-                        <p>Expires: {new Date(session.expiresAt).toLocaleDateString()}</p>
+                        {parseOS(session.userAgent) && (
+                          <p>{parseOS(session.userAgent)}</p>
+                        )}
+                        <p>Logged in: {new Date(session.firstLogin).toLocaleDateString()} {new Date(session.firstLogin).toLocaleTimeString()}</p>
+                        <p>Expires: {new Date(session.tokenExpiry).toLocaleDateString()}</p>
                       </div>
                     </div>
                     {!session.isCurrent && (

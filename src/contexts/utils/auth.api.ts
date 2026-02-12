@@ -1,6 +1,5 @@
 import { LoginCredentials, ApiResponse, ApiUserResponse } from '../types/auth.types';
 import { tokenStorageService, isNativePlatform, getAuthHeadersSync } from '@/services/tokenStorageService';
-import { Preferences } from '@capacitor/preferences';
 
 // ============= BASE URL CONFIGURATION =============
 
@@ -46,15 +45,21 @@ export const getCredentialsMode = (): RequestCredentials => {
 
 export const getOrgAccessTokenAsync = async (): Promise<string | null> => {
   if (isNativePlatform()) {
-    const result = await Preferences.get({ key: 'org_access_token' });
-    return result.value;
+    try {
+      const { SecureStoragePlugin } = await import('capacitor-secure-storage-plugin');
+      const result = await SecureStoragePlugin.get({ key: 'org_access_token' });
+      return result.value;
+    } catch {
+      return null;
+    }
   }
   return localStorage.getItem('org_access_token');
 };
 
 export const setOrgAccessTokenAsync = async (token: string): Promise<void> => {
   if (isNativePlatform()) {
-    await Preferences.set({ key: 'org_access_token', value: token });
+    const { SecureStoragePlugin } = await import('capacitor-secure-storage-plugin');
+    await SecureStoragePlugin.set({ key: 'org_access_token', value: token });
   } else {
     localStorage.setItem('org_access_token', token);
   }
@@ -62,7 +67,12 @@ export const setOrgAccessTokenAsync = async (token: string): Promise<void> => {
 
 export const removeOrgAccessTokenAsync = async (): Promise<void> => {
   if (isNativePlatform()) {
-    await Preferences.remove({ key: 'org_access_token' });
+    try {
+      const { SecureStoragePlugin } = await import('capacitor-secure-storage-plugin');
+      await SecureStoragePlugin.remove({ key: 'org_access_token' });
+    } catch {
+      // Key didn't exist
+    }
   } else {
     localStorage.removeItem('org_access_token');
   }
@@ -116,7 +126,8 @@ export const loginUser = async (credentials: LoginCredentials): Promise<ApiRespo
 
   // Store token expiry
   if (data.expires_in) {
-    const expiryTimestamp = Date.now() + (data.expires_in * 1000);
+    const expiryMs = parseExpiresIn(data.expires_in);
+    const expiryTimestamp = Date.now() + expiryMs;
     await tokenStorageService.setTokenExpiry(expiryTimestamp);
   }
 
@@ -173,27 +184,20 @@ export const refreshAccessToken = async (): Promise<ApiUserResponse> => {
           })
         });
       } else {
-        // Web: try cookie-based refresh first
+        // Web: Always include refresh_token in body.
+        // httpOnly cookies don't work cross-origin (preview domain ≠ API domain),
+        // so we must send the stored token explicitly.
+        const storedRefreshToken = await tokenStorageService.getRefreshToken();
+        if (!storedRefreshToken) {
+          throw new Error('No refresh token available');
+        }
+        
         response = await fetch(`${baseUrl}/v2/auth/refresh`, {
           method: 'POST',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({})
+          body: JSON.stringify({ refresh_token: storedRefreshToken })
         });
-
-        // If cookie-based refresh fails, try stored refresh token as fallback
-        if (!response.ok) {
-          console.log('🔁 Cookie-based refresh failed, trying stored refresh token...');
-          const storedRefreshToken = await tokenStorageService.getRefreshToken();
-          if (storedRefreshToken) {
-            response = await fetch(`${baseUrl}/v2/auth/refresh`, {
-              method: 'POST',
-              credentials: 'include',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ refresh_token: storedRefreshToken })
-            });
-          }
-        }
       }
 
       if (!response.ok) {
@@ -217,7 +221,8 @@ export const refreshAccessToken = async (): Promise<ApiUserResponse> => {
 
       // Update token expiry
       if (data.expires_in) {
-        const expiryTimestamp = Date.now() + (data.expires_in * 1000);
+        const expiryMs = parseExpiresIn(data.expires_in);
+        const expiryTimestamp = Date.now() + expiryMs;
         await tokenStorageService.setTokenExpiry(expiryTimestamp);
       }
 
@@ -258,11 +263,13 @@ export const validateToken = async (): Promise<ApiUserResponse> => {
 
   // If token is expired or near-expiry, refresh first
   const expiry = await tokenStorageService.getTokenExpiry();
-  if (token && expiry && Date.now() >= (expiry - 60_000)) {
+  const bufferMs = isMobile ? 2 * 60 * 1000 : 60_000;
+  if (token && expiry && Date.now() >= (expiry - bufferMs)) {
     return await refreshAccessToken();
   }
 
-  // If no access token in memory, try refresh (cookie-based on web)
+  // If no access token in memory, try refresh
+  // On mobile cold-start: memory is empty but refresh token is in secure storage
   if (!token) {
     try {
       return await refreshAccessToken();
@@ -348,17 +355,28 @@ export const logoutUser = async (): Promise<void> => {
 
 // ============= SESSION MANAGEMENT =============
 
-export const getActiveSessions = async (): Promise<any[]> => {
+export const getActiveSessions = async (params?: { page?: number; limit?: number; platform?: string; sortBy?: string; sortOrder?: string }): Promise<{ sessions: any[]; pagination?: any; summary?: any }> => {
   const baseUrl = getBaseUrl();
   const headers = await getApiHeadersAsync();
-  const response = await fetch(`${baseUrl}/auth/sessions`, {
+  const query = new URLSearchParams();
+  if (params?.page) query.set('page', String(params.page));
+  if (params?.limit) query.set('limit', String(params.limit));
+  if (params?.platform) query.set('platform', params.platform);
+  if (params?.sortBy) query.set('sortBy', params.sortBy);
+  if (params?.sortOrder) query.set('sortOrder', params.sortOrder);
+  const qs = query.toString();
+  const response = await fetch(`${baseUrl}/auth/sessions${qs ? `?${qs}` : ''}`, {
     method: 'GET',
     headers,
     credentials: getCredentialsMode()
   });
   if (!response.ok) throw new Error('Failed to load sessions');
   const data = await response.json();
-  return data.sessions || data.data || data || [];
+  return {
+    sessions: data.sessions || data.data || (Array.isArray(data) ? data : []),
+    pagination: data.pagination,
+    summary: data.summary
+  };
 };
 
 export const revokeSession = async (sessionId: string): Promise<void> => {
@@ -416,3 +434,34 @@ export const getAccessToken = (): string | null => {
 
 // Re-export
 export { isNativePlatform, tokenStorageService };
+
+// ============= HELPERS: PARSE EXPIRES_IN =============
+
+/**
+ * Parse expires_in from the server.
+ * Supports:
+ *  - number (seconds): 3600 → 3600000ms
+ *  - string with unit: '24h', '7d', '30m', '60s'
+ *  - numeric string: '3600' → 3600000ms
+ * Falls back to 1 hour if unparseable.
+ */
+function parseExpiresIn(value: any): number {
+  if (typeof value === 'number' && value > 0) {
+    return value * 1000; // seconds → ms
+  }
+  if (typeof value === 'string') {
+    const match = value.match(/^(\d+)([hdms]?)$/);
+    if (match) {
+      const num = parseInt(match[1], 10);
+      const unit = match[2];
+      switch (unit) {
+        case 'h': return num * 60 * 60 * 1000;
+        case 'd': return num * 24 * 60 * 60 * 1000;
+        case 'm': return num * 60 * 1000;
+        case 's': return num * 1000;
+        default: return num * 1000; // assume seconds if no unit
+      }
+    }
+  }
+  return 60 * 60 * 1000; // fallback: 1 hour
+}

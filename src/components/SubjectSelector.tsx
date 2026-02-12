@@ -6,9 +6,12 @@ import { DataCardView } from '@/components/ui/data-card-view';
 import { useAuth, type UserRole } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { getImageUrl } from '@/utils/imageUrlHelper';
-import { BookOpen, Clock, CheckCircle, RefreshCw, User, School, ChevronLeft, ChevronRight } from 'lucide-react';
+import { BookOpen, Clock, CheckCircle, RefreshCw, User, School, ChevronLeft, ChevronRight, LogIn } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { getBaseUrl } from '@/contexts/utils/auth.api';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { instituteApi } from '@/api/institute.api';
 import { useApiRequest } from '@/hooks/useApiRequest';
 import { useInstituteRole } from '@/hooks/useInstituteRole';
@@ -62,6 +65,7 @@ interface SubjectCardData {
   imgUrl?: string;
   createdAt: string;
   updatedAt: string;
+  enrollmentStatus?: 'VERIFIED' | 'PENDING' | 'NONE';
 }
 const SubjectSelector = () => {
   const {
@@ -84,6 +88,14 @@ const SubjectSelector = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [dataLoaded, setDataLoaded] = useState(false);
   const [expandedSubjectId, setExpandedSubjectId] = useState<string | null>(null);
+
+  // Enrollment state
+  const [enrollDialogOpen, setEnrollDialogOpen] = useState(false);
+  const [enrollSubject, setEnrollSubject] = useState<SubjectCardData | null>(null);
+  const [enrollmentKey, setEnrollmentKey] = useState('');
+  const [isEnrolling, setIsEnrolling] = useState(false);
+  const [pendingSubjects, setPendingSubjects] = useState<Set<string>>(new Set());
+  const [enrolledSubjects, setEnrolledSubjects] = useState<Set<string>>(new Set());
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -116,7 +128,7 @@ const SubjectSelector = () => {
   };
   const fetchSubjectsByRole = async (page: number = 1, limit: number = 10, forceRefresh = false) => {
     setIsLoading(true);
-    console.log('Loading subjects data for teacher');
+    console.log('Loading subjects data for role:', instituteRole);
     try {
       let endpoint: string;
       const params = { page: page.toString(), limit: limit.toString() };
@@ -128,17 +140,17 @@ const SubjectSelector = () => {
         }
         endpoint = `/institutes/${currentInstituteId}/classes/${currentClassId}/subjects`;
       } else if (instituteRole === 'Teacher') {
-        if (!currentInstituteId || !currentClassId || !user.id) {
+        // Teacher uses the same class subjects endpoint as admin
+        if (!currentInstituteId || !currentClassId) {
           throw new Error('Missing required parameters for teacher subject fetch');
         }
-        endpoint = `/institutes/${currentInstituteId}/classes/${currentClassId}/subjects/teacher/${user.id}`;
+        endpoint = `/institutes/${currentInstituteId}/classes/${currentClassId}/subjects`;
       } else if (instituteRole === 'Student') {
-        // CRITICAL: When parent views as child, use the CHILD's ID, not the parent's
-        const studentUserId = isViewingAsParent && selectedChild ? selectedChild.id : user.id;
-        if (!currentInstituteId || !currentClassId || !studentUserId) {
+        // Student uses the same class subjects endpoint
+        if (!currentInstituteId || !currentClassId) {
           throw new Error('Missing required parameters for student subject fetch');
         }
-        endpoint = `/institute-class-subject-students/${currentInstituteId}/student-subjects/class/${currentClassId}/student/${studentUserId}`;
+        endpoint = `/institutes/${currentInstituteId}/classes/${currentClassId}/subjects`;
       } else {
         // For other roles, use the original subjects endpoint
         endpoint = '/subjects';
@@ -162,7 +174,7 @@ const SubjectSelector = () => {
 
       console.log('Raw API response:', result);
       let subjects: SubjectCardData[] = [];
-      if (instituteRole === 'InstituteAdmin' || instituteRole === 'Teacher' || instituteRole === 'AttendanceMarker') {
+      if (instituteRole === 'InstituteAdmin' || instituteRole === 'Teacher' || instituteRole === 'AttendanceMarker' || instituteRole === 'Student') {
         // Handle the new API response format for Institute Admin and Teacher
         if (Array.isArray(result)) {
           // Direct array response
@@ -224,33 +236,35 @@ const SubjectSelector = () => {
         setTotalItems(totalSubjects);
         setTotalPages(totalPagesFromApi);
         setCurrentPage(result.page || page);
-      } else if (instituteRole === 'Student') {
-        // Handle the new API response format for students
-        if (result.data && Array.isArray(result.data)) {
-          subjects = result.data.map((item: any) => ({
-            id: item.subject.id,
-            name: item.subject.name,
-            code: item.subject.code,
-            description: item.subject.description || '',
-            category: item.subject.category || '',
-            creditHours: item.subject.creditHours || 0,
-            isActive: item.subject.isActive,
-            subjectType: item.subject.subjectType || '',
-            basketCategory: item.subject.basketCategory || '',
-            instituteType: item.subject.instituteType || '',
-            imgUrl: item.subject.imgUrl,
-            createdAt: item.subject.createdAt,
-            updatedAt: item.subject.updatedAt
-          }));
-        }
 
-        // For students, use the pagination data from the API response
-        const totalSubjects = result.total || 0;
-        const totalPages = Math.ceil(totalSubjects / limit);
-        setSubjectsData(subjects);
-        setTotalItems(totalSubjects);
-        setTotalPages(totalPages);
-        setCurrentPage(page);
+        // For students, fetch their enrolled subjects to determine enrollment status
+        if (instituteRole === 'Student') {
+          try {
+            const studentUserId = isViewingAsParent && selectedChild ? selectedChild.id : user.id;
+            const enrolledResult = await enhancedCachedClient.get(
+              `/institute-class-subject-students/${currentInstituteId}/student-subjects/class/${currentClassId}/student/${studentUserId}`,
+              { page: '1', limit: '100' },
+              { ttl: CACHE_TTL.SUBJECTS, forceRefresh, userId: user?.id, role: instituteRole, instituteId: currentInstituteId, classId: currentClassId }
+            );
+            const enrolledData = enrolledResult?.data || (Array.isArray(enrolledResult) ? enrolledResult : []);
+            const verifiedIds = new Set<string>();
+            const pendingIds = new Set<string>();
+            enrolledData.forEach((item: any) => {
+              const subId = item.subjectId || item.subject?.id;
+              if (subId) {
+                if (item.isVerified === false) {
+                  pendingIds.add(subId);
+                } else {
+                  verifiedIds.add(subId);
+                }
+              }
+            });
+            setEnrolledSubjects(verifiedIds);
+            setPendingSubjects(pendingIds);
+          } catch (enrollErr) {
+            console.error('Failed to fetch student enrollment status:', enrollErr);
+          }
+        }
       } else {
         // Handle the original response for other roles
         if (Array.isArray(result)) {
@@ -345,6 +359,55 @@ const SubjectSelector = () => {
     setPageSize(newPageSize);
     fetchSubjectsByRole(1, newPageSize);
   };
+  const handleEnrollClick = (subject: SubjectCardData) => {
+    setEnrollSubject(subject);
+    setEnrollmentKey('');
+    setEnrollDialogOpen(true);
+  };
+
+  const handleEnrollSubmit = async () => {
+    if (!enrollSubject || !currentInstituteId || !currentClassId) return;
+    setIsEnrolling(true);
+    try {
+      const token = localStorage.getItem('access_token');
+      const response = await fetch(`${getBaseUrl()}/institute-class-subject-students/self-enroll`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          instituteId: currentInstituteId,
+          classId: currentClassId,
+          subjectId: enrollSubject.id,
+          enrollmentKey
+        })
+      });
+      
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.message || 'Failed to enroll');
+      }
+      
+      const result = await response.json();
+      setPendingSubjects(prev => new Set(prev).add(enrollSubject.id));
+      setEnrollDialogOpen(false);
+      toast({
+        title: "Enrollment Submitted",
+        description: result.message || "Awaiting verification by teacher or admin."
+      });
+    } catch (error: any) {
+      console.error('Enrollment error:', error);
+      toast({
+        title: "Enrollment Failed",
+        description: error.message || "Failed to enroll in subject",
+        variant: "destructive"
+      });
+    } finally {
+      setIsEnrolling(false);
+    }
+  };
+
   if (!user) {
     return <div className="text-center py-12">
         <p className="text-gray-600 dark:text-gray-400">Please log in to view subjects.</p>
@@ -479,12 +542,39 @@ const SubjectSelector = () => {
                       {showMore ? 'Show Less' : 'Read More'}
                     </button>
                     
-                    <button 
-                      onClick={() => handleSelectSubject(subject)}
-                      className="w-full select-none rounded-md bg-primary py-2 px-4 text-center align-middle font-sans text-[10px] font-semibold uppercase text-primary-foreground shadow-sm shadow-primary/20 transition-all hover:shadow-md hover:shadow-primary/30 active:opacity-90"
-                    >
-                      Select {subjectLabel}
-                    </button>
+                    {/* Select Subject button - for students, only enabled if enrolled & verified */}
+                    {instituteRole === 'Student' ? (
+                      enrolledSubjects.has(subject.id) ? (
+                        <button 
+                          onClick={() => handleSelectSubject(subject)}
+                          className="w-full select-none rounded-md bg-primary py-2 px-4 text-center align-middle font-sans text-[10px] font-semibold uppercase text-primary-foreground shadow-sm shadow-primary/20 transition-all hover:shadow-md hover:shadow-primary/30 active:opacity-90"
+                        >
+                          Select {subjectLabel}
+                        </button>
+                      ) : pendingSubjects.has(subject.id) ? (
+                        <div className="w-full text-center py-2">
+                          <Badge variant="outline" className="text-amber-600 border-amber-300">
+                            <Clock className="h-3 w-3 mr-1" />
+                            Pending Verification
+                          </Badge>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => handleEnrollClick(subject)}
+                          className="w-full select-none rounded-md border border-primary py-2 px-4 text-center align-middle font-sans text-[10px] font-semibold uppercase text-primary shadow-sm transition-all hover:bg-primary/10 active:opacity-90"
+                        >
+                          <LogIn className="h-3 w-3 inline mr-1" />
+                          Enroll
+                        </button>
+                      )
+                    ) : (
+                      <button 
+                        onClick={() => handleSelectSubject(subject)}
+                        className="w-full select-none rounded-md bg-primary py-2 px-4 text-center align-middle font-sans text-[10px] font-semibold uppercase text-primary-foreground shadow-sm shadow-primary/20 transition-all hover:shadow-md hover:shadow-primary/30 active:opacity-90"
+                      >
+                        Select {subjectLabel}
+                      </button>
+                    )}
                   </div>
                 </div>
               );
@@ -541,6 +631,44 @@ const SubjectSelector = () => {
             </div>
           )}
         </div>}
+
+      {/* Enrollment Dialog */}
+      <Dialog open={enrollDialogOpen} onOpenChange={setEnrollDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Enroll in {enrollSubject?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="enrollmentKey">Enrollment Key</Label>
+              <Input
+                id="enrollmentKey"
+                placeholder="Enter enrollment key"
+                value={enrollmentKey}
+                onChange={(e) => setEnrollmentKey(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Enter the enrollment key provided by your teacher or admin.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEnrollDialogOpen(false)} disabled={isEnrolling}>
+              Cancel
+            </Button>
+            <Button onClick={handleEnrollSubmit} disabled={isEnrolling || !enrollmentKey.trim()}>
+              {isEnrolling ? (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  Enrolling...
+                </>
+              ) : (
+                'Enroll'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>;
 };
 export default SubjectSelector;

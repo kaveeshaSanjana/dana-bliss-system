@@ -8,12 +8,12 @@
  * - Session restored on page load via cookie-based /v2/auth/refresh
  * 
  * MOBILE (Capacitor):
- * - All tokens: Capacitor Preferences (native secure storage)
+ * - All tokens: Secure Storage (Keychain on iOS, EncryptedSharedPreferences on Android)
+ * - 256-bit AES encryption at rest
  * - Refresh token stored locally (no cookie support in WebView)
  */
 
 import { Capacitor } from '@capacitor/core';
-import { Preferences } from '@capacitor/preferences';
 
 // ============= PLATFORM DETECTION =============
 
@@ -25,6 +25,44 @@ export const getPlatform = (): 'web' | 'android' | 'ios' => {
   if (!Capacitor.isNativePlatform()) return 'web';
   const platform = Capacitor.getPlatform();
   return platform === 'ios' ? 'ios' : 'android';
+};
+
+// ============= SECURE STORAGE HELPERS =============
+
+/**
+ * Wraps SecureStoragePlugin calls. On native, uses encrypted Keychain/EncryptedSharedPreferences.
+ * get() throws when key doesn't exist, so we catch and return null.
+ */
+const secureStorage = {
+  async set(key: string, value: string): Promise<void> {
+    const { SecureStoragePlugin } = await import('capacitor-secure-storage-plugin');
+    await SecureStoragePlugin.set({ key, value });
+  },
+
+  async get(key: string): Promise<string | null> {
+    try {
+      const { SecureStoragePlugin } = await import('capacitor-secure-storage-plugin');
+      const result = await SecureStoragePlugin.get({ key });
+      return result.value;
+    } catch {
+      // Key doesn't exist
+      return null;
+    }
+  },
+
+  async remove(key: string): Promise<void> {
+    try {
+      const { SecureStoragePlugin } = await import('capacitor-secure-storage-plugin');
+      await SecureStoragePlugin.remove({ key });
+    } catch {
+      // Key didn't exist — no-op
+    }
+  },
+
+  async clear(): Promise<void> {
+    const { SecureStoragePlugin } = await import('capacitor-secure-storage-plugin');
+    await SecureStoragePlugin.clear();
+  },
 };
 
 // ============= STORAGE KEYS =============
@@ -61,7 +99,6 @@ function getBroadcastChannel(): BroadcastChannel | null {
         memoryStore.expiresAt = expiresAt;
       } else if (type === 'LOGOUT') {
         memoryStore = { accessToken: null, refreshToken: null, expiresAt: null };
-        // Dispatch event so AuthContext can react
         window.dispatchEvent(new CustomEvent('auth:logged-out-other-tab'));
       }
     };
@@ -100,48 +137,37 @@ export const tokenStorageService = {
   /**
    * Store access token
    * - Web: IN-MEMORY ONLY (+ broadcast to other tabs)
-   * - Mobile: Capacitor Preferences + memory
+   * - Mobile: Secure Storage (encrypted) + memory
    */
   async setAccessToken(token: string): Promise<void> {
     memoryStore.accessToken = token;
 
     if (isNativePlatform()) {
-      await Preferences.set({ key: KEYS.ACCESS_TOKEN, value: token });
+      await secureStorage.set(KEYS.ACCESS_TOKEN, token);
     }
 
-    // Broadcast to other tabs (web only)
     broadcastTokenUpdate();
   },
 
   /**
    * Get access token from memory.
-   * Returns null if expired or not present.
+   * Returns the token even if expired — the server will 401 and the API client
+   * will trigger a refresh + retry.
    */
   async getAccessToken(): Promise<string | null> {
-    // Check expiry
-    if (memoryStore.expiresAt && Date.now() >= memoryStore.expiresAt) {
-      // Token expired in memory
-      return null;
-    }
-
     if (memoryStore.accessToken) {
       return memoryStore.accessToken;
     }
 
-    // On mobile, fall back to Preferences if memory is empty (cold start)
+    // On mobile, fall back to secure storage if memory is empty (cold start)
     if (isNativePlatform()) {
-      const result = await Preferences.get({ key: KEYS.ACCESS_TOKEN });
-      if (result.value) {
-        memoryStore.accessToken = result.value;
-        // Also load expiry
+      const value = await secureStorage.get(KEYS.ACCESS_TOKEN);
+      if (value) {
+        memoryStore.accessToken = value;
         if (!memoryStore.expiresAt) {
           memoryStore.expiresAt = await this.getTokenExpiry();
         }
-        // Re-check expiry
-        if (memoryStore.expiresAt && Date.now() >= memoryStore.expiresAt) {
-          return null;
-        }
-        return result.value;
+        return value;
       }
     }
 
@@ -152,7 +178,7 @@ export const tokenStorageService = {
   async removeAccessToken(): Promise<void> {
     memoryStore.accessToken = null;
     if (isNativePlatform()) {
-      await Preferences.remove({ key: KEYS.ACCESS_TOKEN });
+      await secureStorage.remove(KEYS.ACCESS_TOKEN);
     }
   },
 
@@ -161,24 +187,20 @@ export const tokenStorageService = {
   async setRefreshToken(token: string): Promise<void> {
     memoryStore.refreshToken = token;
     if (isNativePlatform()) {
-      await Preferences.set({ key: KEYS.REFRESH_TOKEN, value: token });
+      await secureStorage.set(KEYS.REFRESH_TOKEN, token);
     } else {
-      // Web: also store if rememberMe is enabled (fallback for httpOnly cookie)
-      const rememberMe = localStorage.getItem(KEYS.REMEMBER_ME);
-      if (rememberMe === 'true') {
-        localStorage.setItem(KEYS.REFRESH_TOKEN, token);
-      }
+      // Always store refresh token on web — httpOnly cookies don't work cross-origin
+      localStorage.setItem(KEYS.REFRESH_TOKEN, token);
     }
   },
 
   async getRefreshToken(): Promise<string | null> {
     if (memoryStore.refreshToken) return memoryStore.refreshToken;
     if (isNativePlatform()) {
-      const result = await Preferences.get({ key: KEYS.REFRESH_TOKEN });
-      memoryStore.refreshToken = result.value;
-      return result.value;
+      const value = await secureStorage.get(KEYS.REFRESH_TOKEN);
+      memoryStore.refreshToken = value;
+      return value;
     }
-    // Web: check localStorage fallback (rememberMe sessions)
     const stored = localStorage.getItem(KEYS.REFRESH_TOKEN);
     if (stored) {
       memoryStore.refreshToken = stored;
@@ -190,7 +212,7 @@ export const tokenStorageService = {
   async removeRefreshToken(): Promise<void> {
     memoryStore.refreshToken = null;
     if (isNativePlatform()) {
-      await Preferences.remove({ key: KEYS.REFRESH_TOKEN });
+      await secureStorage.remove(KEYS.REFRESH_TOKEN);
     } else {
       localStorage.removeItem(KEYS.REFRESH_TOKEN);
     }
@@ -201,7 +223,7 @@ export const tokenStorageService = {
   async setUserData(userData: object): Promise<void> {
     const dataString = JSON.stringify(userData);
     if (isNativePlatform()) {
-      await Preferences.set({ key: KEYS.USER_DATA, value: dataString });
+      await secureStorage.set(KEYS.USER_DATA, dataString);
     } else {
       localStorage.setItem(KEYS.USER_DATA, dataString);
     }
@@ -210,8 +232,7 @@ export const tokenStorageService = {
   async getUserData<T = any>(): Promise<T | null> {
     let dataString: string | null = null;
     if (isNativePlatform()) {
-      const result = await Preferences.get({ key: KEYS.USER_DATA });
-      dataString = result.value;
+      dataString = await secureStorage.get(KEYS.USER_DATA);
     } else {
       dataString = localStorage.getItem(KEYS.USER_DATA);
     }
@@ -225,7 +246,7 @@ export const tokenStorageService = {
 
   async removeUserData(): Promise<void> {
     if (isNativePlatform()) {
-      await Preferences.remove({ key: KEYS.USER_DATA });
+      await secureStorage.remove(KEYS.USER_DATA);
     } else {
       localStorage.removeItem(KEYS.USER_DATA);
     }
@@ -237,18 +258,17 @@ export const tokenStorageService = {
     memoryStore.expiresAt = expiryTimestamp;
     const value = expiryTimestamp.toString();
     if (isNativePlatform()) {
-      await Preferences.set({ key: KEYS.TOKEN_EXPIRY, value });
+      await secureStorage.set(KEYS.TOKEN_EXPIRY, value);
     }
-    // Web: expiry lives only in memory (alongside access token)
     broadcastTokenUpdate();
   },
 
   async getTokenExpiry(): Promise<number | null> {
     if (memoryStore.expiresAt) return memoryStore.expiresAt;
     if (isNativePlatform()) {
-      const result = await Preferences.get({ key: KEYS.TOKEN_EXPIRY });
-      if (result.value) {
-        memoryStore.expiresAt = parseInt(result.value, 10);
+      const value = await secureStorage.get(KEYS.TOKEN_EXPIRY);
+      if (value) {
+        memoryStore.expiresAt = parseInt(value, 10);
         return memoryStore.expiresAt;
       }
     }
@@ -265,10 +285,10 @@ export const tokenStorageService = {
 
   async getDeviceId(): Promise<string | null> {
     if (!isNativePlatform()) return null;
-    const result = await Preferences.get({ key: KEYS.DEVICE_ID });
-    if (result.value) return result.value;
+    const value = await secureStorage.get(KEYS.DEVICE_ID);
+    if (value) return value;
     const deviceId = `${getPlatform()}_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
-    await Preferences.set({ key: KEYS.DEVICE_ID, value: deviceId });
+    await secureStorage.set(KEYS.DEVICE_ID, deviceId);
     return deviceId;
   },
 
@@ -276,7 +296,7 @@ export const tokenStorageService = {
 
   async setRememberMe(value: boolean): Promise<void> {
     if (isNativePlatform()) {
-      await Preferences.set({ key: KEYS.REMEMBER_ME, value: value.toString() });
+      await secureStorage.set(KEYS.REMEMBER_ME, value.toString());
     } else {
       localStorage.setItem(KEYS.REMEMBER_ME, value.toString());
     }
@@ -284,8 +304,8 @@ export const tokenStorageService = {
 
   async getRememberMe(): Promise<boolean> {
     if (isNativePlatform()) {
-      const result = await Preferences.get({ key: KEYS.REMEMBER_ME });
-      return result.value === 'true';
+      const value = await secureStorage.get(KEYS.REMEMBER_ME);
+      return value === 'true';
     }
     return localStorage.getItem(KEYS.REMEMBER_ME) === 'true';
   },
@@ -293,23 +313,20 @@ export const tokenStorageService = {
   // ============= CLEAR ALL =============
 
   async clearAll(): Promise<void> {
-    // Clear memory
     memoryStore = { accessToken: null, refreshToken: null, expiresAt: null };
 
     if (isNativePlatform()) {
       await Promise.all([
-        Preferences.remove({ key: KEYS.ACCESS_TOKEN }),
-        Preferences.remove({ key: KEYS.REFRESH_TOKEN }),
-        Preferences.remove({ key: KEYS.USER_DATA }),
-        Preferences.remove({ key: KEYS.TOKEN_EXPIRY }),
-        Preferences.remove({ key: KEYS.REMEMBER_ME }),
+        secureStorage.remove(KEYS.ACCESS_TOKEN),
+        secureStorage.remove(KEYS.REFRESH_TOKEN),
+        secureStorage.remove(KEYS.USER_DATA),
+        secureStorage.remove(KEYS.TOKEN_EXPIRY),
+        secureStorage.remove(KEYS.REMEMBER_ME),
       ]);
     } else {
-      // Web: clear all auth data from localStorage
       localStorage.removeItem(KEYS.USER_DATA);
       localStorage.removeItem(KEYS.REFRESH_TOKEN);
       localStorage.removeItem(KEYS.REMEMBER_ME);
-      // Also clear legacy keys
       localStorage.removeItem('token');
       localStorage.removeItem('authToken');
       localStorage.removeItem('org_access_token');
@@ -317,7 +334,6 @@ export const tokenStorageService = {
       localStorage.removeItem(KEYS.TOKEN_EXPIRY);
     }
 
-    // Notify other tabs
     broadcastLogout();
   },
 
@@ -328,14 +344,8 @@ export const tokenStorageService = {
     return !!token;
   },
 
-  /**
-   * Check if we have ANY auth state (token in memory or user data cached).
-   * Used to decide whether to attempt a cookie-based refresh on app init.
-   */
   hasAnyAuthHint(): boolean {
-    // If we have a token in memory, yes
     if (memoryStore.accessToken) return true;
-    // On web, check if user_data exists (implies previous session)
     if (!isNativePlatform()) {
       return !!localStorage.getItem(KEYS.USER_DATA);
     }
@@ -345,10 +355,6 @@ export const tokenStorageService = {
   // ============= SYNC ACCESS TOKEN (for API headers) =============
 
   getAccessTokenSync(): string | null {
-    if (isNativePlatform()) {
-      return memoryStore.accessToken || null;
-    }
-    // Web: memory-only
     return memoryStore.accessToken || null;
   },
 };

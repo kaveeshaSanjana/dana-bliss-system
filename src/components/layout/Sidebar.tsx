@@ -98,7 +98,7 @@ const SidebarSection = React.memo(({ title, items, isCollapsed, sidebarHighlight
 SidebarSection.displayName = 'SidebarSection';
 
 const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
-  const { user, selectedInstitute, selectedClass, selectedSubject, selectedChild, selectedOrganization, selectedTransport, logout, setSelectedInstitute, setSelectedClass, setSelectedSubject, setSelectedChild, setSelectedOrganization, setSelectedTransport } = useAuth();
+  const { user, selectedInstitute, selectedClass, selectedSubject, selectedChild, selectedOrganization, selectedTransport, logout, setSelectedInstitute, setSelectedClass, setSelectedSubject, setSelectedChild, setSelectedOrganization, setSelectedTransport, isViewingAsParent } = useAuth();
   const [isCollapsed, setIsCollapsed] = React.useState(false);
   const location = useLocation();
   const navigate = useNavigate();
@@ -1790,10 +1790,10 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
 
       {/* Sidebar */}
       <div className={`
-        fixed inset-y-0 left-0 z-50 lg:relative
-        ${isCollapsed ? 'w-16' : 'w-72 sm:w-80 lg:w-72'} bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700
+        fixed inset-y-0 right-0 z-50 lg:relative lg:left-0 lg:right-auto
+        ${isCollapsed ? 'w-16' : 'w-72 sm:w-80 lg:w-72'} bg-white dark:bg-gray-800 border-l lg:border-l-0 lg:border-r border-gray-200 dark:border-gray-700
         transform transition-all duration-300 ease-in-out lg:transform-none
-        ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+        ${isOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'}
         flex flex-col h-dvh
         overflow-hidden
         pt-safe-top pb-safe-bottom
@@ -2023,7 +2023,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
               </div>
               <div>
                 <span>Role:</span> 
-                <span className="font-medium ml-1">{userRole}</span>
+                <span className="font-medium ml-1">{isViewingAsParent ? 'Parent' : userRole}</span>
               </div>
             </div>
           )}

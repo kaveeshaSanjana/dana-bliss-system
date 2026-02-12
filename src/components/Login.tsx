@@ -9,6 +9,8 @@ import { type UserRole } from '@/contexts/AuthContext';
 import { Eye, EyeOff, GraduationCap, Wifi, WifiOff, Settings, Mail, Key, UserCheck, RotateCcw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { getBaseUrl, getBaseUrl2 } from '@/contexts/utils/auth.api';
+import { Capacitor } from '@capacitor/core';
+import FirstLogin from '@/components/FirstLogin';
 import surakshaLogo from '@/assets/suraksha-logo.png';
 import loginIllustration from '@/assets/login-illustration.png';
 
@@ -131,7 +133,8 @@ const Login = ({
 }: LoginProps) => {
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(false);
+  // On mobile app, always enable rememberMe for persistent login
+  const [rememberMe, setRememberMe] = useState(Capacitor.isNativePlatform());
   const [baseUrl, setBaseUrl] = useState(() => {
     const stored = getBaseUrl();
     return stored || 'https://your-backend-url.com';
@@ -143,6 +146,7 @@ const Login = ({
   const [isLoading, setIsLoading] = useState(false);
   const [useApiLogin, setUseApiLogin] = useState(true);
   const [showFirstLogin, setShowFirstLogin] = useState(false);
+  const [showFirstLoginV2, setShowFirstLoginV2] = useState(false);
 
   // First login and forgot password states
   const [loginStep, setLoginStep] = useState<LoginStep>('login');
@@ -614,9 +618,19 @@ const Login = ({
     setConfirmPassword('');
     setShowFirstLogin(true);
   };
-  return <div className="min-h-screen flex flex-col md:flex-row overflow-x-hidden">
+  // Show Phone-based first login flow
+  if (showFirstLoginV2) {
+    return <FirstLogin
+      onBack={() => setShowFirstLoginV2(false)}
+      onComplete={(user) => {
+        setShowFirstLoginV2(false);
+        onLogin(user);
+      }}
+    />;
+  }
+  return <div className="min-h-[100dvh] flex flex-col md:flex-row overflow-x-hidden">
       {/* Top Illustration - Mobile Only */}
-      <div className="block md:hidden w-full relative h-32 sm:h-40">
+      <div className="block md:hidden w-full relative h-28 shrink-0">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-primary/5" />
         <img src={loginIllustration} alt="AI-powered education illustration" className="absolute inset-0 w-full h-full object-cover mix-blend-multiply" loading="lazy" onError={e => {
         (e.currentTarget as HTMLImageElement).style.display = 'none';
@@ -624,17 +638,17 @@ const Login = ({
       </div>
 
       {/* Left Side - Form */}
-      <div className="w-full md:w-1/2 lg:w-2/5 flex items-start md:items-center justify-center px-4 py-4 sm:p-6 md:p-8 bg-background -mt-6 md:mt-0 rounded-t-[2rem] md:rounded-none relative z-10 min-h-0 md:min-h-screen">
-        <div className="w-full max-w-md space-y-3 md:space-y-6">
+      <div className="w-full md:w-1/2 lg:w-2/5 flex flex-col items-center justify-start md:justify-center px-4 py-3 sm:p-6 md:p-8 bg-background -mt-6 md:mt-0 rounded-t-[2rem] md:rounded-none relative z-10 flex-1 md:min-h-screen overflow-y-auto">
+        <div className="w-full max-w-md space-y-2 md:space-y-6">
           {/* Logo and Header */}
           <div className="space-y-0.5 text-center">
-            <div className="flex flex-col items-center justify-center mb-2 md:mb-6">
-              <div className="w-14 h-14 md:w-24 md:h-24 rounded-lg overflow-hidden bg-transparent mb-1">
+            <div className="flex flex-col items-center justify-center mb-1 md:mb-6">
+              <div className="w-10 h-10 md:w-24 md:h-24 rounded-lg overflow-hidden bg-transparent mb-0.5">
                 <img src={surakshaLogo} alt="SurakshaLMS logo" className="w-full h-full object-contain" loading="lazy" />
               </div>
-              <span className="text-2xl md:text-4xl font-bold text-foreground">SurakshaLMS</span>
+              <span className="text-xl md:text-4xl font-bold text-foreground">SurakshaLMS</span>
             </div>
-            <h1 className="text-lg md:text-2xl font-bold text-foreground">Welcome back</h1>
+            <h1 className="text-base md:text-2xl font-bold text-foreground">Welcome back</h1>
             <p className="text-xs text-muted-foreground">Please enter your details</p>
           </div>
 
@@ -680,7 +694,8 @@ const Login = ({
 
                 {/* Remember me and Forgot Password */}
                 {useApiLogin && <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center space-x-2">
+                  {/* Only show Remember Me checkbox on web, mobile always remembers */}
+                  {!Capacitor.isNativePlatform() && <div className="flex items-center space-x-2">
                     <input
                       type="checkbox"
                       id="remember"
@@ -691,7 +706,7 @@ const Login = ({
                     <label htmlFor="remember" className="text-xs md:text-sm text-foreground cursor-pointer">
                       Remember me
                     </label>
-                  </div>
+                  </div>}
                   <Button type="button" variant="link" onClick={startForgotPassword} className="text-xs md:text-sm text-primary hover:text-primary/80 p-0 h-auto">
                     Forgot password?
                   </Button>
@@ -709,9 +724,9 @@ const Login = ({
 
                 {/* First Time Login Link */}
                 {useApiLogin && <div className="text-center pt-1">
-                    <span className="text-xs md:text-sm text-muted-foreground">Don't have an account? </span>
-                    <Button type="button" variant="link" onClick={startFirstLogin} className="text-xs md:text-sm text-primary hover:text-primary/80 p-0 h-auto">
-                      Sign up
+                    <span className="text-xs md:text-sm text-muted-foreground">Registered by your institute? </span>
+                    <Button type="button" variant="link" onClick={() => setShowFirstLoginV2(true)} className="text-xs md:text-sm text-primary hover:text-primary/80 p-0 h-auto">
+                      Activate your account
                     </Button>
                   </div>}
               </form>}

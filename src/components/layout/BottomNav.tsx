@@ -41,7 +41,7 @@ const BottomNav = ({ onMenuClick }: BottomNavProps) => {
   }, [selectedInstitute?.id, navigate]);
 
   return (
-    <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-background border-t border-border pb-safe-bottom">
+    <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-t border-border/50 pb-safe-bottom">
       <div className="flex items-center justify-around h-14">
         {/* Home */}
         <button
@@ -85,7 +85,7 @@ const BottomNav = ({ onMenuClick }: BottomNavProps) => {
           <span className="text-[10px] font-medium">Profile</span>
         </button>
 
-        {/* Menu (Sidebar) */}
+        {/* Menu (Sidebar) - opens from right */}
         <button
           onClick={onMenuClick}
           className="flex flex-col items-center justify-center flex-1 h-full gap-0.5 text-muted-foreground transition-colors"
