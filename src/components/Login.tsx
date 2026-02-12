@@ -630,39 +630,39 @@ const Login = ({
   }
   return <div className="min-h-[100dvh] flex flex-col md:flex-row overflow-x-hidden bg-gradient-to-b from-primary/5 via-background to-background md:bg-none">
       {/* Top Illustration - Mobile Only */}
-      <div className="block md:hidden w-full relative h-36 shrink-0">
+      <div className="block md:hidden w-full relative h-32 shrink-0">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-primary/5" />
         <img src={loginIllustration} alt="AI-powered education illustration" className="absolute inset-0 w-full h-full object-cover mix-blend-multiply" loading="lazy" onError={e => {
         (e.currentTarget as HTMLImageElement).style.display = 'none';
       }} />
-        <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-background to-transparent" />
+        <div className="absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-background to-transparent" />
       </div>
 
       {/* Left Side - Form */}
-      <div className="w-full md:w-1/2 lg:w-2/5 flex flex-col items-center justify-start md:justify-center px-5 py-4 sm:p-6 md:p-8 bg-background -mt-8 md:mt-0 rounded-t-[2rem] md:rounded-none relative z-10 flex-1 md:min-h-screen overflow-y-auto">
-        <div className="w-full max-w-md space-y-4 md:space-y-6">
+      <div className="w-full md:w-1/2 lg:w-2/5 flex flex-col items-center justify-start md:justify-center px-4 py-2 sm:p-6 md:p-8 bg-background -mt-5 md:mt-0 rounded-t-3xl md:rounded-none relative z-10 flex-1 md:min-h-screen overflow-y-auto">
+        <div className="w-full max-w-md space-y-3 md:space-y-6">
           {/* Logo and Header */}
-          <div className="space-y-1 text-center">
-            <div className="flex flex-col items-center justify-center mb-2 md:mb-6">
-              <div className="w-14 h-14 md:w-24 md:h-24 rounded-2xl overflow-hidden bg-transparent mb-1 shadow-sm">
+          <div className="space-y-0.5 text-center">
+            <div className="flex flex-col items-center justify-center mb-1.5 md:mb-6">
+              <div className="w-12 h-12 md:w-24 md:h-24 rounded-xl overflow-hidden bg-transparent mb-0 shadow-sm">
                 <img src={surakshaLogo} alt="SurakshaLMS logo" className="w-full h-full object-contain" loading="lazy" />
               </div>
-              <span className="text-2xl md:text-4xl font-bold text-foreground tracking-tight">SurakshaLMS</span>
+              <span className="text-lg md:text-4xl font-bold text-foreground tracking-tight">SurakshaLMS</span>
             </div>
-            <h1 className="text-lg md:text-2xl font-semibold text-foreground">Welcome back</h1>
-            <p className="text-sm text-muted-foreground">Please enter your details to continue</p>
+            <h1 className="text-base md:text-2xl font-semibold text-foreground">Welcome back</h1>
+            <p className="text-xs md:text-sm text-muted-foreground">Please enter your details to continue</p>
           </div>
 
           {/* Main Login/First Login/Forgot Password Card */}
           <Card className="border-border/50 shadow-lg md:shadow-sm">
-            <CardContent className="pt-5 px-5 pb-5 md:pt-8 md:px-8 md:pb-8">
+            <CardContent className="pt-4 px-4 pb-4 md:pt-8 md:px-8 md:pb-8">
             {/* Regular Login Form */}
-            {loginStep === 'login' && <form onSubmit={handleLogin} className="space-y-4 md:space-y-6">
+            {loginStep === 'login' && <form onSubmit={handleLogin} className="space-y-3 md:space-y-6">
                 {/* Role Selection - Only show for mock login */}
                 {!useApiLogin && <div className="space-y-1.5">
-                    <Label htmlFor="role" className="text-sm">Role</Label>
+                    <Label htmlFor="role" className="text-xs md:text-sm">Role</Label>
                     <Select value={selectedRole} onValueChange={(value: UserRole) => setSelectedRole(value)}>
-                      <SelectTrigger className="h-10 md:h-11">
+                      <SelectTrigger className="h-9 md:h-11">
                         <SelectValue placeholder="Select your role" />
                       </SelectTrigger>
                       <SelectContent>
@@ -678,17 +678,17 @@ const Login = ({
 
                 {/* Identifier Input */}
                 <div className="space-y-1.5">
-                  <Label htmlFor="identifier" className="text-sm font-medium text-foreground">Email, Phone, ID or Birth Certificate</Label>
-                  <Input id="identifier" type="text" placeholder="Enter email, phone, ID..." value={identifier} onChange={e => setIdentifier(e.target.value)} required className="h-10 md:h-11 text-base" autoComplete="username" autoCapitalize="none" autoCorrect="off" />
+                  <Label htmlFor="identifier" className="text-xs md:text-sm font-medium text-foreground">Email, Phone, ID or Birth Certificate</Label>
+                  <Input id="identifier" type="text" placeholder="Enter email, phone, ID..." value={identifier} onChange={e => setIdentifier(e.target.value)} required className="h-9 md:h-11 text-sm md:text-base" autoComplete="username" autoCapitalize="none" autoCorrect="off" />
                 </div>
 
                 {/* Password Input */}
                 <div className="space-y-1.5">
-                  <Label htmlFor="password" className="text-sm font-medium text-foreground">Password</Label>
+                  <Label htmlFor="password" className="text-xs md:text-sm font-medium text-foreground">Password</Label>
                   <div className="relative">
-                    <Input id="password" type={showPassword ? 'text' : 'password'} placeholder="Enter your password" value={password} onChange={e => setPassword(e.target.value)} required className="h-10 md:h-11 text-base pr-12" autoComplete="current-password" />
-                    <Button type="button" variant="ghost" size="sm" className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent touch-manipulation" onClick={() => setShowPassword(!showPassword)}>
-                      {showPassword ? <EyeOff className="h-5 w-5 text-muted-foreground" /> : <Eye className="h-5 w-5 text-muted-foreground" />}
+                    <Input id="password" type={showPassword ? 'text' : 'password'} placeholder="Enter your password" value={password} onChange={e => setPassword(e.target.value)} required className="h-9 md:h-11 text-sm md:text-base pr-10" autoComplete="current-password" />
+                    <Button type="button" variant="ghost" size="sm" className="absolute right-0 top-0 h-full px-2 py-2 hover:bg-transparent touch-manipulation" onClick={() => setShowPassword(!showPassword)}>
+                      {showPassword ? <EyeOff className="h-4 w-4 md:h-5 md:w-5 text-muted-foreground" /> : <Eye className="h-4 w-4 md:h-5 md:w-5 text-muted-foreground" />}
                     </Button>
                   </div>
                 </div>
@@ -696,11 +696,11 @@ const Login = ({
                 {/* Remember me and Forgot Password */}
                 {useApiLogin && <div className="flex items-center justify-between gap-2">
                   {/* Only show Remember Me checkbox on web, mobile always remembers */}
-                  {!Capacitor.isNativePlatform() && <div className="flex items-center space-x-2">
+                  {!Capacitor.isNativePlatform() && <div className="flex items-center space-x-1.5">
                     <input
                       type="checkbox"
                       id="remember"
-                      className="rounded border-border w-4 h-4"
+                      className="rounded border-border w-3.5 h-3.5 md:w-4 md:h-4"
                       checked={rememberMe}
                       onChange={(e) => setRememberMe(e.target.checked)}
                     />
@@ -714,17 +714,17 @@ const Login = ({
                 </div>}
 
                 {/* Error Message */}
-                {error && <div className="text-xs md:text-sm text-destructive bg-destructive/10 p-2.5 md:p-3 rounded-md">
+                {error && <div className="text-xs md:text-sm text-destructive bg-destructive/10 p-2 md:p-3 rounded-md">
                     {error}
                   </div>}
 
                 {/* Login Button */}
-                <Button type="submit" className="w-full h-10 md:h-11 text-base touch-manipulation active:scale-[0.98] transition-transform" disabled={isLoading}>
+                <Button type="submit" className="w-full h-9 md:h-11 text-sm md:text-base touch-manipulation active:scale-[0.98] transition-transform" disabled={isLoading}>
                   {isLoading ? 'Signing in...' : 'Sign in'}
                 </Button>
 
                 {/* First Time Login Link */}
-                {useApiLogin && <div className="text-center pt-2">
+                {useApiLogin && <div className="text-center pt-0.5 md:pt-1">
                     <span className="text-xs md:text-sm text-muted-foreground">Don't have a password? </span>
                     <Button type="button" variant="link" onClick={() => setShowFirstLoginV2(true)} className="text-xs md:text-sm text-primary hover:text-primary/80 p-0 h-auto font-semibold">
                       Activate your account
