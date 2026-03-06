@@ -63,36 +63,39 @@ const SidebarSection = React.memo(({ title, items, isCollapsed, sidebarHighlight
   if (filteredItems.length === 0) return null;
 
   return (
-    <div className="mb-4 sm:mb-6">
+    <div className="mb-1">
       {!isCollapsed && (
-        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-3">
+        <h3 className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-[0.08em] mb-1 px-3 pt-2">
           {title}
         </h3>
       )}
-      <div className="space-y-1">
-        {filteredItems.map((item) => (
-          <Button
-            key={item.id}
-            variant={sidebarHighlightPage === item.id ? "secondary" : "ghost"}
-            className={`w-full ${isCollapsed ? 'justify-center px-2' : 'justify-start px-3'} h-9 sm:h-10 text-sm ${
-              sidebarHighlightPage === item.id 
-                ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-r-2 border-blue-500' 
-                : item.locked 
-                  ? 'text-muted-foreground/50 cursor-not-allowed opacity-60' 
-                  : 'text-foreground/70 hover:bg-muted hover:text-foreground'
-            }`}
-            onClick={() => !item.locked && onItemClick(item.id)}
-            disabled={item.locked}
-          >
-            <item.icon className={`${isCollapsed ? '' : 'mr-3'} h-4 w-4 flex-shrink-0`} />
-            {!isCollapsed && (
-              <span className="flex items-center gap-2">
-                {item.label}
-                {item.locked && <Lock className="h-3 w-3" />}
-              </span>
-            )}
-          </Button>
-        ))}
+      <div className="space-y-0.5">
+        {filteredItems.map((item) => {
+          const isActive = sidebarHighlightPage === item.id;
+          return (
+            <Button
+              key={item.id}
+              variant="ghost"
+              className={`w-full ${isCollapsed ? 'justify-center px-2' : 'justify-start px-3'} h-8 text-[13px] font-medium rounded-lg transition-all duration-150 ${
+                isActive
+                  ? 'bg-primary/10 text-primary border-l-2 border-primary shadow-sm' 
+                  : item.locked 
+                    ? 'text-muted-foreground/40 cursor-not-allowed' 
+                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+              }`}
+              onClick={() => !item.locked && onItemClick(item.id)}
+              disabled={item.locked}
+            >
+              <item.icon className={`${isCollapsed ? '' : 'mr-2.5'} h-4 w-4 flex-shrink-0 ${isActive ? 'text-primary' : ''}`} />
+              {!isCollapsed && (
+                <span className="flex items-center gap-1.5 truncate">
+                  {item.label}
+                  {item.locked && <Lock className="h-3 w-3 opacity-50" />}
+                </span>
+              )}
+            </Button>
+          );
+        })}
       </div>
     </div>
   );
