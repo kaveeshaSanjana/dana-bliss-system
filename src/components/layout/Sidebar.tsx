@@ -2136,87 +2136,80 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                     <>
                       <SidebarSection {...sectionProps} title="Main" items={menuItemsDisplay.filter(item => !item.hasOwnProperty('section'))} />
                       
-                      {/* Main's section for items with section property */}
                       {menuItemsDisplay.some(item => (item as any).section === "Main's") && (
                         <SidebarSection {...sectionProps} title="Main's" items={menuItemsDisplay.filter(item => (item as any).section === "Main's")} />
                       )}
                     </>
                   )}
                   
-                  {/* Show sections without "Main" label when no institute selected (exclude child context) */}
                   {!selectedInstitute && !selectedChild && menuItemsDisplay.length > 0 && (
                     <SidebarSection {...sectionProps} title="Select Institute" items={menuItemsDisplay.filter(item => !item.hasOwnProperty('section'))} />
                   )}
+
+                  {/* Divider before grouped sections */}
+                  {selectedInstitute && <div className="my-1.5 mx-3 border-t border-border/50" />}
                   
-                  {/* Show attendance section for Teacher based on selection state */}
+                  {/* Attendance - collapsible */}
                   {userRole === 'Teacher' && attendanceItemsDisplay.length > 0 && (
-                    <SidebarSection {...sectionProps} title="Attendance" items={attendanceItemsDisplay} />
+                    <SidebarSection {...sectionProps} title="Attendance" items={attendanceItemsDisplay} sectionIcon={<UserCheck className="h-3.5 w-3.5" />} />
                   )}
-                  
-                  {/* Show attendance section when institute is selected for InstituteAdmin */}
                   {userRole === 'InstituteAdmin' && selectedInstitute && (
-                    <SidebarSection {...sectionProps} title="Attendance" items={attendanceItemsDisplay} />
+                    <SidebarSection {...sectionProps} title="Attendance" items={attendanceItemsDisplay} sectionIcon={<UserCheck className="h-3.5 w-3.5" />} />
                   )}
-                  
-                  {/* For AttendanceMarker role, only show Mark Attendance when institute is selected */}
                   {userRole === 'AttendanceMarker' && selectedInstitute && (
-                    <SidebarSection {...sectionProps} title="Attendance" items={attendanceItemsDisplay} />
+                    <SidebarSection {...sectionProps} title="Attendance" items={attendanceItemsDisplay} sectionIcon={<UserCheck className="h-3.5 w-3.5" />} />
                   )}
-                  
-                  {/* For other roles, show attendance navigation based on role */}
                   {userRole !== 'AttendanceMarker' && userRole !== 'InstituteAdmin' && userRole !== 'Teacher' && userRole !== 'Student' && selectedInstitute && (
-                    <SidebarSection {...sectionProps} title="Attendance" items={attendanceItemsDisplay} />
+                    <SidebarSection {...sectionProps} title="Attendance" items={attendanceItemsDisplay} sectionIcon={<UserCheck className="h-3.5 w-3.5" />} />
                   )}
                   
-                  {/* Show academic items for Teacher only when institute, class and subject are all selected */}
+                  {/* Academic - collapsible */}
                   {userRole === 'Teacher' && systemItemsDisplay.length > 0 && (
-                    <SidebarSection {...sectionProps} title="Academic" items={systemItemsDisplay} />
+                    <SidebarSection {...sectionProps} title="Academic" items={systemItemsDisplay} sectionIcon={<BookOpen className="h-3.5 w-3.5" />} />
                   )}
-                  
-                  {/* Show academic items for InstituteAdmin only when institute, class and subject are all selected */}
                   {userRole === 'InstituteAdmin' && selectedInstitute && selectedClass && selectedSubject && (
-                    <SidebarSection {...sectionProps} title="Academic" items={systemItemsDisplay} />
+                    <SidebarSection {...sectionProps} title="Academic" items={systemItemsDisplay} sectionIcon={<BookOpen className="h-3.5 w-3.5" />} />
                   )}
-                  
-                  {/* Show full academic section for other roles (excluding Student) */}
                   {selectedInstitute && userRole !== 'AttendanceMarker' && userRole !== 'InstituteAdmin' && userRole !== 'Teacher' && userRole !== 'Student' && (
-                    <SidebarSection {...sectionProps} title="Academic" items={systemItemsDisplay} />
+                    <SidebarSection {...sectionProps} title="Academic" items={systemItemsDisplay} sectionIcon={<BookOpen className="h-3.5 w-3.5" />} />
                   )}
                   
-                  {/* Show My Children section before institute selection for Parents */}
+                  {/* My Children & Child */}
                   {myChildrenItemsDisplay.length > 0 && (
                     <SidebarSection {...sectionProps} title="My Children" items={myChildrenItemsDisplay} />
                   )}
-                  
-                  {/* Show Child specific navigation when child is selected */}
                   {childItemsDisplay.length > 0 && (
                     <SidebarSection {...sectionProps} title="Select Child Institute" items={childItemsDisplay} />
                   )}
+
+                  {/* Divider before payments/comms */}
+                  {(systemPaymentItemsDisplay.length > 0 || paymentItemsDisplay.length > 0 || smsItemsDisplay.length > 0) && (
+                    <div className="my-1.5 mx-3 border-t border-border/50" />
+                  )}
                   
-                  {/* Show System Payments section before institute selection */}
+                  {/* Payments - collapsible */}
                   {systemPaymentItemsDisplay.length > 0 && (
-                    <SidebarSection {...sectionProps} title="System Payments" items={systemPaymentItemsDisplay} />
+                    <SidebarSection {...sectionProps} title="System Payments" items={systemPaymentItemsDisplay} sectionIcon={<CreditCard className="h-3.5 w-3.5" />} />
                   )}
-                  
-                  {/* Show Payment section for specific user types based on new rules */}
                   {paymentItemsDisplay.length > 0 && (
-                    <SidebarSection {...sectionProps} title="Payments" items={paymentItemsDisplay} />
+                    <SidebarSection {...sectionProps} title="Payments" items={paymentItemsDisplay} sectionIcon={<CreditCard className="h-3.5 w-3.5" />} />
                   )}
                   
+                  {/* SMS - collapsible */}
                   {smsItemsDisplay.length > 0 && (
-                    <SidebarSection {...sectionProps} title="SMS" items={smsItemsDisplay} />
+                    <SidebarSection {...sectionProps} title="SMS" items={smsItemsDisplay} sectionIcon={<MessageSquare className="h-3.5 w-3.5" />} />
                   )}
                   
-                  {/* Notifications Section - before Settings */}
+                  {/* Notifications - collapsible */}
                   {notificationItemsDisplay.length > 0 && (
-                    <SidebarSection 
-                      {...sectionProps}
-                      title="Notifications" 
-                      items={notificationItemsDisplay} 
-                    />
+                    <SidebarSection {...sectionProps} title="Notifications" items={notificationItemsDisplay} sectionIcon={<Bell className="h-3.5 w-3.5" />} />
                   )}
+
+                  {/* Divider before settings */}
+                  <div className="my-1.5 mx-3 border-t border-border/50" />
                   
-                  <SidebarSection {...sectionProps} title="Settings" items={settingsItemsDisplay} />
+                  {/* Settings - collapsible */}
+                  <SidebarSection {...sectionProps} title="Settings" items={settingsItemsDisplay} sectionIcon={<Settings className="h-3.5 w-3.5" />} />
                 </>
               );
             })()}
