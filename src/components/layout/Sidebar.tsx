@@ -1,6 +1,7 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useAuth } from '@/contexts/AuthContext';
 import { useInstituteRole } from '@/hooks/useInstituteRole';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
@@ -40,7 +41,8 @@ import {
   Lock,
   Bell,
   Calendar,
-  CalendarDays
+  CalendarDays,
+  ChevronDown
 } from 'lucide-react';
 import surakshaLogoSidebar from '@/assets/suraksha-logo-sidebar.png';
 
