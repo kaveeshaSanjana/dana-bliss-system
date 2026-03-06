@@ -52,54 +52,88 @@ interface SidebarProps {
 }
 
 // Extracted outside Sidebar to prevent re-creation on every render
-const SidebarSection = React.memo(({ title, items, isCollapsed, sidebarHighlightPage, onItemClick, filterFn }: {
+// Sections that should always be expanded (no dropdown)
+const ALWAYS_OPEN_SECTIONS = ['Main', 'Select Institute', 'My Children', 'Select Child Institute'];
+
+const SidebarSection = React.memo(({ title, items, isCollapsed, sidebarHighlightPage, onItemClick, filterFn, sectionIcon }: {
   title: string;
   items: any[];
   isCollapsed: boolean;
   sidebarHighlightPage: string;
   onItemClick: (id: string) => void;
   filterFn: (items: any[]) => any[];
+  sectionIcon?: React.ReactNode;
 }) => {
   const filteredItems = filterFn(items);
-  
   if (filteredItems.length === 0) return null;
 
-  return (
-    <div className="mb-1">
-      {!isCollapsed && (
-        <h3 className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-[0.08em] mb-1 px-3 pt-2">
-          {title}
-        </h3>
-      )}
-      <div className="space-y-0.5">
-        {filteredItems.map((item) => {
-          const isActive = sidebarHighlightPage === item.id;
-          return (
-            <Button
-              key={item.id}
-              variant="ghost"
-              className={`w-full ${isCollapsed ? 'justify-center px-2' : 'justify-start px-3'} h-8 text-[13px] font-medium rounded-lg transition-all duration-150 ${
-                isActive
-                  ? 'bg-primary/10 text-primary border-l-2 border-primary shadow-sm' 
-                  : item.locked 
-                    ? 'text-muted-foreground/40 cursor-not-allowed' 
-                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-              }`}
-              onClick={() => !item.locked && onItemClick(item.id)}
-              disabled={item.locked}
-            >
-              <item.icon className={`${isCollapsed ? '' : 'mr-2.5'} h-4 w-4 flex-shrink-0 ${isActive ? 'text-primary' : ''}`} />
-              {!isCollapsed && (
-                <span className="flex items-center gap-1.5 truncate">
-                  {item.label}
-                  {item.locked && <Lock className="h-3 w-3 opacity-50" />}
-                </span>
-              )}
-            </Button>
-          );
-        })}
-      </div>
+  const hasActiveItem = filteredItems.some(item => sidebarHighlightPage === item.id);
+  const alwaysOpen = ALWAYS_OPEN_SECTIONS.includes(title);
+
+  const renderItems = () => (
+    <div className="space-y-0.5">
+      {filteredItems.map((item) => {
+        const isActive = sidebarHighlightPage === item.id;
+        return (
+          <Button
+            key={item.id}
+            variant="ghost"
+            className={`w-full ${isCollapsed ? 'justify-center px-2' : 'justify-start px-3'} h-8 text-[13px] font-medium rounded-lg transition-all duration-150 ${
+              isActive
+                ? 'bg-primary/10 text-primary border-l-2 border-primary shadow-sm' 
+                : item.locked 
+                  ? 'text-muted-foreground/40 cursor-not-allowed' 
+                  : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+            }`}
+            onClick={() => !item.locked && onItemClick(item.id)}
+            disabled={item.locked}
+          >
+            <item.icon className={`${isCollapsed ? '' : 'mr-2.5'} h-4 w-4 flex-shrink-0 ${isActive ? 'text-primary' : ''}`} />
+            {!isCollapsed && (
+              <span className="flex items-center gap-1.5 truncate">
+                {item.label}
+                {item.locked && <Lock className="h-3 w-3 opacity-50" />}
+              </span>
+            )}
+          </Button>
+        );
+      })}
     </div>
+  );
+
+  // For always-open sections or collapsed sidebar, render flat
+  if (alwaysOpen || isCollapsed) {
+    return (
+      <div className="mb-1">
+        {!isCollapsed && (
+          <h3 className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-[0.08em] mb-1 px-3 pt-2">
+            {title}
+          </h3>
+        )}
+        {renderItems()}
+      </div>
+    );
+  }
+
+  // Collapsible dropdown for other sections
+  return (
+    <Collapsible defaultOpen={hasActiveItem} className="mb-0.5">
+      <CollapsibleTrigger className="flex items-center justify-between w-full px-3 py-1.5 group hover:bg-accent/50 rounded-lg transition-colors">
+        <div className="flex items-center gap-2">
+          {sectionIcon && <span className="text-muted-foreground/70">{sectionIcon}</span>}
+          <span className="text-[11px] font-bold text-muted-foreground/70 uppercase tracking-[0.06em]">
+            {title}
+          </span>
+          {hasActiveItem && (
+            <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+          )}
+        </div>
+        <ChevronDown className="h-3 w-3 text-muted-foreground/50 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+      </CollapsibleTrigger>
+      <CollapsibleContent className="pl-1 pt-0.5">
+        {renderItems()}
+      </CollapsibleContent>
+    </Collapsible>
   );
 });
 SidebarSection.displayName = 'SidebarSection';
