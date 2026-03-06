@@ -1965,7 +1965,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       {/* Sidebar */}
       <div className={`
         fixed inset-y-0 right-0 z-50 lg:relative lg:left-0 lg:right-auto
-        ${isCollapsed ? 'w-16' : 'w-72 sm:w-80 lg:w-72'} bg-white dark:bg-gray-800 border-l lg:border-l-0 lg:border-r border-gray-200 dark:border-gray-700
+        ${isCollapsed ? 'w-16' : 'w-72 sm:w-80 lg:w-64'} bg-background border-l lg:border-l-0 lg:border-r border-border
         transform transition-all duration-300 ease-in-out lg:transform-none
         ${isOpen ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'}
         flex flex-col h-dvh
@@ -1973,20 +1973,20 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
         pt-safe-top pb-safe-bottom
       `}>
         {/* Header */}
-        <div className="flex items-center justify-between p-3 sm:p-4 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-between px-3 py-2.5 border-b border-border">
           {!isCollapsed && (
-            <div className="flex items-center justify-start space-x-2 min-w-0 flex-1">
+            <div className="flex items-center space-x-2 min-w-0 flex-1">
               <img 
                 src={selectedInstitute?.logo || surakshaLogoSidebar} 
                 alt={selectedInstitute?.logo ? "Institute logo" : "SurakshaLMS logo"}
-                className="h-12 w-12 object-contain rounded flex-shrink-0"
+                className="h-9 w-9 object-contain rounded-lg flex-shrink-0 ring-1 ring-border"
               />
-              <span className="font-bold text-base sm:text-lg text-gray-900 dark:text-white truncate">
+              <span className="font-bold text-sm text-foreground truncate">
                 {selectedInstitute?.shortName || 'SurakshaLMS'}
               </span>
             </div>
           )}
-          <div className={`flex items-center space-x-1 ${isCollapsed ? 'w-full justify-center' : ''}`}>
+          <div className={`flex items-center ${isCollapsed ? 'w-full justify-center' : ''}`}>
             <Button
               variant="ghost"
               size="sm"
@@ -1997,7 +1997,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                   setIsCollapsed(!isCollapsed);
                 }
               }}
-              className="h-8 w-8 p-0 hover:bg-gray-100 dark:hover:bg-gray-700"
+              className="h-7 w-7 p-0 hover:bg-accent"
               aria-label={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
             >
               <X className="h-4 w-4 lg:hidden" />
@@ -2068,8 +2068,8 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
         )}
 
         {/* Navigation */}
-        <ScrollArea className="flex-1 px-2 sm:px-3 py-3 sm:py-4">
-          <div className="space-y-2">
+        <ScrollArea className="flex-1 px-2 py-2">
+          <div className="space-y-0.5">
             {(() => {
               // Shared props for all SidebarSection instances
               const sectionProps = {
@@ -2188,15 +2188,15 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
         </ScrollArea>
 
         {/* Footer */}
-        <div className="p-3 sm:p-4 border-t border-gray-200 dark:border-gray-700">
+        <div className="px-3 py-2.5 border-t border-border">
           {!isCollapsed && (
-            <div className="text-xs text-gray-500 dark:text-gray-400 mb-3 space-y-1">
+            <div className="text-[11px] text-muted-foreground mb-2 space-y-0.5">
               <div className="truncate">
-                <span>Logged in as:</span> 
+                <span className="opacity-70">Logged in:</span> 
                 <span className="font-medium ml-1">{user?.name}</span>
               </div>
               <div>
-                <span>Role:</span> 
+                <span className="opacity-70">Role:</span> 
                 <span className="font-medium ml-1">{isViewingAsParent ? 'Parent' : userRole}</span>
               </div>
             </div>
@@ -2205,10 +2205,10 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
             variant="outline"
             size="sm"
             onClick={handleLogout}
-            className={`w-full flex items-center ${isCollapsed ? 'justify-center' : 'justify-center gap-2'} text-sm hover:bg-destructive hover:text-destructive-foreground hover:border-destructive h-8 sm:h-9 transition-colors`}
+            className={`w-full flex items-center ${isCollapsed ? 'justify-center' : 'justify-center gap-1.5'} text-xs hover:bg-destructive hover:text-destructive-foreground hover:border-destructive h-7 transition-colors border-border`}
           >
-            <LogOut className="h-3 w-3 sm:h-4 sm:w-4" />
-            {!isCollapsed && <span className="text-xs sm:text-sm">Logout</span>}
+            <LogOut className="h-3 w-3" />
+            {!isCollapsed && <span>Logout</span>}
           </Button>
         </div>
       </div>
