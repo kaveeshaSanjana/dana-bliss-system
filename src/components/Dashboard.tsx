@@ -1,12 +1,14 @@
 import React from 'react';
+import { useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useInstituteRole } from '@/hooks/useInstituteRole';
 import SubjectDashboard from '@/pages/SubjectDashboard';
 import ParentChildrenSelector from './ParentChildrenSelector';
 import { Users } from 'lucide-react';
-import UnderMaintenance from './UnderMaintenance';
+
 import MobileDashboard from './MobileDashboard';
 import { useIsMobile } from '@/hooks/use-mobile';
+
 const Dashboard = () => {
   const {
     user,
@@ -19,10 +21,16 @@ const Dashboard = () => {
 
   const userRole = useInstituteRole();
   const isMobile = useIsMobile();
-  console.log('🎯 Dashboard - Institute Role:', userRole, 'from instituteUserType:', selectedInstitute?.userRole, 'isViewingAsParent:', isViewingAsParent);
+  const location = useLocation();
+  
+  // Check URL path as fallback for subject-level context
+  const isSubjectLevelUrl = /\/subject\/[^/]+/.test(location.pathname);
+  const hasSubjectContext = (selectedSubject && selectedClass && selectedInstitute) || isSubjectLevelUrl;
+  
+  console.log('🎯 Dashboard - Institute Role:', userRole, 'from instituteUserType:', selectedInstitute?.userRole, 'isViewingAsParent:', isViewingAsParent, 'hasSubjectContext:', hasSubjectContext, 'selectedSubject:', !!selectedSubject, 'isSubjectLevelUrl:', isSubjectLevelUrl);
 
   // Parent viewing child's subject dashboard - show view-only banner
-  if (isViewingAsParent && selectedChild && selectedSubject && selectedClass && selectedInstitute) {
+  if (isViewingAsParent && selectedChild && hasSubjectContext) {
     return (
       <div className="space-y-4">
         {/* View-only banner */}
@@ -46,9 +54,9 @@ const Dashboard = () => {
     );
   }
 
-  // Subject-level dashboard - show SubjectDashboard
-  if (selectedSubject && selectedClass && selectedInstitute) {
-    return <SubjectDashboard />;
+  // Subject-level dashboard
+  if (hasSubjectContext) {
+    return <MobileDashboard />;
   }
 
   // Special handling for Parent role - child selector
@@ -56,10 +64,10 @@ const Dashboard = () => {
     return (
       <div className="space-y-6">
         <div className="text-center py-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
+          <h1 className="text-3xl font-bold text-foreground mb-4">
             Select Your Child
           </h1>
-          <p className="text-gray-600 dark:text-gray-400 text-lg mb-8">
+          <p className="text-muted-foreground text-lg mb-8">
             Choose a child to view their academic information, attendance, and results.
           </p>
         </div>
@@ -68,14 +76,7 @@ const Dashboard = () => {
     );
   }
 
-  // For Attendance Markers on mobile, show mobile dashboard
-  if (userRole === 'AttendanceMarker') {
-    if (isMobile) return <MobileDashboard />;
-    return <UnderMaintenance title="Attendance Marker Dashboard" description="Dashboard features are under maintenance. Use the sidebar to navigate to attendance features." />;
-  }
-
-  // All other dashboards - show mobile dashboard on mobile, under maintenance on desktop
-  if (isMobile) return <MobileDashboard />;
-  return <UnderMaintenance title="Dashboard Under Maintenance" description="We're working on improving the dashboard experience. Please check back later or use the sidebar to navigate to other features." />;
+  // For all roles - show dashboard grid
+  return <MobileDashboard />;
 };
 export default Dashboard;

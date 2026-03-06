@@ -14,7 +14,7 @@ import { RefreshCw, CheckCircle, Eye, XCircle, ImageIcon, ImageOff } from 'lucid
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
-import { getBaseUrl } from '@/contexts/utils/auth.api';
+import { getBaseUrl, getApiHeadersAsync } from '@/contexts/utils/auth.api';
 import {
   Dialog,
   DialogContent,
@@ -97,7 +97,8 @@ const VerifyImage = () => {
   const fetchUnverifiedImages = async () => {
     setIsLoading(true);
     try {
-      const token = localStorage.getItem('access_token');
+      const { tokenStorageService } = await import('@/services/tokenStorageService');
+      const token = await tokenStorageService.getAccessToken();
       const response = await fetch(
         `${getBaseUrl()}/institute-users/institute/${currentInstituteId}/users/unverified-with-images?page=${page}&limit=${limit}`,
         {
@@ -115,11 +116,7 @@ const VerifyImage = () => {
       setStudents(result.data || []);
       setTotalCount(result.meta?.total || 0);
       
-      toast({
-        title: "Data Loaded",
-        description: `Found ${result.meta?.total || 0} unverified images`,
-        duration: 1500
-      });
+      
     } catch (error) {
       console.error('Error fetching unverified images:', error);
       toast({
@@ -142,15 +139,12 @@ const VerifyImage = () => {
     setVerifyingIds(prev => new Set(prev).add(studentId));
     
     try {
-      const token = localStorage.getItem('access_token');
+      const headers = await getApiHeadersAsync();
       const response = await fetch(
         `${getBaseUrl()}/institute-users/institute/${currentInstituteId}/users/${studentId}/verify-image`,
         {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
+          headers,
           body: JSON.stringify({ status: 'VERIFIED' })
         }
       );
@@ -199,15 +193,12 @@ const VerifyImage = () => {
     setRejectingIds(prev => new Set(prev).add(selectedStudent.id));
     
     try {
-      const token = localStorage.getItem('access_token');
+      const headers = await getApiHeadersAsync();
       const response = await fetch(
         `${getBaseUrl()}/institute-users/institute/${currentInstituteId}/users/${selectedStudent.id}/verify-image`,
         {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
+          headers,
           body: JSON.stringify({ 
             status: 'REJECTED',
             rejectionReason: rejectionReason 
@@ -423,7 +414,7 @@ const VerifyImage = () => {
 
       {/* View Details Dialog */}
       <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto mx-auto">
           <DialogHeader>
             <DialogTitle>User Details</DialogTitle>
             <DialogDescription>

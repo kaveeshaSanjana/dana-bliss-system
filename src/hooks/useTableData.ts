@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { usePagination, UsePaginationReturn } from './usePagination';
 import { cachedApiClient } from '@/api/cachedClient';
+import { enhancedCachedClient } from '@/api/enhancedCachedClient';
 
 export interface TableDataConfig {
   endpoint: string;
@@ -152,7 +153,10 @@ export const useTableData = <T = any>(config: TableDataConfig): UseTableDataRetu
     }
   }, [buildParams, config.endpoint, config.cacheOptions, pagination]);
 
-  const refresh = useCallback(() => loadData(true), [loadData]);
+  const refresh = useCallback(() => {
+    // Just force refresh the specific data being loaded
+    return loadData(true);
+  }, [loadData]);
 
 const updateFilters = useCallback((newFilters: Record<string, any>) => {
   setFilters(prev => ({ ...prev, ...newFilters }));

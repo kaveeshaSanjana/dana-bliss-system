@@ -3,13 +3,14 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { Home, Menu, Bell, User } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
+import { buildSidebarUrl } from '@/utils/pageNavigation';
 
 interface BottomNavProps {
   onMenuClick: () => void;
 }
 
 const BottomNav = ({ onMenuClick }: BottomNavProps) => {
-  const { selectedInstitute } = useAuth();
+  const { selectedInstitute, selectedClass, selectedSubject, selectedChild, selectedOrganization, selectedTransport } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -29,8 +30,16 @@ const BottomNav = ({ onMenuClick }: BottomNavProps) => {
   }, [selectedInstitute?.id, navigate]);
 
   const handleProfileClick = useCallback(() => {
-    navigate('/profile');
-  }, [navigate]);
+    const context = {
+      instituteId: selectedInstitute?.id,
+      classId: selectedClass?.id,
+      subjectId: selectedSubject?.id,
+      childId: selectedChild?.id,
+      organizationId: selectedOrganization?.id,
+      transportId: selectedTransport?.id,
+    };
+    navigate(buildSidebarUrl('profile', context));
+  }, [selectedInstitute?.id, selectedClass?.id, selectedSubject?.id, selectedChild?.id, selectedOrganization?.id, selectedTransport?.id, navigate]);
 
   const handleNotificationsClick = useCallback(() => {
     if (selectedInstitute?.id) {
@@ -76,7 +85,7 @@ const BottomNav = ({ onMenuClick }: BottomNavProps) => {
           onClick={handleProfileClick}
           className={cn(
             "flex flex-col items-center justify-center flex-1 h-full gap-0.5 transition-colors",
-            isActive('/profile')
+            location.pathname === '/profile' || location.pathname.endsWith('/profile')
               ? "text-primary"
               : "text-muted-foreground"
           )}

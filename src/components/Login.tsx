@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,7 +11,7 @@ import { Eye, EyeOff, GraduationCap, Wifi, WifiOff, Settings, Mail, Key, UserChe
 import { useToast } from '@/hooks/use-toast';
 import { getBaseUrl, getBaseUrl2 } from '@/contexts/utils/auth.api';
 import { Capacitor } from '@capacitor/core';
-import FirstLogin from '@/components/FirstLogin';
+// FirstLogin is now rendered via /activate/* routes
 import surakshaLogo from '@/assets/suraksha-logo.png';
 import loginIllustration from '@/assets/login-illustration.png';
 
@@ -131,6 +132,7 @@ const Login = ({
   onLogin,
   loginFunction
 }: LoginProps) => {
+  const loginNavigate = useNavigate();
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   // On mobile app, always enable rememberMe for persistent login
@@ -199,7 +201,7 @@ const Login = ({
 
   // Mock login handler
   const handleMockLogin = async (email: string, password: string, role: UserRole) => {
-    const user = mockUsers.find(u => u.email === email && u.password === password && u.role === role);
+    const user = mockUsers.find((u) => u.email === email && u.password === password && u.role === role);
     if (!user) {
       throw new Error('Invalid credentials');
     }
@@ -514,7 +516,7 @@ const Login = ({
     }
   };
   const handleQuickLogin = (role: UserRole) => {
-    const user = mockUsers.find(u => u.role === role);
+    const user = mockUsers.find((u) => u.role === role);
     if (user) {
       setIdentifier(user.email);
       setPassword(user.password);
@@ -534,12 +536,6 @@ const Login = ({
     }
     try {
       if (useApiLogin) {
-        console.log('Attempting API login with credentials:', {
-          identifier,
-          password: '***'
-        });
-        console.log('Using base URL:', baseUrl);
-
         // Use the passed login function from AuthContext
         await loginFunction({
           identifier,
@@ -618,55 +614,41 @@ const Login = ({
     setConfirmPassword('');
     setShowFirstLogin(true);
   };
-  // Show Phone-based first login flow
-  if (showFirstLoginV2) {
-    return <FirstLogin
-      onBack={() => setShowFirstLoginV2(false)}
-      onComplete={(user) => {
-        setShowFirstLoginV2(false);
-        onLogin(user);
-      }}
-    />;
-  }
-  return <div className="min-h-[100dvh] flex flex-col overflow-x-hidden bg-background">
-      {/* Top Illustration - All screens */}
-      <div className="w-full relative h-28 md:h-44 shrink-0">
+
+  return <div className="min-h-[100dvh] flex flex-col md:flex-row overflow-x-hidden bg-background md:bg-none">
+      {/* Top Illustration - Mobile Only */}
+      <div className="block md:hidden w-full relative h-[25vh] shrink-0 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-primary/5" />
-        <img src={loginIllustration} alt="AI-powered education illustration" className="absolute inset-0 w-full h-full object-cover mix-blend-multiply" loading="lazy" onError={e => {
+        <img src={loginIllustration} alt="AI-powered education illustration" className="absolute inset-0 w-full h-full object-cover" loading="lazy" onError={(e) => {
         (e.currentTarget as HTMLImageElement).style.display = 'none';
       }} />
-        <div className="absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-background to-transparent" />
       </div>
 
-      {/* Form Section - centered */}
-      <div className="flex-1 flex items-start md:items-center justify-center px-4 py-2 md:py-6 -mt-5 relative z-10">
-        {/* Decorative side lines */}
-        <div className="hidden md:block absolute left-[10%] top-1/4 bottom-1/4 w-px bg-gradient-to-b from-transparent via-border to-transparent" />
-        <div className="hidden md:block absolute right-[10%] top-1/4 bottom-1/4 w-px bg-gradient-to-b from-transparent via-border to-transparent" />
-        
-        <div className="w-full max-w-md space-y-3 md:space-y-4">
+      {/* Left Side - Form */}
+      <div className="w-full md:w-3/5 lg:w-1/2 flex flex-col items-center justify-center px-5 py-7 sm:p-7 md:p-10 bg-background -mt-8 md:mt-0 rounded-t-[3rem] md:rounded-none relative z-10 flex-1 md:min-h-screen overflow-y-auto">
+        <div className="w-full max-w-md md:max-w-lg space-y-6 md:space-y-7">
           {/* Logo and Header */}
-          <div className="space-y-0.5 text-center">
-            <div className="flex flex-col items-center justify-center mb-1.5 md:mb-3">
-              <div className="w-12 h-12 md:w-16 md:h-16 rounded-xl overflow-hidden bg-transparent shadow-sm">
+          <div className="text-center space-y-1">
+            <div className="flex justify-center mb-2 md:mb-4">
+              <div className="w-12 h-12 md:w-20 md:h-20 rounded-lg overflow-hidden">
                 <img src={surakshaLogo} alt="SurakshaLMS logo" className="w-full h-full object-contain" loading="lazy" />
               </div>
-              <span className="text-lg md:text-2xl font-bold text-foreground tracking-tight mt-1">SurakshaLMS</span>
             </div>
-            <h1 className="text-base md:text-xl font-semibold text-foreground">Welcome back</h1>
-            <p className="text-xs md:text-sm text-muted-foreground">Please enter your details to continue</p>
+            <h1 className="text-2xl md:text-3xl font-bold text-foreground tracking-tight">SurakshaLMS</h1>
+            <p className="text-base md:text-lg font-semibold text-foreground">Welcome back</p>
+            <p className="text-sm md:text-sm text-muted-foreground">Please enter your details</p>
           </div>
 
           {/* Main Login/First Login/Forgot Password Card */}
-          <Card className="border-border/50 shadow-lg">
-            <CardContent className="pt-4 px-4 pb-4 md:pt-6 md:px-6 md:pb-6">
+          <Card className="border-border/50 shadow-md lg:shadow-lg">
+            <CardContent className="p-5 md:p-8 lg:p-10">
             {/* Regular Login Form */}
-            {loginStep === 'login' && <form onSubmit={handleLogin} className="space-y-3 md:space-y-6">
+            {loginStep === 'login' && <form onSubmit={handleLogin} className="space-y-4 md:space-y-6">
                 {/* Role Selection - Only show for mock login */}
                 {!useApiLogin && <div className="space-y-1.5">
-                    <Label htmlFor="role" className="text-xs md:text-sm">Role</Label>
+                    <Label htmlFor="role" className="text-sm">Role</Label>
                     <Select value={selectedRole} onValueChange={(value: UserRole) => setSelectedRole(value)}>
-                      <SelectTrigger className="h-9 md:h-11">
+                      <SelectTrigger className="h-10 md:h-11">
                         <SelectValue placeholder="Select your role" />
                       </SelectTrigger>
                       <SelectContent>
@@ -682,17 +664,17 @@ const Login = ({
 
                 {/* Identifier Input */}
                 <div className="space-y-1.5">
-                  <Label htmlFor="identifier" className="text-xs md:text-sm font-medium text-foreground">Email, Phone, ID or Birth Certificate</Label>
-                  <Input id="identifier" type="text" placeholder="Enter email, phone, ID..." value={identifier} onChange={e => setIdentifier(e.target.value)} required className="h-9 md:h-11 text-sm md:text-base" autoComplete="username" autoCapitalize="none" autoCorrect="off" />
+                  <Label htmlFor="identifier" className="text-sm font-medium text-foreground">Email, Phone, ID or Birth Certificate</Label>
+                  <Input id="identifier" type="text" placeholder="Enter email, phone, ID..." value={identifier} onChange={(e) => setIdentifier(e.target.value)} required className="h-11 md:h-11 text-sm md:text-base rounded-lg" autoComplete="username" autoCapitalize="none" autoCorrect="off" />
                 </div>
 
                 {/* Password Input */}
                 <div className="space-y-1.5">
-                  <Label htmlFor="password" className="text-xs md:text-sm font-medium text-foreground">Password</Label>
+                  <Label htmlFor="password" className="text-sm font-medium text-foreground">Password</Label>
                   <div className="relative">
-                    <Input id="password" type={showPassword ? 'text' : 'password'} placeholder="Enter your password" value={password} onChange={e => setPassword(e.target.value)} required className="h-9 md:h-11 text-sm md:text-base pr-10" autoComplete="current-password" />
-                    <Button type="button" variant="ghost" size="sm" className="absolute right-0 top-0 h-full px-2 py-2 hover:bg-transparent touch-manipulation" onClick={() => setShowPassword(!showPassword)}>
-                      {showPassword ? <EyeOff className="h-4 w-4 md:h-5 md:w-5 text-muted-foreground" /> : <Eye className="h-4 w-4 md:h-5 md:w-5 text-muted-foreground" />}
+                    <Input id="password" type={showPassword ? 'text' : 'password'} placeholder="Enter your password" value={password} onChange={(e) => setPassword(e.target.value)} required className="h-11 md:h-11 text-sm md:text-base pr-12 rounded-lg" autoComplete="current-password" />
+                    <Button type="button" variant="ghost" size="sm" className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent touch-manipulation" onClick={() => setShowPassword(!showPassword)}>
+                      {showPassword ? <EyeOff className="h-5 w-5 text-muted-foreground" /> : <Eye className="h-5 w-5 text-muted-foreground" />}
                     </Button>
                   </div>
                 </div>
@@ -700,37 +682,37 @@ const Login = ({
                 {/* Remember me and Forgot Password */}
                 {useApiLogin && <div className="flex items-center justify-between gap-2">
                   {/* Only show Remember Me checkbox on web, mobile always remembers */}
-                  {!Capacitor.isNativePlatform() && <div className="flex items-center space-x-1.5">
+                  {!Capacitor.isNativePlatform() && <div className="flex items-center space-x-2">
                     <input
-                      type="checkbox"
-                      id="remember"
-                      className="rounded border-border w-3.5 h-3.5 md:w-4 md:h-4"
-                      checked={rememberMe}
-                      onChange={(e) => setRememberMe(e.target.checked)}
-                    />
-                    <label htmlFor="remember" className="text-xs md:text-sm text-foreground cursor-pointer">
+                    type="checkbox"
+                    id="remember"
+                    className="rounded border-border w-4 h-4 accent-primary"
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)} />
+                  
+                    <label htmlFor="remember" className="text-xs md:text-sm text-foreground cursor-pointer select-none">
                       Remember me
                     </label>
                   </div>}
-                  <Button type="button" variant="link" onClick={startForgotPassword} className="text-xs md:text-sm text-primary hover:text-primary/80 p-0 h-auto">
+                  <Button type="button" variant="link" onClick={startForgotPassword} className="text-xs md:text-sm text-primary hover:text-primary/80 p-0 h-auto font-medium">
                     Forgot password?
                   </Button>
                 </div>}
 
                 {/* Error Message */}
-                {error && <div className="text-xs md:text-sm text-destructive bg-destructive/10 p-2 md:p-3 rounded-md">
+                {error && <div className="text-xs md:text-sm text-destructive bg-destructive/10 p-2.5 md:p-3 rounded-lg">
                     {error}
                   </div>}
 
                 {/* Login Button */}
-                <Button type="submit" className="w-full h-9 md:h-11 text-sm md:text-base touch-manipulation active:scale-[0.98] transition-transform" disabled={isLoading}>
+                <Button type="submit" className="w-full h-11 md:h-12 text-sm md:text-base font-semibold touch-manipulation active:scale-[0.98] transition-transform rounded-lg" disabled={isLoading}>
                   {isLoading ? 'Signing in...' : 'Sign in'}
                 </Button>
 
                 {/* First Time Login Link */}
-                {useApiLogin && <div className="text-center pt-0.5 md:pt-1">
-                    <span className="text-xs md:text-sm text-muted-foreground">Don't have a password? </span>
-                    <Button type="button" variant="link" onClick={() => setShowFirstLoginV2(true)} className="text-xs md:text-sm text-primary hover:text-primary/80 p-0 h-auto font-semibold">
+                {useApiLogin && <div className="text-center pt-2">
+                    <span className="text-xs md:text-sm text-muted-foreground">Registered by another one? </span>
+                    <Button type="button" variant="link" onClick={() => loginNavigate('/activate/identify')} className="text-xs md:text-sm text-primary hover:text-primary/80 p-0 h-auto font-medium">
                       Activate your account
                     </Button>
                   </div>}
@@ -741,7 +723,7 @@ const Login = ({
                 <div className="space-y-3 md:space-y-4">
                   <div className="space-y-1.5">
                     <Label htmlFor="firstLoginIdentifier" className="text-sm">Email, Phone, ID or Birth Certificate</Label>
-                    <Input id="firstLoginIdentifier" type="text" placeholder="Enter email, phone, ID..." value={identifier} onChange={e => setIdentifier(e.target.value)} required className="h-10 md:h-11 text-base" autoComplete="username" autoCapitalize="none" />
+                    <Input id="firstLoginIdentifier" type="text" placeholder="Enter email, phone, ID..." value={identifier} onChange={(e) => setIdentifier(e.target.value)} required className="h-10 md:h-11 text-base" autoComplete="username" autoCapitalize="none" />
                   </div>
 
                   <div className="text-xs md:text-sm text-muted-foreground bg-primary/10 p-2.5 md:p-3 rounded-lg">
@@ -812,7 +794,7 @@ const Login = ({
                   <div className="space-y-1.5">
                     <Label htmlFor="newFirstPassword" className="text-sm">New Password</Label>
                     <div className="relative">
-                      <Input id="newFirstPassword" type={showNewPassword ? 'text' : 'password'} placeholder="Enter your new password" value={newPassword} onChange={e => setNewPassword(e.target.value)} required className="h-10 md:h-11 text-base pr-12" autoComplete="new-password" />
+                      <Input id="newFirstPassword" type={showNewPassword ? 'text' : 'password'} placeholder="Enter your new password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required className="h-10 md:h-11 text-base pr-12" autoComplete="new-password" />
                       <Button type="button" variant="ghost" size="sm" className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent touch-manipulation" onClick={() => setShowNewPassword(!showNewPassword)}>
                         {showNewPassword ? <EyeOff className="h-5 w-5 text-muted-foreground" /> : <Eye className="h-5 w-5 text-muted-foreground" />}
                       </Button>
@@ -822,7 +804,7 @@ const Login = ({
                   <div className="space-y-1.5">
                     <Label htmlFor="confirmFirstPassword" className="text-sm">Confirm Password</Label>
                     <div className="relative">
-                      <Input id="confirmFirstPassword" type={showConfirmPassword ? 'text' : 'password'} placeholder="Confirm your new password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required className="h-10 md:h-11 text-base pr-12" autoComplete="new-password" />
+                      <Input id="confirmFirstPassword" type={showConfirmPassword ? 'text' : 'password'} placeholder="Confirm your new password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required className="h-10 md:h-11 text-base pr-12" autoComplete="new-password" />
                       <Button type="button" variant="ghost" size="sm" className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent touch-manipulation" onClick={() => setShowConfirmPassword(!showConfirmPassword)}>
                         {showConfirmPassword ? <EyeOff className="h-5 w-5 text-muted-foreground" /> : <Eye className="h-5 w-5 text-muted-foreground" />}
                       </Button>
@@ -855,7 +837,7 @@ const Login = ({
                 <div className="space-y-3 md:space-y-4">
                   <div className="space-y-1.5">
                     <Label htmlFor="resetIdentifier" className="text-sm">Email, Phone, ID or Birth Certificate</Label>
-                    <Input id="resetIdentifier" type="text" placeholder="Enter email, phone, ID..." value={identifier} onChange={e => setIdentifier(e.target.value)} required className="h-10 md:h-11 text-base" autoComplete="username" autoCapitalize="none" />
+                    <Input id="resetIdentifier" type="text" placeholder="Enter email, phone, ID..." value={identifier} onChange={(e) => setIdentifier(e.target.value)} required className="h-10 md:h-11 text-base" autoComplete="username" autoCapitalize="none" />
                   </div>
 
                   <div className="text-xs md:text-sm text-muted-foreground bg-primary/10 p-2.5 md:p-3 rounded-lg">
@@ -904,7 +886,7 @@ const Login = ({
                   <div className="space-y-1.5">
                     <Label htmlFor="newResetPassword" className="text-sm">New Password</Label>
                     <div className="relative">
-                      <Input id="newResetPassword" type={showNewPassword ? 'text' : 'password'} placeholder="Enter your new password" value={newPassword} onChange={e => setNewPassword(e.target.value)} required className="h-10 md:h-11 text-base pr-12" autoComplete="new-password" />
+                      <Input id="newResetPassword" type={showNewPassword ? 'text' : 'password'} placeholder="Enter your new password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required className="h-10 md:h-11 text-base pr-12" autoComplete="new-password" />
                       <Button type="button" variant="ghost" size="sm" className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent touch-manipulation" onClick={() => setShowNewPassword(!showNewPassword)}>
                         {showNewPassword ? <EyeOff className="h-5 w-5 text-muted-foreground" /> : <Eye className="h-5 w-5 text-muted-foreground" />}
                       </Button>
@@ -914,7 +896,7 @@ const Login = ({
                   <div className="space-y-1.5">
                     <Label htmlFor="confirmResetPassword" className="text-sm">Confirm Password</Label>
                     <div className="relative">
-                      <Input id="confirmResetPassword" type={showConfirmPassword ? 'text' : 'password'} placeholder="Confirm your new password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required className="h-10 md:h-11 text-base pr-12" autoComplete="new-password" />
+                      <Input id="confirmResetPassword" type={showConfirmPassword ? 'text' : 'password'} placeholder="Confirm your new password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required className="h-10 md:h-11 text-base pr-12" autoComplete="new-password" />
                       <Button type="button" variant="ghost" size="sm" className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent touch-manipulation" onClick={() => setShowConfirmPassword(!showConfirmPassword)}>
                         {showConfirmPassword ? <EyeOff className="h-5 w-5 text-muted-foreground" /> : <Eye className="h-5 w-5 text-muted-foreground" />}
                       </Button>
@@ -999,6 +981,17 @@ const Login = ({
               <div><strong>Organization Manager:</strong> orgmanager@company.com / orgmanager123</div>
             </CardContent>
           </Card>}
+        </div>
+      </div>
+
+      {/* Right Side - Illustration */}
+      <div className="hidden md:flex md:w-1/2 lg:w-3/5 relative min-h-[300px] md:min-h-screen">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-primary/5" />
+        <img src={loginIllustration} alt="AI-powered education illustration" className="absolute inset-0 w-full h-full object-cover mix-blend-multiply" loading="lazy" onError={(e) => {
+        (e.currentTarget as HTMLImageElement).style.display = 'none';
+      }} />
+        <div className="absolute inset-0 flex items-center justify-center p-8">
+          
         </div>
       </div>
     </div>;
