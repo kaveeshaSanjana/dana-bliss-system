@@ -4,6 +4,7 @@ import { useAppNavigation } from '@/hooks/useAppNavigation';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import BottomNav from './BottomNav';
+import AppLoadingScreen from '@/components/AppLoadingScreen';
 
 interface AppLayoutProps {
   children: React.ReactNode;
