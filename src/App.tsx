@@ -93,11 +93,7 @@ const App = () => {
   const { isOnline, isLoading, retry } = useCapacitorConnection();
 
   useEffect(() => {
-    // Force light mode
-    const root = document.documentElement;
-    root.classList.remove('dark');
-    root.classList.add('light');
-    localStorage.setItem('theme', 'light');
+    // Theme is now managed by ThemeContext — no forced light mode
     
     // Configure native platform features
     if (Capacitor.isNativePlatform()) {
