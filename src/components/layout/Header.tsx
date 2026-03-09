@@ -172,8 +172,8 @@ const Header = ({ onMenuClick }: HeaderProps) => {
     setSelectedSubject(null);
     
     // Invalidate cached data so pages reload with new institute
-    enhancedCachedClient.clearAll?.();
-    cachedApiClient.clearAll?.();
+    enhancedCachedClient.clearAllCache();
+    enhancedCachedClient.clearPendingRequests();
     
     // Dispatch event so any listening components can refresh
     window.dispatchEvent(new CustomEvent('institute:switched', { detail: { instituteId: inst.id } }));
