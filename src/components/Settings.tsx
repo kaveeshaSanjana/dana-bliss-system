@@ -3,12 +3,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Separator } from '@/components/ui/separator';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { CustomToggle } from '@/components/ui/custom-toggle';
 import InstituteSettingsTab from '@/components/institute-settings/InstituteSettingsTab';
 import InstituteProfileCard from '@/components/institute-settings/InstituteProfileCard';
 
 import { 
   Sun,
+  Moon,
+  Monitor,
   LayoutGrid, 
   Table2,
   Palette,
@@ -24,8 +27,15 @@ const settingsTabs = [
   { id: 'profile', label: 'Institute Profile', icon: User },
 ];
 
+const themeOptions = [
+  { id: 'light' as const, label: 'Light', icon: Sun, description: 'Clean and bright interface' },
+  { id: 'dark' as const, label: 'Dark', icon: Moon, description: 'Easy on the eyes in low light' },
+  { id: 'system' as const, label: 'System', icon: Monitor, description: 'Follows your device settings' },
+];
+
 const Settings = () => {
   const { user } = useAuth();
+  const { theme, setTheme } = useTheme();
   const [activeTab, setActiveTab] = useState('appearance');
   const [viewMode, setViewMode] = useState<'card' | 'table'>(() => {
     return (localStorage.getItem('viewMode') as 'card' | 'table') || 'card';
@@ -90,26 +100,42 @@ const Settings = () => {
               <div>
                 <Label className="text-base font-medium">Theme Mode</Label>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Application uses light mode for a clean and bright interface
+                  Choose your preferred color scheme
                 </p>
               </div>
-              <div className="grid grid-cols-1 gap-4">
-                <Card className="ring-2 ring-primary border-primary">
-                  <CardContent className="p-4">
-                    <div className="flex items-center space-x-3">
-                      <div className="p-2 rounded-full bg-primary text-primary-foreground">
-                        <Sun className="h-5 w-5" />
-                      </div>
-                      <div className="flex-1">
-                        <div className="font-medium">Light Mode</div>
-                        <div className="text-xs text-muted-foreground">
-                          Clean and bright interface
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {themeOptions.map((opt) => {
+                  const Icon = opt.icon;
+                  const isActive = theme === opt.id;
+                  return (
+                    <button
+                      key={opt.id}
+                      onClick={() => setTheme(opt.id)}
+                      className={cn(
+                        "relative p-4 rounded-xl border-2 transition-all duration-200 text-left",
+                        isActive
+                          ? "border-primary bg-primary/5 ring-1 ring-primary/20"
+                          : "border-border hover:border-primary/40 hover:bg-muted/50"
+                      )}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={cn(
+                          "p-2 rounded-full transition-colors",
+                          isActive ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                        )}>
+                          <Icon className="h-5 w-5" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-sm">{opt.label}</div>
+                          <div className="text-xs text-muted-foreground">{opt.description}</div>
                         </div>
                       </div>
-                      <div className="h-2 w-2 rounded-full bg-primary" />
-                    </div>
-                  </CardContent>
-                </Card>
+                      {isActive && (
+                        <div className="absolute top-2 right-2 h-2 w-2 rounded-full bg-primary" />
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
