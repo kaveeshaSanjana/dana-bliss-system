@@ -47,7 +47,7 @@ const AppLayout = ({ children, currentPage: propCurrentPage, onPageChange }: App
   };
 
   if (!user) {
-    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+    return <AppLoadingScreen message="Loading your workspace..." />;
   }
 
   return (
