@@ -171,11 +171,12 @@ const Header = ({ onMenuClick }: HeaderProps) => {
     setSelectedClass(null);
     setSelectedSubject(null);
     
-    // Invalidate cached data so pages reload with new institute
-    enhancedCachedClient.clearAllCache();
-    enhancedCachedClient.clearPendingRequests();
+    // Keep existing cache intact — components will load new data
+    // based on the updated instituteId from context. No need to
+    // clear cache; if the new institute's data is already cached
+    // it will be served instantly, otherwise fetched fresh.
     
-    // Dispatch event so any listening components can refresh
+    // Dispatch event so any listening components know to re-fetch
     window.dispatchEvent(new CustomEvent('institute:switched', { detail: { instituteId: inst.id } }));
     
     const path = location.pathname;
