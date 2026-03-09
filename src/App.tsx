@@ -157,6 +157,7 @@ const App = () => {
       <MuiThemeProvider theme={muiTheme}>
         <CssBaseline />
         <ThemeProvider>
+        <QueryClientProvider client={queryClient}>
           <BrowserRouter>
             <AuthProvider>
               <Toaster />
@@ -268,92 +269,23 @@ const App = () => {
                 <Route path="/device-management" element={<Index />} />
 
                 {/* Dedicated Page Routes (must be protected) */}
-                <Route
-                  path="/my-children"
-                  element={
-                    <ProtectedRoute>
-                      <MyChildren />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/transport"
-                  element={
-                    <ProtectedRoute>
-                      <Transport />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/system-payment"
-                  element={
-                    <ProtectedRoute>
-                      <Payments />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/system-payments/create"
-                  element={
-                    <ProtectedRoute>
-                      <CreatePayment />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/payment-submissions/:paymentId"
-                  element={
-                    <ProtectedRoute>
-                      <PaymentSubmissions />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/payment-submissions"
-                  element={
-                    <ProtectedRoute>
-                      <PaymentSubmissionsPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/my-submissions"
-                  element={
-                    <ProtectedRoute>
-                      <MySubmissions />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/card-demo"
-                  element={
-                    <ProtectedRoute>
-                      <CardDemo />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/id-cards"
-                  element={
-                    <ProtectedRoute>
-                      <CardManagement />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/sessions"
-                  element={
-                    <ProtectedRoute>
-                      <ActiveSessionsPage />
-                    </ProtectedRoute>
-                  }
-                />
+                <Route path="/my-children" element={<ProtectedRoute><MyChildren /></ProtectedRoute>} />
+                <Route path="/transport" element={<ProtectedRoute><Transport /></ProtectedRoute>} />
+                <Route path="/system-payment" element={<ProtectedRoute><Payments /></ProtectedRoute>} />
+                <Route path="/system-payments/create" element={<ProtectedRoute><CreatePayment /></ProtectedRoute>} />
+                <Route path="/payment-submissions/:paymentId" element={<ProtectedRoute><PaymentSubmissions /></ProtectedRoute>} />
+                <Route path="/payment-submissions" element={<ProtectedRoute><PaymentSubmissionsPage /></ProtectedRoute>} />
+                <Route path="/my-submissions" element={<ProtectedRoute><MySubmissions /></ProtectedRoute>} />
+                <Route path="/card-demo" element={<ProtectedRoute><CardDemo /></ProtectedRoute>} />
+                <Route path="/id-cards" element={<ProtectedRoute><CardManagement /></ProtectedRoute>} />
+                <Route path="/sessions" element={<ProtectedRoute><ActiveSessionsPage /></ProtectedRoute>} />
 
                 {/* Catch-all - Show 404 for unknown paths */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </AuthProvider>
           </BrowserRouter>
+        </QueryClientProvider>
         </ThemeProvider>
       </MuiThemeProvider>
     </ErrorBoundary>
