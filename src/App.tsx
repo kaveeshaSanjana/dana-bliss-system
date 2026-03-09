@@ -154,9 +154,9 @@ const App = () => {
 
   return (
     <ErrorBoundary>
-      <ThemeProvider theme={muiTheme}>
+      <MuiThemeProvider theme={muiTheme}>
         <CssBaseline />
-        <QueryClientProvider client={queryClient}>
+        <ThemeProvider>
           <BrowserRouter>
             <AuthProvider>
               <Toaster />
