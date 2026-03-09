@@ -354,8 +354,8 @@ const App = () => {
               </Routes>
             </AuthProvider>
           </BrowserRouter>
-        </QueryClientProvider>
-      </ThemeProvider>
+        </ThemeProvider>
+      </MuiThemeProvider>
     </ErrorBoundary>
   );
 };
