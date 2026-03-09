@@ -30,6 +30,7 @@ import PaymentSubmissionsPage from "./pages/PaymentSubmissionsPage";
 import HomeworkSubmissions from "./pages/HomeworkSubmissions";
 import HomeworkSubmissionDetails from "./pages/HomeworkSubmissionDetails";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { ThemeProvider } from "@/contexts/ThemeContext";
 import UpdateHomework from "@/pages/UpdateHomework";
 import UpdateLecture from "@/pages/UpdateLecture";
 import CardDemo from "@/pages/CardDemo";
