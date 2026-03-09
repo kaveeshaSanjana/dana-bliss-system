@@ -170,6 +170,14 @@ const Header = ({ onMenuClick }: HeaderProps) => {
     setSelectedInstitute(inst);
     setSelectedClass(null);
     setSelectedSubject(null);
+    
+    // Invalidate cached data so pages reload with new institute
+    enhancedCachedClient.clearAll?.();
+    cachedApiClient.clearAll?.();
+    
+    // Dispatch event so any listening components can refresh
+    window.dispatchEvent(new CustomEvent('institute:switched', { detail: { instituteId: inst.id } }));
+    
     const path = location.pathname;
     const match = path.match(/^\/institute\/[^/]+\/(.*)$/);
     if (match) {
