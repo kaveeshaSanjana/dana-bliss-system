@@ -8,6 +8,7 @@ import DashboardQuickNav from '@/components/dashboard/DashboardQuickNav';
 import DashboardGrid, { type DashboardItem } from '@/components/dashboard/DashboardGrid';
 import MyAttendanceHistoryCard from '@/components/dashboard/MyAttendanceHistoryCard';
 import DashboardChildrenCard from '@/components/dashboard/DashboardChildrenCard';
+import DashboardStatCards from '@/components/dashboard/DashboardStatCards';
 import {
   Users, GraduationCap, UserCheck, BookOpen, School,
   User, Building2, QrCode, Award, Video, FileText, Notebook,
