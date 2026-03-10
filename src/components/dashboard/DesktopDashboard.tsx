@@ -7,6 +7,7 @@ import InstituteCarousel from '@/components/dashboard/InstituteCarousel';
 import DashboardQuickNav from '@/components/dashboard/DashboardQuickNav';
 import DashboardGrid, { type DashboardItem } from '@/components/dashboard/DashboardGrid';
 import MyAttendanceHistoryCard from '@/components/dashboard/MyAttendanceHistoryCard';
+import DashboardChildrenCard from '@/components/dashboard/DashboardChildrenCard';
 import {
   Users, GraduationCap, UserCheck, BookOpen, School,
   User, Building2, QrCode, Award, Video, FileText, Notebook,
@@ -411,6 +412,8 @@ const DesktopDashboard = () => {
 
   const sections = getSections();
 
+  const showChildrenCard = userRole === 'Parent' || (user?.userType?.toUpperCase() !== 'USER_WITHOUT_PARENT');
+
   return (
     <div className="p-3 sm:p-6 space-y-5 max-w-5xl mx-auto pb-8">
       {/* Header */}
@@ -433,8 +436,11 @@ const DesktopDashboard = () => {
         <DashboardQuickNav onNavigate={handleNavigate} isTuitionInstitute={isTuitionInstitute} />
       )}
 
-      {/* Attendance card - only shows if API is available */}
-      {!selectedInstitute && <MyAttendanceHistoryCard />}
+      {/* Attendance + Children cards side by side on larger screens */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <MyAttendanceHistoryCard />
+        {showChildrenCard && <DashboardChildrenCard />}
+      </div>
 
       {/* All sections with card grid */}
       {sections.map((section) => (
