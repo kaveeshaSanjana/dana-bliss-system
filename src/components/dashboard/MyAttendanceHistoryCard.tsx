@@ -43,9 +43,26 @@ const MyAttendanceHistoryCard = () => {
     fetchData();
   }, []);
 
-  // Don't render anything if error or no data — avoid showing broken UI
+  // Show empty state if error or no data instead of hiding
   if (error || (!loading && !data)) {
-    return null;
+    return (
+      <div className="bg-card border border-border rounded-2xl p-5 shadow-sm">
+        <div className="flex items-center gap-2.5">
+          <div className="p-2 rounded-xl bg-primary/10">
+            <UserCheck className="h-5 w-5 text-primary" />
+          </div>
+          <div>
+            <h3 className="font-semibold text-foreground">My Attendance</h3>
+            <p className="text-xs text-muted-foreground">Last 30 days</p>
+          </div>
+        </div>
+        <div className="flex flex-col items-center justify-center py-6 text-center">
+          <UserCheck className="h-8 w-8 text-muted-foreground/40 mb-2" />
+          <p className="text-sm text-muted-foreground">No attendance data yet</p>
+          <p className="text-xs text-muted-foreground/70 mt-0.5">Your attendance records will appear here</p>
+        </div>
+      </div>
+    );
   }
 
   if (loading) {
