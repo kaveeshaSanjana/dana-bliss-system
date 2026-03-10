@@ -7,6 +7,7 @@ import InstituteCarousel from '@/components/dashboard/InstituteCarousel';
 import DashboardQuickNav from '@/components/dashboard/DashboardQuickNav';
 import DashboardGrid, { type DashboardItem } from '@/components/dashboard/DashboardGrid';
 import MyAttendanceHistoryCard from '@/components/dashboard/MyAttendanceHistoryCard';
+import DashboardChildrenCard from '@/components/dashboard/DashboardChildrenCard';
 import {
   Users, GraduationCap, UserCheck, BookOpen, School,
   User, Building2, QrCode, Award, Video, FileText, Notebook,
