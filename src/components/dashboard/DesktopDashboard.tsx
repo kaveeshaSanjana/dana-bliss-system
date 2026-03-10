@@ -8,6 +8,7 @@ import DashboardQuickNav from '@/components/dashboard/DashboardQuickNav';
 import DashboardGrid, { type DashboardItem } from '@/components/dashboard/DashboardGrid';
 import MyAttendanceHistoryCard from '@/components/dashboard/MyAttendanceHistoryCard';
 import DashboardChildrenCard from '@/components/dashboard/DashboardChildrenCard';
+import DashboardStatCards from '@/components/dashboard/DashboardStatCards';
 import {
   Users, GraduationCap, UserCheck, BookOpen, School,
   User, Building2, QrCode, Award, Video, FileText, Notebook,
@@ -431,12 +432,15 @@ const DesktopDashboard = () => {
       {/* Institute carousel slider */}
       <InstituteCarousel onSelectInstitute={(inst) => setSelectedInstitute(inst)} />
 
+      {/* Stat summary cards */}
+      <DashboardStatCards />
+
       {/* Breadcrumb navigation */}
       {selectedInstitute && (
         <DashboardQuickNav onNavigate={handleNavigate} isTuitionInstitute={isTuitionInstitute} />
       )}
 
-      {/* Attendance + Children cards side by side on larger screens */}
+      {/* Widget cards — Attendance, Children, side by side */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <MyAttendanceHistoryCard />
         {showChildrenCard && <DashboardChildrenCard />}
