@@ -23,7 +23,7 @@ import { useInstituteRole } from '@/hooks/useInstituteRole';
 import ConnectedApps from '@/components/ConnectedApps';
 import CurrentSelection from '@/components/ui/current-selection';
 import DeleteAccountTab from '@/components/profile/DeleteAccountTab';
-
+import ProfileImageSection from '@/components/profile/ProfileImageSection';
 interface UserData {
   id: string;
   nameWithInitials: string;
@@ -341,6 +341,7 @@ const Profile = () => {
 
   const menuItems = [
     { id: 'details', icon: User, label: 'Personal Details', description: 'Name, email, phone & more', color: 'text-blue-500' },
+    { id: 'image', icon: Camera, label: 'Profile Image', description: 'Upload & verification status', color: 'text-pink-500' },
     { id: 'address', icon: MapPin, label: 'Address', description: 'Your address information', color: 'text-emerald-500' },
     { id: 'professional', icon: Briefcase, label: 'Professional', description: 'Work & education details', color: 'text-amber-500' },
     { id: 'account', icon: CreditCard, label: 'Account & Plan', description: 'Subscription & language', color: 'text-purple-500' },
@@ -598,6 +599,7 @@ const Profile = () => {
           <h2 className="text-lg font-bold text-foreground">{item?.label}</h2>
 
           {['details', 'address', 'professional', 'account'].includes(mobileSection) && renderMobileSection(mobileSection)}
+          {mobileSection === 'image' && <ProfileImageSection currentImageUrl={currentImageUrl} onImageUpdate={handleImageUpdate} />}
           {mobileSection === 'security' && securityContent}
           {mobileSection === 'sessions' && sessionsContent}
           {mobileSection === 'apps' && <ConnectedApps />}
@@ -669,21 +671,24 @@ const Profile = () => {
         setActiveProfileTab(val);
         if (val === 'devices' && sessions.length === 0) loadSessions();
       }}>
-        <TabsList className="w-full grid grid-cols-5 h-10">
-          <TabsTrigger value="details" className="gap-1.5 text-sm px-3">
-            <User className="h-4 w-4 shrink-0" /> Details
+        <TabsList className="w-full grid grid-cols-6 h-10">
+          <TabsTrigger value="details" className="gap-1.5 text-xs sm:text-sm px-2 sm:px-3">
+            <User className="h-4 w-4 shrink-0" /> <span className="hidden sm:inline">Details</span>
           </TabsTrigger>
-          <TabsTrigger value="security" className="gap-1.5 text-sm px-3">
-            <Lock className="h-4 w-4 shrink-0" /> Security
+          <TabsTrigger value="image" className="gap-1.5 text-xs sm:text-sm px-2 sm:px-3">
+            <Camera className="h-4 w-4 shrink-0" /> <span className="hidden sm:inline">Image</span>
           </TabsTrigger>
-          <TabsTrigger value="sessions" className="gap-1.5 text-sm px-3">
-            <Monitor className="h-4 w-4 shrink-0" /> Devices
+          <TabsTrigger value="security" className="gap-1.5 text-xs sm:text-sm px-2 sm:px-3">
+            <Lock className="h-4 w-4 shrink-0" /> <span className="hidden sm:inline">Security</span>
           </TabsTrigger>
-          <TabsTrigger value="apps" className="gap-1.5 text-sm px-3">
-            <Link2 className="h-4 w-4 shrink-0" /> Apps
+          <TabsTrigger value="sessions" className="gap-1.5 text-xs sm:text-sm px-2 sm:px-3">
+            <Monitor className="h-4 w-4 shrink-0" /> <span className="hidden sm:inline">Devices</span>
           </TabsTrigger>
-          <TabsTrigger value="delete-account" className="gap-1.5 text-sm px-3 text-destructive data-[state=active]:text-destructive">
-            <Trash2 className="h-4 w-4 shrink-0" /> Delete
+          <TabsTrigger value="apps" className="gap-1.5 text-xs sm:text-sm px-2 sm:px-3">
+            <Link2 className="h-4 w-4 shrink-0" /> <span className="hidden sm:inline">Apps</span>
+          </TabsTrigger>
+          <TabsTrigger value="delete-account" className="gap-1.5 text-xs sm:text-sm px-2 sm:px-3 text-destructive data-[state=active]:text-destructive">
+            <Trash2 className="h-4 w-4 shrink-0" /> <span className="hidden sm:inline">Delete</span>
           </TabsTrigger>
         </TabsList>
 
@@ -751,6 +756,10 @@ const Profile = () => {
               </AccordionContent>
             </AccordionItem>
           </Accordion>
+        </TabsContent>
+
+        <TabsContent value="image" className="mt-4">
+          <ProfileImageSection currentImageUrl={currentImageUrl} onImageUpdate={handleImageUpdate} />
         </TabsContent>
 
         <TabsContent value="security" className="mt-4">
