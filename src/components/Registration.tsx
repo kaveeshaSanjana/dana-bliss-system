@@ -10,7 +10,7 @@ import {
   Users, GraduationCap, Shield, UserPlus, SkipForward, X,
 } from 'lucide-react';
 import surakshaLogo from '@/assets/suraksha-logo.png';
-import loginIllustration from '@/assets/login-illustration.png';
+
 import { useToast } from '@/hooks/use-toast';
 import {
   registerUser,
@@ -961,51 +961,44 @@ const Registration: React.FC<RegistrationProps> = ({ onBack, onComplete }) => {
   // ============= LAYOUT =============
 
   return (
-    <div className="min-h-[100dvh] flex flex-col md:flex-row overflow-x-hidden bg-background">
-      {/* Top Illustration - Mobile Only */}
-      <div className="block md:hidden w-full relative h-[18vh] shrink-0 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-primary/5" />
-        <img src={loginIllustration} alt="Registration" className="absolute inset-0 w-full h-full object-cover" loading="lazy" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
-      </div>
+    <div className="min-h-[100dvh] flex flex-col bg-background overflow-x-hidden">
+      {/* Subtle top accent bar */}
+      <div className="h-1.5 w-full bg-gradient-to-r from-primary via-primary/70 to-primary/40 shrink-0" />
 
-      {/* Form Area */}
-      <div className="w-full md:w-3/5 lg:w-1/2 flex flex-col items-center justify-start px-5 py-6 sm:p-7 md:p-10 bg-background -mt-8 md:mt-0 rounded-t-[3rem] md:rounded-none relative z-10 flex-1 md:min-h-screen overflow-y-auto">
-        <div className="w-full max-w-md md:max-w-lg space-y-5">
+      <div className="flex-1 flex flex-col items-center justify-start px-4 py-6 sm:px-6 sm:py-8 md:px-8 lg:px-12 overflow-y-auto">
+        <div className="w-full max-w-xl lg:max-w-2xl space-y-6">
           {/* Header */}
-          <div className="text-center space-y-1">
-            <div className="flex justify-center mb-2">
-              <div className="w-12 h-12 md:w-16 md:h-16 rounded-lg overflow-hidden">
-                <img src={surakshaLogo} alt="SurakshaLMS" className="w-full h-full object-contain" loading="lazy" />
-              </div>
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 md:w-14 md:h-14 rounded-xl overflow-hidden bg-primary/5 border border-border/50 p-1.5 shrink-0">
+              <img src={surakshaLogo} alt="SurakshaLMS" className="w-full h-full object-contain" loading="lazy" />
             </div>
-            <h1 className="text-2xl md:text-3xl font-bold text-foreground tracking-tight">Create Account</h1>
+            <div>
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground tracking-tight">Create Account</h1>
+              <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">Fill in the details to get started</p>
+            </div>
           </div>
 
           {/* Step Indicator */}
-          <StepIndicator steps={stepLabels} current={currentStepIdx} />
+          <div className="bg-card border border-border/50 rounded-2xl p-4 shadow-sm">
+            <StepIndicator steps={stepLabels} current={currentStepIdx} />
+          </div>
 
-          {/* Card */}
-          <Card className="border-border/50 shadow-md">
-            <CardContent className="p-5 md:p-8">
+          {/* Main Content Card */}
+          <Card className="border-border/50 shadow-lg rounded-2xl overflow-hidden">
+            <CardContent className="p-5 sm:p-6 md:p-8 lg:p-10">
               {renderContent()}
             </CardContent>
           </Card>
 
           {/* Back to Login link */}
           {flowStep === 'select-type' && (
-            <div className="text-center">
-              <Button variant="link" onClick={onBack} className="text-sm text-muted-foreground">
+            <div className="text-center pb-6">
+              <Button variant="link" onClick={onBack} className="text-sm text-muted-foreground hover:text-primary">
                 Already have an account? Go to Login
               </Button>
             </div>
           )}
         </div>
-      </div>
-
-      {/* Right Side - Illustration (Desktop) */}
-      <div className="hidden md:flex md:w-1/2 lg:w-3/5 relative min-h-[300px] md:min-h-screen">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-primary/5" />
-        <img src={loginIllustration} alt="Registration illustration" className="absolute inset-0 w-full h-full object-cover mix-blend-multiply" loading="lazy" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
       </div>
     </div>
   );
