@@ -341,6 +341,7 @@ const Profile = () => {
 
   const menuItems = [
     { id: 'details', icon: User, label: 'Personal Details', description: 'Name, email, phone & more', color: 'text-blue-500' },
+    { id: 'image', icon: Camera, label: 'Profile Image', description: 'Upload & verification status', color: 'text-pink-500' },
     { id: 'address', icon: MapPin, label: 'Address', description: 'Your address information', color: 'text-emerald-500' },
     { id: 'professional', icon: Briefcase, label: 'Professional', description: 'Work & education details', color: 'text-amber-500' },
     { id: 'account', icon: CreditCard, label: 'Account & Plan', description: 'Subscription & language', color: 'text-purple-500' },
