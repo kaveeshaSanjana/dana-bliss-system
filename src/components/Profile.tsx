@@ -599,6 +599,7 @@ const Profile = () => {
           <h2 className="text-lg font-bold text-foreground">{item?.label}</h2>
 
           {['details', 'address', 'professional', 'account'].includes(mobileSection) && renderMobileSection(mobileSection)}
+          {mobileSection === 'image' && <ProfileImageSection currentImageUrl={currentImageUrl} onImageUpdate={handleImageUpdate} />}
           {mobileSection === 'security' && securityContent}
           {mobileSection === 'sessions' && sessionsContent}
           {mobileSection === 'apps' && <ConnectedApps />}
