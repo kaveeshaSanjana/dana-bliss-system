@@ -23,7 +23,7 @@ import { useInstituteRole } from '@/hooks/useInstituteRole';
 import ConnectedApps from '@/components/ConnectedApps';
 import CurrentSelection from '@/components/ui/current-selection';
 import DeleteAccountTab from '@/components/profile/DeleteAccountTab';
-
+import ProfileImageSection from '@/components/profile/ProfileImageSection';
 interface UserData {
   id: string;
   nameWithInitials: string;
