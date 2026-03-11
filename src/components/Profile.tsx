@@ -671,21 +671,24 @@ const Profile = () => {
         setActiveProfileTab(val);
         if (val === 'devices' && sessions.length === 0) loadSessions();
       }}>
-        <TabsList className="w-full grid grid-cols-5 h-10">
-          <TabsTrigger value="details" className="gap-1.5 text-sm px-3">
-            <User className="h-4 w-4 shrink-0" /> Details
+        <TabsList className="w-full grid grid-cols-6 h-10">
+          <TabsTrigger value="details" className="gap-1.5 text-xs sm:text-sm px-2 sm:px-3">
+            <User className="h-4 w-4 shrink-0" /> <span className="hidden sm:inline">Details</span>
           </TabsTrigger>
-          <TabsTrigger value="security" className="gap-1.5 text-sm px-3">
-            <Lock className="h-4 w-4 shrink-0" /> Security
+          <TabsTrigger value="image" className="gap-1.5 text-xs sm:text-sm px-2 sm:px-3">
+            <Camera className="h-4 w-4 shrink-0" /> <span className="hidden sm:inline">Image</span>
           </TabsTrigger>
-          <TabsTrigger value="sessions" className="gap-1.5 text-sm px-3">
-            <Monitor className="h-4 w-4 shrink-0" /> Devices
+          <TabsTrigger value="security" className="gap-1.5 text-xs sm:text-sm px-2 sm:px-3">
+            <Lock className="h-4 w-4 shrink-0" /> <span className="hidden sm:inline">Security</span>
           </TabsTrigger>
-          <TabsTrigger value="apps" className="gap-1.5 text-sm px-3">
-            <Link2 className="h-4 w-4 shrink-0" /> Apps
+          <TabsTrigger value="sessions" className="gap-1.5 text-xs sm:text-sm px-2 sm:px-3">
+            <Monitor className="h-4 w-4 shrink-0" /> <span className="hidden sm:inline">Devices</span>
           </TabsTrigger>
-          <TabsTrigger value="delete-account" className="gap-1.5 text-sm px-3 text-destructive data-[state=active]:text-destructive">
-            <Trash2 className="h-4 w-4 shrink-0" /> Delete
+          <TabsTrigger value="apps" className="gap-1.5 text-xs sm:text-sm px-2 sm:px-3">
+            <Link2 className="h-4 w-4 shrink-0" /> <span className="hidden sm:inline">Apps</span>
+          </TabsTrigger>
+          <TabsTrigger value="delete-account" className="gap-1.5 text-xs sm:text-sm px-2 sm:px-3 text-destructive data-[state=active]:text-destructive">
+            <Trash2 className="h-4 w-4 shrink-0" /> <span className="hidden sm:inline">Delete</span>
           </TabsTrigger>
         </TabsList>
 
