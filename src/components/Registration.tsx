@@ -10,7 +10,7 @@ import {
   Users, GraduationCap, Shield, UserPlus, SkipForward, X,
 } from 'lucide-react';
 import surakshaLogo from '@/assets/suraksha-logo.png';
-import loginIllustration from '@/assets/login-illustration.png';
+
 import { useToast } from '@/hooks/use-toast';
 import {
   registerUser,
