@@ -758,6 +758,10 @@ const Profile = () => {
           </Accordion>
         </TabsContent>
 
+        <TabsContent value="image" className="mt-4">
+          <ProfileImageSection currentImageUrl={currentImageUrl} onImageUpdate={handleImageUpdate} />
+        </TabsContent>
+
         <TabsContent value="security" className="mt-4">
           {securityContent}
         </TabsContent>
