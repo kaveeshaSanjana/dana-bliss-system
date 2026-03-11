@@ -103,6 +103,7 @@ import TodayDashboard from '@/components/TodayDashboard';
 import ParentAttendanceDashboard from '@/components/parent-attendance/ParentAttendanceDashboard';
 import ClassCalendarPage from '@/pages/ClassCalendarPage';
 import DeviceManagement from '@/pages/DeviceManagement';
+import Feedback from '@/components/Feedback';
 
 interface AppContentProps {
   initialPage?: string;
@@ -497,6 +498,13 @@ const AppContent = ({ initialPage }: AppContentProps) => {
     if (isLoadingContextFromUrl) {
       return <AppLoadingScreen message="Loading your data..." />;
     }
+
+    // CRITICAL: Global pages that should ALWAYS render regardless of role/institute/child selection
+    if (currentPage === 'feedback') return <Feedback />;
+    if (currentPage === 'settings') return <Settings />;
+    if (currentPage === 'all-notifications') return <AllNotificationsPage />;
+    if (currentPage === 'profile') return <Profile />;
+    if (currentPage === 'appearance') return <Appearance />;
     
     // CRITICAL: Handle parent viewing child routes FIRST - regardless of user role
     // When isViewingAsParent is true and child is selected, show student UI in view-only mode
@@ -623,6 +631,8 @@ const AppContent = ({ initialPage }: AppContentProps) => {
           return <Profile />;
         case 'settings':
           return <Settings />;
+        case 'feedback':
+          return <Feedback />;
         case 'all-notifications':
           return <AllNotificationsPage />;
         case 'notifications':
@@ -645,7 +655,7 @@ const AppContent = ({ initialPage }: AppContentProps) => {
       }
       
       // Only redirect to InstituteSelector if no institute AND not loading from URL
-      if (!selectedInstitute && !urlInstituteId && currentPage !== 'institutes' && currentPage !== 'select-institute' && currentPage !== 'settings' && currentPage !== 'appearance' && currentPage !== 'all-notifications' && currentPage !== 'notifications' && currentPage !== 'dashboard') {
+      if (!selectedInstitute && !urlInstituteId && currentPage !== 'institutes' && currentPage !== 'select-institute' && currentPage !== 'settings' && currentPage !== 'appearance' && currentPage !== 'all-notifications' && currentPage !== 'notifications' && currentPage !== 'dashboard' && currentPage !== 'feedback') {
         return <InstituteSelector />;
       }
 
@@ -719,6 +729,8 @@ const AppContent = ({ initialPage }: AppContentProps) => {
           return <TodayDashboard />;
         case 'settings':
           return <Settings />;
+        case 'feedback':
+          return <Feedback />;
         default:
           return <Dashboard />;
       }
@@ -735,7 +747,7 @@ const AppContent = ({ initialPage }: AppContentProps) => {
         return <ParentChildrenSelector />;
       }
 
-      if (!selectedChild && currentPage !== 'parents' && currentPage !== 'profile' && currentPage !== 'appearance' && currentPage !== 'settings') {
+      if (!selectedChild && currentPage !== 'parents' && currentPage !== 'profile' && currentPage !== 'appearance' && currentPage !== 'settings' && currentPage !== 'feedback' && currentPage !== 'all-notifications' && currentPage !== 'notifications') {
         return <ParentChildrenSelector />;
       }
 
@@ -774,6 +786,8 @@ const AppContent = ({ initialPage }: AppContentProps) => {
           return <Appearance />;
         case 'settings':
           return <Settings />;
+        case 'feedback':
+          return <Feedback />;
         case 'all-notifications':
           return <AllNotificationsPage />;
         case 'notifications':
@@ -799,7 +813,7 @@ const AppContent = ({ initialPage }: AppContentProps) => {
     // For Teacher role
     if (userRole === 'Teacher') {
       // Only redirect to InstituteSelector if no institute AND not loading from URL
-      if (!selectedInstitute && !urlInstituteId && currentPage !== 'institutes' && currentPage !== 'select-institute' && currentPage !== 'settings' && currentPage !== 'appearance' && currentPage !== 'all-notifications' && currentPage !== 'notifications' && currentPage !== 'dashboard') {
+      if (!selectedInstitute && !urlInstituteId && currentPage !== 'institutes' && currentPage !== 'select-institute' && currentPage !== 'settings' && currentPage !== 'appearance' && currentPage !== 'all-notifications' && currentPage !== 'notifications' && currentPage !== 'dashboard' && currentPage !== 'feedback') {
         return <InstituteSelector />;
       }
 
@@ -906,6 +920,8 @@ const AppContent = ({ initialPage }: AppContentProps) => {
           return <NotificationsPage />;
         case 'settings':
           return <Settings />;
+        case 'feedback':
+          return <Feedback />;
         default:
           return <Dashboard />;
       }
@@ -914,7 +930,7 @@ const AppContent = ({ initialPage }: AppContentProps) => {
     // For AttendanceMarker role
     if (userRole === 'AttendanceMarker') {
       // Only redirect to InstituteSelector if no institute AND not loading from URL
-      if (!selectedInstitute && !urlInstituteId && currentPage !== 'select-institute' && currentPage !== 'settings' && currentPage !== 'appearance' && currentPage !== 'all-notifications' && currentPage !== 'notifications' && currentPage !== 'dashboard') {
+      if (!selectedInstitute && !urlInstituteId && currentPage !== 'select-institute' && currentPage !== 'settings' && currentPage !== 'appearance' && currentPage !== 'all-notifications' && currentPage !== 'notifications' && currentPage !== 'dashboard' && currentPage !== 'feedback') {
         return <InstituteSelector />;
       }
 
@@ -960,6 +976,8 @@ const AppContent = ({ initialPage }: AppContentProps) => {
           return <InstituteSettingsPage />;
         case 'settings':
           return <Settings />;
+        case 'feedback':
+          return <Feedback />;
         case 'all-notifications':
           return <AllNotificationsPage />;
         case 'notifications':
@@ -1128,6 +1146,8 @@ const AppContent = ({ initialPage }: AppContentProps) => {
         return <Profile />;
       case 'settings':
         return <Settings />;
+      case 'feedback':
+        return <Feedback />;
       case 'setup-guide':
         return <SetupGuide />;
       case 'institute-details':

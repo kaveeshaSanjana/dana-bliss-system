@@ -267,6 +267,7 @@ const App = () => {
                 <Route path="/parent-attendance" element={<Index />} />
                 <Route path="/class-calendar" element={<Index />} />
                 <Route path="/device-management" element={<Index />} />
+                <Route path="/feedback" element={<Index />} />
 
                 {/* Dedicated Page Routes (must be protected) */}
                 <Route path="/my-children" element={<ProtectedRoute><MyChildren /></ProtectedRoute>} />

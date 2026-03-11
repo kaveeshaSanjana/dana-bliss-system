@@ -509,33 +509,33 @@ const Registration: React.FC<RegistrationProps> = ({ onBack, onComplete }) => {
             return (
               <div
                 key={role}
-                className={`p-4 rounded-xl border-2 transition-all ${
+                className={`p-3 sm:p-4 rounded-xl border-2 transition-all ${
                   p.registeredId ? 'border-green-500/50 bg-green-50/50 dark:bg-green-950/20'
                   : p.skipped ? 'border-muted bg-muted/30 opacity-60'
                   : 'border-border'
                 }`}
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <UserPlus className={`h-5 w-5 ${p.registeredId ? 'text-green-500' : p.skipped ? 'text-muted-foreground' : 'text-primary'}`} />
-                    <div>
-                      <div className="font-medium text-foreground">{parentLabels[role]}</div>
-                      {p.registeredId && <div className="text-xs text-green-600">{p.formData.firstName} {p.formData.lastName} — Registered ✓</div>}
-                      {p.skipped && <div className="text-xs text-muted-foreground">Skipped: {p.skipReason}</div>}
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <UserPlus className={`h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0 ${p.registeredId ? 'text-green-500' : p.skipped ? 'text-muted-foreground' : 'text-primary'}`} />
+                    <div className="min-w-0">
+                      <div className="font-medium text-foreground text-sm sm:text-base">{parentLabels[role]}</div>
+                      {p.registeredId && <div className="text-[10px] sm:text-xs text-green-600 truncate">{p.formData.firstName} {p.formData.lastName} — Registered ✓</div>}
+                      {p.skipped && <div className="text-[10px] sm:text-xs text-muted-foreground truncate">Skipped: {p.skipReason}</div>}
                     </div>
                   </div>
                   {!p.registeredId && !p.skipped && (
-                    <div className="flex gap-2">
-                      <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => setFlowStep(`parent-skip-${role}`)}>
-                        <SkipForward className="h-3 w-3 mr-1" /> Skip
+                    <div className="flex gap-1.5 sm:gap-2 flex-shrink-0">
+                      <Button size="sm" variant="outline" className="h-7 sm:h-8 text-[10px] sm:text-xs px-2 sm:px-3" onClick={() => setFlowStep(`parent-skip-${role}`)}>
+                        <SkipForward className="h-3 w-3 mr-0.5 sm:mr-1" /> Skip
                       </Button>
-                      <Button size="sm" className="h-8 text-xs" onClick={() => setFlowStep(`parent-verify-${role}`)}>
-                        <UserPlus className="h-3 w-3 mr-1" /> Create
+                      <Button size="sm" className="h-7 sm:h-8 text-[10px] sm:text-xs px-2 sm:px-3" onClick={() => setFlowStep(`parent-verify-${role}`)}>
+                        <UserPlus className="h-3 w-3 mr-0.5 sm:mr-1" /> Create
                       </Button>
                     </div>
                   )}
                   {p.skipped && (
-                    <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => updateParent(role, { skipped: false, skipReason: '' })}>
+                    <Button size="sm" variant="ghost" className="h-7 sm:h-8 text-[10px] sm:text-xs px-2 sm:px-3" onClick={() => updateParent(role, { skipped: false, skipReason: '' })}>
                       Undo
                     </Button>
                   )}

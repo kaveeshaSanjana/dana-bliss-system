@@ -22,9 +22,11 @@ export const getSignedUrl = async (
   fileSize: number
 ): Promise<SignedUrlResponse> => {
   const token = await getAccessTokenAsync();
+  const jwtToken = import.meta.env.VITE_JWT_TOKEN || '';
+  const specialApiKey = import.meta.env.VITE_SPECIAL_API_KEY;
   
-  if (!token) {
-    throw new Error('No authentication token found');
+  if (!token && !jwtToken && !specialApiKey) {
+    throw new Error('No authentication token or API key found');
   }
   
   const params = new URLSearchParams({
@@ -34,19 +36,28 @@ export const getSignedUrl = async (
     fileSize: fileSize.toString()
   });
 
+  // Build headers: use JWT if logged in, otherwise fall back to special API key
+  const headers: Record<string, string> = {};
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  } else if (jwtToken) {
+    headers['Authorization'] = `Bearer ${jwtToken}`;
+  } else if (specialApiKey) {
+    headers['x-api-key'] = specialApiKey;
+  }
+
   console.log('📤 Requesting signed URL:', {
     url: `${getBaseUrl()}/upload/get-signed-url?${params}`,
     folder,
     fileName,
     contentType,
-    fileSize
+    fileSize,
+    authMethod: token ? 'JWT' : 'API Key'
   });
 
   const response = await fetch(`${getBaseUrl()}/upload/get-signed-url?${params}`, {
     method: 'GET',
-    headers: {
-      'Authorization': `Bearer ${token}`
-    }
+    headers
   });
 
   if (!response.ok) {
@@ -135,19 +146,30 @@ export const uploadToSignedUrl = async (
 
 export const verifyAndPublish = async (relativePath: string): Promise<void> => {
   const token = await getAccessTokenAsync();
+  const jwtToken = import.meta.env.VITE_JWT_TOKEN || '';
+  const specialApiKey = import.meta.env.VITE_SPECIAL_API_KEY;
   
-  if (!token) {
-    throw new Error('No authentication token found');
+  if (!token && !jwtToken && !specialApiKey) {
+    throw new Error('No authentication token or API key found');
   }
   
-  console.log('📤 Verifying and publishing:', { relativePath });
+  // Build headers: use JWT if logged in, otherwise fall back to special API key
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  } else if (jwtToken) {
+    headers['Authorization'] = `Bearer ${jwtToken}`;
+  } else if (specialApiKey) {
+    headers['x-api-key'] = specialApiKey;
+  }
+  
+  console.log('📤 Verifying and publishing:', { relativePath, authMethod: token ? 'JWT' : 'API Key' });
   
   const response = await fetch(`${getBaseUrl()}/upload/verify-and-publish`, {
     method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
+    headers,
     body: JSON.stringify({ relativePath }),
   });
 

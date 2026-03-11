@@ -1,8 +1,9 @@
 /**
- * SubmitPaymentDialog - Submit payment for an order
+ * SubmitPaymentDialog - Submit payment with file upload
+ * Supports Cloud Storage (signed URL) and Google Drive upload methods
  */
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -14,14 +15,33 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Upload, CreditCard, Loader2, Link as LinkIcon, Receipt } from 'lucide-react';
-import { UserIdCardOrder, PaymentType, userCardApi } from '@/api/userCard.api';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Upload,
+  CreditCard,
+  Loader2,
+  Receipt,
+  FileImage,
+  X,
+  CheckCircle2,
+  CloudUpload,
+  HardDrive,
+} from 'lucide-react';
+import {
+  UserIdCardOrder,
+  PaymentType,
+  userCardApi,
+} from '@/api/userCard.api';
+import {
+  checkDriveConnection,
+  getDriveAccessToken,
+  getDriveFolder,
+  getDriveConnectUrl,
+} from '@/services/driveService';
 import { formatPrice } from '@/utils/cardHelpers';
 import { toast } from '@/hooks/use-toast';
-import { z } from 'zod';
 
 interface SubmitPaymentDialogProps {
   order: UserIdCardOrder | null;
@@ -31,12 +51,17 @@ interface SubmitPaymentDialogProps {
   onSuccess: () => void;
 }
 
-const paymentSchema = z.object({
-  submissionUrl: z.string().url('Please enter a valid URL'),
-  paymentType: z.enum([PaymentType.SLIP_UPLOAD, PaymentType.VISA_MASTER]),
-  paymentAmount: z.number().positive('Amount must be positive'),
-  paymentReference: z.string().optional(),
-});
+type UploadMethod = 'cloud' | 'drive';
+type UploadStep = 'select-method' | 'upload' | 'submitting' | 'done';
+
+const ACCEPTED_TYPES = [
+  'image/jpeg',
+  'image/jpg',
+  'image/png',
+  'image/webp',
+  'application/pdf',
+];
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
 const SubmitPaymentDialog: React.FC<SubmitPaymentDialogProps> = ({
   order,
@@ -45,78 +70,245 @@ const SubmitPaymentDialog: React.FC<SubmitPaymentDialogProps> = ({
   loadingOrder = false,
   onSuccess,
 }) => {
-  const [formData, setFormData] = useState({
-    submissionUrl: '',
-    paymentType: PaymentType.SLIP_UPLOAD,
-    paymentReference: '',
-  });
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [uploadMethod, setUploadMethod] = useState<UploadMethod>('cloud');
+  const [step, setStep] = useState<UploadStep>('select-method');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [filePreview, setFilePreview] = useState<string | null>(null);
+  const [paymentType, setPaymentType] = useState<PaymentType>(PaymentType.BANK_TRANSFER);
+  const [paymentReference, setPaymentReference] = useState('');
+  const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState('');
+  const [driveConnected, setDriveConnected] = useState<boolean | null>(null);
+  const [checkingDrive, setCheckingDrive] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleInputChange = (field: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
-    if (errors[field]) {
-      setErrors((prev) => ({ ...prev, [field]: '' }));
-    }
+  const resetForm = useCallback(() => {
+    setStep('select-method');
+    setSelectedFile(null);
+    setFilePreview(null);
+    setPaymentType(PaymentType.BANK_TRANSFER);
+    setPaymentReference('');
+    setNotes('');
+    setLoading(false);
+    setUploadProgress('');
+    setDriveConnected(null);
+  }, []);
+
+  const handleOpenChange = (isOpen: boolean) => {
+    if (!isOpen) resetForm();
+    onOpenChange(isOpen);
   };
 
-  const handleSubmit = async () => {
-    if (!order) return;
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-    const paymentAmount = order.card?.price;
-    if (!paymentAmount || paymentAmount <= 0) {
+    if (!ACCEPTED_TYPES.includes(file.type)) {
       toast({
-        title: 'Order not ready',
-        description: 'Order details are still loading. Please wait a moment and try again.',
+        title: 'Invalid file type',
+        description: 'Please upload a JPG, PNG, WebP image or PDF file.',
         variant: 'destructive',
       });
       return;
     }
 
-    // Validate
-    const result = paymentSchema.safeParse({
-      ...formData,
-      paymentAmount,
-    });
-
-    if (!result.success) {
-      const fieldErrors: Record<string, string> = {};
-      result.error.errors.forEach((err) => {
-        if (err.path[0]) {
-          fieldErrors[err.path[0] as string] = err.message;
-        }
+    if (file.size > MAX_FILE_SIZE) {
+      toast({
+        title: 'File too large',
+        description: 'Maximum file size is 10MB.',
+        variant: 'destructive',
       });
-      setErrors(fieldErrors);
       return;
     }
 
+    setSelectedFile(file);
+
+    // Generate preview for images
+    if (file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = (ev) => setFilePreview(ev.target?.result as string);
+      reader.readAsDataURL(file);
+    } else {
+      setFilePreview(null);
+    }
+  };
+
+  const removeFile = () => {
+    setSelectedFile(null);
+    setFilePreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleMethodSelect = async () => {
+    if (uploadMethod === 'drive') {
+      // Check Drive connection
+      setCheckingDrive(true);
+      try {
+        const status = await checkDriveConnection();
+        setDriveConnected(status.isConnected);
+        if (!status.isConnected) {
+          toast({
+            title: 'Google Drive Not Connected',
+            description: 'Please connect your Google Drive first from settings.',
+            variant: 'destructive',
+          });
+          // Try to redirect to connect
+          try {
+            const { authUrl } = await getDriveConnectUrl(window.location.href);
+            window.open(authUrl, '_blank');
+          } catch {
+            // ignore
+          }
+          return;
+        }
+      } catch {
+        toast({
+          title: 'Error',
+          description: 'Could not check Drive connection status.',
+          variant: 'destructive',
+        });
+        return;
+      } finally {
+        setCheckingDrive(false);
+      }
+    }
+    setStep('upload');
+  };
+
+  // ====== Cloud Storage Upload ======
+  const uploadViaCloudStorage = async (file: File, orderId: number, paymentAmount: number) => {
+    // Step 1: Get signed upload URL
+    setUploadProgress('Getting upload URL...');
+    const uploadData = await userCardApi.getPaymentSlipUploadUrl(orderId, {
+      fileName: file.name,
+      contentType: file.type,
+    });
+
+    // Step 2: Upload file directly
+    setUploadProgress('Uploading file...');
+    if (uploadData.fields) {
+      // AWS S3 presigned POST
+      const form = new FormData();
+      Object.entries(uploadData.fields).forEach(([k, v]) => form.append(k, v));
+      form.append('file', file);
+      const uploadRes = await fetch(uploadData.uploadUrl, { method: 'POST', body: form });
+      if (!uploadRes.ok && uploadRes.status !== 204) {
+        throw new Error('Failed to upload file to storage');
+      }
+    } else {
+      // GCS signed PUT
+      const uploadRes = await fetch(uploadData.uploadUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': file.type },
+        body: file,
+      });
+      if (!uploadRes.ok) {
+        throw new Error('Failed to upload file to storage');
+      }
+    }
+
+    // Step 3: Submit payment record
+    setUploadProgress('Submitting payment...');
+    await userCardApi.submitPayment(orderId, {
+      submissionUrl: uploadData.relativePath,
+      paymentType,
+      paymentAmount,
+      paymentReference: paymentReference.trim() || undefined,
+      notes: notes.trim() || undefined,
+    });
+  };
+
+  // ====== Google Drive Upload ======
+  const uploadViaGoogleDrive = async (file: File, orderId: number, paymentAmount: number) => {
+    // Step 1: Get Drive access token
+    setUploadProgress('Getting Drive access...');
+    const { accessToken } = await getDriveAccessToken();
+
+    // Step 2: Get/create upload folder
+    setUploadProgress('Preparing Drive folder...');
+    const { folderId } = await getDriveFolder('ID_CARD_PAYMENT');
+
+    // Step 3: Upload to Drive
+    setUploadProgress('Uploading to Google Drive...');
+    const metadata = { name: file.name, parents: [folderId] };
+    const form = new FormData();
+    form.append(
+      'metadata',
+      new Blob([JSON.stringify(metadata)], { type: 'application/json' })
+    );
+    form.append('file', file);
+
+    const driveRes = await fetch(
+      'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,webViewLink',
+      {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${accessToken}` },
+        body: form,
+      }
+    );
+
+    if (!driveRes.ok) {
+      throw new Error('Failed to upload file to Google Drive');
+    }
+
+    const { id: driveFileId, webViewLink: driveWebViewLink } = await driveRes.json();
+
+    // Step 4: Register payment
+    setUploadProgress('Submitting payment...');
+    await userCardApi.submitDrivePayment(orderId, {
+      driveFileId,
+      driveWebViewLink,
+      driveFileName: file.name,
+      paymentType,
+      paymentAmount,
+      paymentReference: paymentReference.trim() || undefined,
+      notes: notes.trim() || undefined,
+    });
+  };
+
+  const handleSubmit = async () => {
+    if (!order || !selectedFile) return;
+
+    const rawPrice = order.card?.price;
+    const paymentAmount = typeof rawPrice === 'string' ? parseFloat(rawPrice) : rawPrice;
+    if (!paymentAmount || paymentAmount <= 0 || isNaN(paymentAmount)) {
+      toast({
+        title: 'Order not ready',
+        description: 'Order details are still loading. Please wait.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const orderId = typeof order.id === 'string' ? parseInt(order.id, 10) : order.id;
+
     try {
       setLoading(true);
-      await userCardApi.submitPayment(order.id, {
-        submissionUrl: formData.submissionUrl.trim(),
-        paymentType: formData.paymentType,
-        paymentAmount,
-        paymentReference: formData.paymentReference.trim() || undefined,
-      });
+      setStep('submitting');
 
+      if (uploadMethod === 'cloud') {
+        await uploadViaCloudStorage(selectedFile, orderId, paymentAmount);
+      } else {
+        await uploadViaGoogleDrive(selectedFile, orderId, paymentAmount);
+      }
+
+      setStep('done');
       toast({
         title: 'Payment Submitted',
         description: 'Your payment has been submitted for verification.',
       });
 
-      // Reset form
-      setFormData({
-        submissionUrl: '',
-        paymentType: PaymentType.SLIP_UPLOAD,
-        paymentReference: '',
-      });
-      setErrors({});
-      onSuccess();
+      setTimeout(() => {
+        resetForm();
+        onSuccess();
+      }, 1500);
     } catch (error: any) {
       console.error('Error submitting payment:', error);
+      setStep('upload');
       toast({
-        title: 'Error',
-        description: error.message || 'Failed to submit payment',
+        title: 'Upload Failed',
+        description: error.message || 'Failed to submit payment. Please try again.',
         variant: 'destructive',
       });
     } finally {
@@ -127,15 +319,15 @@ const SubmitPaymentDialog: React.FC<SubmitPaymentDialogProps> = ({
   if (!order) return null;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-[520px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Upload className="h-5 w-5" />
             Submit Payment
           </DialogTitle>
           <DialogDescription>
-            Submit your payment details for order #{order.id}
+            Upload payment proof for order #{order.id}
           </DialogDescription>
         </DialogHeader>
 
@@ -168,99 +360,205 @@ const SubmitPaymentDialog: React.FC<SubmitPaymentDialogProps> = ({
           )}
         </div>
 
-        {/* Form */}
-        <div className="space-y-4 py-4">
-          {/* Payment Type */}
-          <div className="space-y-3">
-            <Label>Payment Method</Label>
+        {/* Step: Select Upload Method */}
+        {step === 'select-method' && (
+          <div className="space-y-4 py-2">
+            <Label className="text-sm font-medium">Choose Upload Method</Label>
             <RadioGroup
-              value={formData.paymentType}
-              onValueChange={(value) => handleInputChange('paymentType', value)}
+              value={uploadMethod}
+              onValueChange={(v) => setUploadMethod(v as UploadMethod)}
               className="grid grid-cols-2 gap-4"
             >
               <div>
-                <RadioGroupItem
-                  value={PaymentType.SLIP_UPLOAD}
-                  id="slip"
-                  className="peer sr-only"
-                />
+                <RadioGroupItem value="cloud" id="method-cloud" className="peer sr-only" />
                 <Label
-                  htmlFor="slip"
+                  htmlFor="method-cloud"
                   className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer"
                 >
-                  <Receipt className="mb-3 h-6 w-6" />
-                  <span className="text-sm font-medium">Bank Slip</span>
+                  <CloudUpload className="mb-3 h-6 w-6" />
+                  <span className="text-sm font-medium">Cloud Upload</span>
+                  <span className="text-xs text-muted-foreground mt-1">Direct upload</span>
                 </Label>
               </div>
               <div>
-                <RadioGroupItem
-                  value={PaymentType.VISA_MASTER}
-                  id="card"
-                  className="peer sr-only"
-                />
+                <RadioGroupItem value="drive" id="method-drive" className="peer sr-only" />
                 <Label
-                  htmlFor="card"
+                  htmlFor="method-drive"
                   className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer"
                 >
-                  <CreditCard className="mb-3 h-6 w-6" />
-                  <span className="text-sm font-medium">Card Payment</span>
+                  <HardDrive className="mb-3 h-6 w-6" />
+                  <span className="text-sm font-medium">Google Drive</span>
+                  <span className="text-xs text-muted-foreground mt-1">Save to Drive</span>
                 </Label>
               </div>
             </RadioGroup>
-          </div>
 
-          {/* Payment Proof URL */}
-          <div className="space-y-2">
-            <Label htmlFor="submissionUrl" className="flex items-center gap-2">
-              <LinkIcon className="h-4 w-4" />
-              {formData.paymentType === PaymentType.SLIP_UPLOAD
-                ? 'Payment Slip URL'
-                : 'Transaction Screenshot URL'}
-            </Label>
-            <Input
-              id="submissionUrl"
-              placeholder="https://example.com/payment-slip.jpg"
-              value={formData.submissionUrl}
-              onChange={(e) => handleInputChange('submissionUrl', e.target.value)}
-              className={errors.submissionUrl ? 'border-red-500' : ''}
-            />
-            {errors.submissionUrl && (
-              <p className="text-sm text-red-500">{errors.submissionUrl}</p>
-            )}
-            <p className="text-xs text-muted-foreground">
-              Upload your payment proof to a file hosting service and paste the URL here.
-            </p>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => handleOpenChange(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleMethodSelect} disabled={checkingDrive}>
+                {checkingDrive ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Checking...
+                  </>
+                ) : (
+                  'Continue'
+                )}
+              </Button>
+            </DialogFooter>
           </div>
+        )}
 
-          {/* Reference Number */}
-          <div className="space-y-2">
-            <Label htmlFor="paymentReference" className="flex items-center gap-2">
-              Reference Number (Optional)
-            </Label>
-            <Input
-              id="paymentReference"
-              placeholder="REF123456789"
-              value={formData.paymentReference}
-              onChange={(e) => handleInputChange('paymentReference', e.target.value)}
-            />
+        {/* Step: Upload File & Details */}
+        {step === 'upload' && (
+          <div className="space-y-4 py-2">
+            {/* File Upload Area */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Payment Slip / Receipt</Label>
+              {!selectedFile ? (
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 text-center cursor-pointer hover:border-primary/50 hover:bg-muted/30 transition-colors"
+                >
+                  <FileImage className="h-10 w-10 mx-auto text-muted-foreground/50 mb-3" />
+                  <p className="text-sm font-medium text-muted-foreground">
+                    Click to upload payment slip
+                  </p>
+                  <p className="text-xs text-muted-foreground/70 mt-1">
+                    JPG, PNG, WebP or PDF • Max 10MB
+                  </p>
+                </div>
+              ) : (
+                <div className="border rounded-lg p-3 flex items-center gap-3 bg-muted/30">
+                  {filePreview ? (
+                    <img
+                      src={filePreview}
+                      alt="Preview"
+                      className="h-16 w-16 rounded object-cover border"
+                    />
+                  ) : (
+                    <div className="h-16 w-16 rounded bg-muted flex items-center justify-center">
+                      <Receipt className="h-6 w-6 text-muted-foreground" />
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{selectedFile.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {(selectedFile.size / 1024).toFixed(1)} KB
+                    </p>
+                  </div>
+                  <Button variant="ghost" size="icon" onClick={removeFile} className="shrink-0">
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".jpg,.jpeg,.png,.webp,.pdf"
+                onChange={handleFileSelect}
+                className="hidden"
+              />
+            </div>
+
+            {/* Payment Type */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Payment Method</Label>
+              <RadioGroup
+                value={paymentType}
+                onValueChange={(v) => setPaymentType(v as PaymentType)}
+                className="grid grid-cols-2 gap-3"
+              >
+                <div>
+                  <RadioGroupItem value={PaymentType.BANK_TRANSFER} id="pt-bank" className="peer sr-only" />
+                  <Label
+                    htmlFor="pt-bank"
+                    className="flex items-center gap-2 rounded-md border-2 border-muted bg-popover p-3 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer text-sm"
+                  >
+                    <Receipt className="h-4 w-4" />
+                    Bank Transfer
+                  </Label>
+                </div>
+                <div>
+                  <RadioGroupItem value={PaymentType.VISA_MASTER} id="pt-card" className="peer sr-only" />
+                  <Label
+                    htmlFor="pt-card"
+                    className="flex items-center gap-2 rounded-md border-2 border-muted bg-popover p-3 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer text-sm"
+                  >
+                    <CreditCard className="h-4 w-4" />
+                    Card Payment
+                  </Label>
+                </div>
+              </RadioGroup>
+            </div>
+
+            {/* Reference */}
+            <div className="space-y-2">
+              <Label htmlFor="paymentRef" className="text-sm">
+                Reference Number <span className="text-muted-foreground">(Optional)</span>
+              </Label>
+              <Input
+                id="paymentRef"
+                placeholder="TXN-2025-001234"
+                value={paymentReference}
+                onChange={(e) => setPaymentReference(e.target.value)}
+              />
+            </div>
+
+            {/* Notes */}
+            <div className="space-y-2">
+              <Label htmlFor="notes" className="text-sm">
+                Notes <span className="text-muted-foreground">(Optional)</span>
+              </Label>
+              <Textarea
+                id="notes"
+                placeholder="Any additional notes..."
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                rows={2}
+              />
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setStep('select-method')}>
+                Back
+              </Button>
+              <Button
+                onClick={handleSubmit}
+                disabled={!selectedFile || loadingOrder || !order.card?.price || parseFloat(String(order.card?.price)) <= 0}
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                Submit Payment
+              </Button>
+            </DialogFooter>
           </div>
-        </div>
+        )}
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
-            Cancel
-          </Button>
-          <Button onClick={handleSubmit} disabled={loading || loadingOrder || !order.card?.price}>
-            {loading ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Submitting...
-              </>
-            ) : (
-              'Submit Payment'
-            )}
-          </Button>
-        </DialogFooter>
+        {/* Step: Submitting */}
+        {step === 'submitting' && (
+          <div className="py-8 flex flex-col items-center gap-4">
+            <Loader2 className="h-10 w-10 animate-spin text-primary" />
+            <div className="text-center">
+              <p className="font-medium">Uploading Payment</p>
+              <p className="text-sm text-muted-foreground mt-1">{uploadProgress}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Step: Done */}
+        {step === 'done' && (
+          <div className="py-8 flex flex-col items-center gap-4">
+            <CheckCircle2 className="h-12 w-12 text-primary" />
+            <div className="text-center">
+              <p className="font-medium text-primary">Payment Submitted!</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Your payment is pending verification.
+              </p>
+            </div>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );

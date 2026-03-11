@@ -100,6 +100,14 @@ const calendarApi = {
     );
   },
 
+  /** Get calendar month data with all days and events */
+  getMonth(instituteId: string, year: number, month: number) {
+    return apiClient.get<CalendarApiResponse<{ year: number; month: number; totalDays: number; days: CalendarDay[] }>>(
+      `/institutes/${instituteId}/calendar/month`,
+      { year, month }
+    );
+  },
+
   /** 9.3 — Update a calendar day */
   updateDay(instituteId: string, dayId: string, payload: UpdateCalendarDayPayload) {
     return apiClient.patch<CalendarApiResponse<CalendarDay>>(

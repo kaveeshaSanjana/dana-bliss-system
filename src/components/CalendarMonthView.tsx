@@ -113,30 +113,31 @@ const CalendarMonthView = () => {
     if (!currentInstituteId) return;
     setLoading(true);
     try {
-      const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
-      const lastDay = new Date(year, month, 0).getDate();
-      const endDate = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
-
       let days: CalendarDay[] = [];
 
-      if (isTeacherOrStudentView) {
-        const res = await calendarApi.getCalendarView(currentInstituteId, {
-          startDate,
-          endDate,
-          year,
-          month,
+      // Use the new month API endpoint
+      const res = await calendarApi.getMonth(currentInstituteId, year, month);
+      const data = (res as any)?.data;
+      
+      if (data?.days && Array.isArray(data.days)) {
+        days = data.days;
+      } else if (Array.isArray(res?.data)) {
+        days = res.data as CalendarDay[];
+      }
+
+      // Fallback: if month API fails or returns empty, try calendar-view for teacher/student
+      if (days.length === 0 && isTeacherOrStudentView) {
+        const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
+        const lastDay = new Date(year, month, 0).getDate();
+        const endDate = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+        const fallbackRes = await calendarApi.getCalendarView(currentInstituteId, {
+          startDate, endDate, year, month,
         });
-        const parsed = extractCalendarViewData((res as any)?.data);
+        const parsed = extractCalendarViewData((fallbackRes as any)?.data);
         days = parsed.days;
         setCalendarViewUserType(parsed.userType || (instituteRole === 'Teacher' ? 'TEACHER' : 'STUDENT'));
         setApiMonthSummary(Object.keys(parsed.monthSummary).length ? parsed.monthSummary : null);
       } else {
-        const res = await calendarApi.getDays(currentInstituteId, {
-          startDate,
-          endDate,
-          limit: 400,
-        });
-        days = Array.isArray(res?.data) ? res.data : [];
         setCalendarViewUserType('');
         setApiMonthSummary(null);
       }
@@ -316,6 +317,8 @@ const CalendarMonthView = () => {
                   const dayNum = parseInt(day.calendarDate.split('-')[2]);
                   const isToday = day.calendarDate === today;
                   const config = DAY_TYPE_COLORS[day.dayType] || DAY_TYPE_COLORS.REGULAR;
+                  const events = day.events || [];
+                  const hasEvents = events.length > 0;
 
                   return (
                     <button
@@ -337,9 +340,31 @@ const CalendarMonthView = () => {
                         <div className={`w-2 h-2 rounded-full ${config.dot} flex-shrink-0 mt-0.5`} />
                       </div>
                       {day.title && (
-                        <p className="text-[9px] sm:text-[10px] leading-tight text-muted-foreground mt-0.5 line-clamp-2">
+                        <p className="text-[9px] sm:text-[10px] leading-tight text-muted-foreground mt-0.5 line-clamp-1">
                           {day.title}
                         </p>
+                      )}
+                      {/* Event indicators */}
+                      {hasEvents && (
+                        <div className="flex flex-wrap gap-0.5 mt-0.5">
+                          {events.slice(0, 3).map((event, idx) => (
+                            <div
+                              key={event.id || idx}
+                              className={`
+                                h-1 sm:h-1.5 rounded-full flex-1 min-w-[8px] max-w-[20px]
+                                ${event.eventType === 'EXAM' ? 'bg-purple-500' :
+                                  event.eventType === 'REGULAR_CLASS' ? 'bg-emerald-500' :
+                                  event.eventType === 'SPORTS_DAY' || event.eventType === 'CULTURAL_EVENT' ? 'bg-cyan-500' :
+                                  event.eventType === 'PARENTS_MEETING' || event.eventType === 'STAFF_MEETING' ? 'bg-amber-500' :
+                                  'bg-primary/60'}
+                              `}
+                              title={event.title}
+                            />
+                          ))}
+                          {events.length > 3 && (
+                            <span className="text-[8px] text-muted-foreground leading-none">+{events.length - 3}</span>
+                          )}
+                        </div>
                       )}
                     </button>
                   );

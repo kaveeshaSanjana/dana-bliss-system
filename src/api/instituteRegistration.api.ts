@@ -1,21 +1,19 @@
 /**
- * Public Institute Registration API
- * Uses SPECIAL_API_KEY (no JWT required)
- * Endpoint: POST /api/public/institutes
+ * Institute Registration API
+ * Uses VITE_JWT_TOKEN (Bearer token)
+ * Endpoint: POST /api/institutes
  */
 
 import { getBaseUrl } from '@/contexts/utils/auth.api';
 
 // ============= TYPES =============
 
-export interface CreatePublicInstituteRequest {
+export interface CreateInstituteRequest {
   // Required
   name: string;
+  code?: string;
   email: string;
-  systemContactPhoneNumber: string;
-  systemContactEmail: string;
-  // Optional — Basic Info
-  shortName?: string;
+  // Optional
   phone?: string;
   address?: string;
   city?: string;
@@ -24,59 +22,61 @@ export interface CreatePublicInstituteRequest {
   district?: string;
   province?: string;
   pinCode?: string;
-  // Optional — Images
+  shortName?: string;
+  description?: string;
+  websiteUrl?: string;
+  // Images
   logoUrl?: string;
   loadingGifUrl?: string;
   imageUrl?: string;
-  // Optional — Metadata
-  description?: string;
-  websiteUrl?: string;
+  imageUrls?: string[];
+  // System contact (kept for form use)
+  systemContactPhoneNumber?: string;
+  systemContactEmail?: string;
 }
 
-export interface CreatePublicInstituteResponse {
-  success: boolean;
-  message: string;
-  requestId: string;
-  data: {
-    id: string;
-    name: string;
-    shortName: string | null;
-    code: string;
-    email: string;
-    systemContactPhoneNumber: string;
-    systemContactEmail: string;
-    phone: string | null;
-    address: string | null;
-    city: string | null;
-    district: string | null;
-    province: string | null;
-    country: string | null;
-    pinCode: string | null;
-    logoUrl: string | null;
-    loadingGifUrl: string | null;
-    imageUrl: string | null;
-    description: string | null;
-    websiteUrl: string | null;
-    isActive: boolean;
-    isDefault: boolean;
-    createdAt: string;
-    updatedAt: string;
-  };
+export interface CreateInstituteResponse {
+  id: string;
+  name: string;
+  shortName: string | null;
+  code: string;
+  email: string;
+  phone: string | null;
+  address: string | null;
+  city: string | null;
+  district: string | null;
+  province: string | null;
+  country: string | null;
+  pinCode: string | null;
+  logoUrl: string | null;
+  loadingGifUrl: string | null;
+  imageUrl: string | null;
+  imageUrls: string[] | null;
+  description: string | null;
+  websiteUrl: string | null;
+  isActive?: boolean;
+  isDefault?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 // ============= API =============
 
+const getJwtToken = (): string => {
+  return import.meta.env.VITE_JWT_TOKEN || '';
+};
+
 const getHeaders = (): Record<string, string> => ({
   'Content-Type': 'application/json',
-  'x-api-key': import.meta.env.VITE_SPECIAL_API_KEY || '',
+  'Authorization': `Bearer ${getJwtToken()}`,
 });
 
 export const registerInstitute = async (
-  data: CreatePublicInstituteRequest
-): Promise<CreatePublicInstituteResponse> => {
+  data: CreateInstituteRequest
+): Promise<CreateInstituteResponse> => {
   const baseUrl = getBaseUrl();
 
-  const response = await fetch(`${baseUrl}/public/institutes`, {
+  const response = await fetch(`${baseUrl}/institutes`, {
     method: 'POST',
     headers: getHeaders(),
     body: JSON.stringify(data),
@@ -92,6 +92,9 @@ export const registerInstitute = async (
     }
     if (response.status === 401) {
       throw new Error('Unauthorized. Please contact support.');
+    }
+    if (response.status === 409) {
+      throw new Error(errorData.message || 'Institute with this code or email already exists.');
     }
     if (response.status === 429) {
       throw new Error('Too many requests. Please wait a minute and try again.');

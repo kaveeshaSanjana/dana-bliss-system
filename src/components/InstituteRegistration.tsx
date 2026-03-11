@@ -6,29 +6,29 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { PhoneInput } from '@/components/ui/phone-input';
 import {
-  ArrowLeft, ChevronRight, Loader2, CheckCircle2, Building2, MapPin, Globe, Mail,
+  ArrowLeft, ChevronRight, Loader2, CheckCircle2, Building2, MapPin, Globe, Mail, ImageIcon, Upload, X,
 } from 'lucide-react';
 import surakshaLogo from '@/assets/suraksha-logo.png';
 import loginIllustration from '@/assets/login-illustration.png';
 import { useToast } from '@/hooks/use-toast';
 import {
   registerInstitute,
-  isValidSriLankanPhone,
-  type CreatePublicInstituteRequest,
+  type CreateInstituteRequest,
 } from '@/api/instituteRegistration.api';
 import { DISTRICTS, DISTRICT_TO_PROVINCE } from '@/api/registration.api';
+import { getBaseUrl, getAccessTokenAsync } from '@/contexts/utils/auth.api';
 
 // ============= TYPES =============
 
-type FlowStep = 'basic' | 'contact' | 'location' | 'additional' | 'review';
+type FlowStep = 'basic' | 'contact' | 'location' | 'images' | 'additional' | 'review';
 
 const STEPS: { key: FlowStep; label: string }[] = [
-  { key: 'basic', label: 'Basic Info' },
+  { key: 'basic', label: 'Basic' },
   { key: 'contact', label: 'Contact' },
   { key: 'location', label: 'Location' },
-  { key: 'additional', label: 'Additional' },
+  { key: 'images', label: 'Images' },
+  { key: 'additional', label: 'Info' },
   { key: 'review', label: 'Review' },
 ];
 
@@ -44,24 +44,71 @@ const StepIndicator: React.FC<{ steps: string[]; current: number }> = ({ steps, 
     {steps.map((label, i) => (
       <React.Fragment key={label}>
         <div className="flex flex-col items-center gap-1">
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${
+          <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-bold transition-colors ${
             i < current ? 'bg-primary text-primary-foreground' :
             i === current ? 'bg-primary text-primary-foreground ring-4 ring-primary/20' :
             'bg-muted text-muted-foreground'
           }`}>
-            {i < current ? <CheckCircle2 className="h-4 w-4" /> : i + 1}
+            {i < current ? <CheckCircle2 className="h-3.5 w-3.5" /> : i + 1}
           </div>
-          <span className={`text-[10px] font-medium ${i <= current ? 'text-primary' : 'text-muted-foreground'}`}>
+          <span className={`text-[9px] sm:text-[10px] font-medium ${i <= current ? 'text-primary' : 'text-muted-foreground'}`}>
             {label}
           </span>
         </div>
         {i < steps.length - 1 && (
-          <div className={`flex-1 h-0.5 mx-1 mb-5 ${i < current ? 'bg-primary' : 'bg-muted'}`} />
+          <div className={`flex-1 h-0.5 mx-0.5 sm:mx-1 mb-5 ${i < current ? 'bg-primary' : 'bg-muted'}`} />
         )}
       </React.Fragment>
     ))}
   </div>
 );
+
+// ============= IMAGE UPLOAD ITEM =============
+
+const ImageUploadItem: React.FC<{
+  label: string;
+  preview: string;
+  uploading: boolean;
+  accept?: string;
+  onUpload: (file: File) => void;
+  onRemove: () => void;
+}> = ({ label, preview, uploading, accept = 'image/*', onUpload, onRemove }) => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) onUpload(file);
+    e.target.value = '';
+  };
+
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs">{label}</Label>
+      {preview ? (
+        <div className="relative w-full h-24 rounded-lg border border-border overflow-hidden bg-muted">
+          <img src={preview} alt={label} className="w-full h-full object-contain" />
+          <button
+            type="button"
+            onClick={onRemove}
+            className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full p-0.5"
+          >
+            <X className="h-3 w-3" />
+          </button>
+        </div>
+      ) : (
+        <label className="flex flex-col items-center justify-center gap-1 w-full h-24 rounded-lg border-2 border-dashed border-border hover:border-primary/50 cursor-pointer transition-colors bg-muted/30">
+          <input type="file" accept={accept} className="hidden" onChange={handleFileChange} disabled={uploading} />
+          {uploading ? (
+            <Loader2 className="h-5 w-5 animate-spin text-primary" />
+          ) : (
+            <>
+              <Upload className="h-5 w-5 text-muted-foreground" />
+              <span className="text-[10px] text-muted-foreground">Click to upload</span>
+            </>
+          )}
+        </label>
+      )}
+    </div>
+  );
+};
 
 // ============= COMPONENT =============
 
@@ -78,7 +125,7 @@ const InstituteRegistration: React.FC<InstituteRegistrationProps> = ({ onBack, o
   const [shortName, setShortName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
-  const [systemContactPhone, setSystemContactPhone] = useState('+94');
+  const [systemContactPhone, setSystemContactPhone] = useState('');
   const [systemContactEmail, setSystemContactEmail] = useState('');
   const [address, setAddress] = useState('');
   const [city, setCity] = useState('');
@@ -87,7 +134,123 @@ const InstituteRegistration: React.FC<InstituteRegistrationProps> = ({ onBack, o
   const [description, setDescription] = useState('');
   const [websiteUrl, setWebsiteUrl] = useState('');
 
+  // Image data
+  const [logoUrl, setLogoUrl] = useState('');
+  const [logoPreview, setLogoPreview] = useState('');
+  const [loadingGifUrl, setLoadingGifUrl] = useState('');
+  const [loadingGifPreview, setLoadingGifPreview] = useState('');
+  const [imageUrl, setImageUrl] = useState('');
+  const [imagePreview, setImagePreview] = useState('');
+  const [uploadingField, setUploadingField] = useState<string>('');
+
   const currentStepIdx = STEPS.findIndex(s => s.key === step);
+
+  // ============= IMAGE UPLOAD =============
+
+  const handleImageUpload = async (file: File, field: 'logo' | 'loadingGif' | 'image') => {
+    setUploadingField(field);
+    try {
+      const baseUrl = getBaseUrl();
+      const accessToken = (await getAccessTokenAsync())?.trim() || '';
+
+      const normalizeEnvValue = (value?: string) =>
+        (value || '')
+          .trim()
+          .replace(/^['"]|['"]$/g, '')
+          .replace(/^VITE_[A-Z0-9_]+\s*=\s*/i, '')
+          .trim();
+
+      const jwtToken = normalizeEnvValue(import.meta.env.VITE_JWT_TOKEN);
+      const specialApiKey = normalizeEnvValue(import.meta.env.VITE_SPECIAL_API_KEY);
+
+      const authCandidates: Array<{ name: string; headers: Record<string, string> }> = [];
+      if (accessToken) authCandidates.push({ name: 'session', headers: { Authorization: `Bearer ${accessToken}` } });
+      if (jwtToken && jwtToken !== accessToken) authCandidates.push({ name: 'env-jwt', headers: { Authorization: `Bearer ${jwtToken}` } });
+      if (specialApiKey) authCandidates.push({ name: 'api-key', headers: { 'x-api-key': specialApiKey } });
+
+      if (authCandidates.length === 0) {
+        throw new Error('No authentication available');
+      }
+
+      const requestWithAuthFallback = async (url: string, init: RequestInit): Promise<Response> => {
+        let lastUnauthorizedMessage = '';
+
+        for (const candidate of authCandidates) {
+          const headers = new Headers(init.headers || {});
+          Object.entries(candidate.headers).forEach(([key, value]) => headers.set(key, value));
+
+          const response = await fetch(url, { ...init, headers });
+
+          if (response.status !== 401 && response.status !== 403) {
+            return response;
+          }
+
+          lastUnauthorizedMessage = await response.text().catch(() => '');
+          console.warn(`Upload auth failed with ${candidate.name}, trying next method...`);
+        }
+
+        throw new Error(lastUnauthorizedMessage || 'Unauthorized upload request');
+      };
+
+      // Step 1: Get signed URL
+      const contentType = file.type || 'application/octet-stream';
+      const params = new URLSearchParams({
+        folder: 'institute-images',
+        fileName: file.name,
+        contentType,
+        fileSize: file.size.toString(),
+      });
+
+      const signedUrlRes = await requestWithAuthFallback(`${baseUrl}/upload/get-signed-url?${params}`, {
+        method: 'GET',
+      });
+
+      if (!signedUrlRes.ok) {
+        const error = await signedUrlRes.json().catch(() => ({}));
+        throw new Error(error.message || 'Failed to get upload URL');
+      }
+
+      const { uploadUrl, relativePath, fields } = await signedUrlRes.json();
+
+      // Step 2: Upload to S3
+      const formData = new FormData();
+      if (fields && typeof fields === 'object') {
+        Object.keys(fields).forEach(key => formData.append(key, fields[key]));
+      }
+      formData.append('file', file);
+
+      const uploadRes = await fetch(uploadUrl, { method: 'POST', body: formData });
+      if (!uploadRes.ok) throw new Error('File upload failed');
+
+      // Step 3: Verify
+      const verifyRes = await requestWithAuthFallback(`${baseUrl}/upload/verify-and-publish`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ relativePath }),
+      });
+
+      if (!verifyRes.ok) {
+        const verifyError = await verifyRes.json().catch(() => ({}));
+        throw new Error(verifyError.message || 'Upload verification failed');
+      }
+
+      if (field === 'logo') { setLogoUrl(relativePath); setLogoPreview(URL.createObjectURL(file)); }
+      else if (field === 'loadingGif') { setLoadingGifUrl(relativePath); setLoadingGifPreview(URL.createObjectURL(file)); }
+      else { setImageUrl(relativePath); setImagePreview(URL.createObjectURL(file)); }
+
+      toast({ title: 'Image uploaded successfully' });
+    } catch (err: any) {
+      toast({ title: 'Upload failed', description: err.message, variant: 'destructive' });
+    } finally {
+      setUploadingField('');
+    }
+  };
+
+  const removeImage = (field: 'logo' | 'loadingGif' | 'image') => {
+    if (field === 'logo') { setLogoUrl(''); setLogoPreview(''); }
+    else if (field === 'loadingGif') { setLoadingGifUrl(''); setLoadingGifPreview(''); }
+    else { setImageUrl(''); setImagePreview(''); }
+  };
 
   // ============= VALIDATION =============
 
@@ -99,8 +262,8 @@ const InstituteRegistration: React.FC<InstituteRegistrationProps> = ({ onBack, o
 
   const validateContact = (): boolean => {
     const cleanPhone = systemContactPhone.replace(/\s/g, '');
-    if (!cleanPhone || !isValidSriLankanPhone(cleanPhone)) {
-      toast({ title: 'Valid contact phone required (+947XXXXXXXX)', variant: 'destructive' }); return false;
+    if (!cleanPhone || cleanPhone.length < 10) {
+      toast({ title: 'Valid contact phone number is required', variant: 'destructive' }); return false;
     }
     if (!systemContactEmail.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(systemContactEmail)) {
       toast({ title: 'Valid system contact email required', variant: 'destructive' }); return false;
@@ -119,6 +282,9 @@ const InstituteRegistration: React.FC<InstituteRegistrationProps> = ({ onBack, o
         if (validateContact()) setStep('location');
         break;
       case 'location':
+        setStep('images');
+        break;
+      case 'images':
         setStep('additional');
         break;
       case 'additional':
@@ -132,7 +298,8 @@ const InstituteRegistration: React.FC<InstituteRegistrationProps> = ({ onBack, o
       case 'basic': onBack(); break;
       case 'contact': setStep('basic'); break;
       case 'location': setStep('contact'); break;
-      case 'additional': setStep('location'); break;
+      case 'images': setStep('location'); break;
+      case 'additional': setStep('images'); break;
       case 'review': setStep('additional'); break;
     }
   };
@@ -143,11 +310,11 @@ const InstituteRegistration: React.FC<InstituteRegistrationProps> = ({ onBack, o
     setIsLoading(true);
     setError('');
 
-    const payload: CreatePublicInstituteRequest = {
+    const payload: CreateInstituteRequest = {
       name: name.trim(),
       email: email.trim(),
-      systemContactPhoneNumber: systemContactPhone.replace(/\s/g, ''),
-      systemContactEmail: systemContactEmail.trim(),
+      ...(systemContactPhone && { systemContactPhoneNumber: systemContactPhone.replace(/\s/g, '') }),
+      ...(systemContactEmail && { systemContactEmail: systemContactEmail.trim() }),
       ...(shortName && { shortName: shortName.trim() }),
       ...(phone && { phone: phone.trim() }),
       ...(address && { address: address.trim() }),
@@ -157,6 +324,9 @@ const InstituteRegistration: React.FC<InstituteRegistrationProps> = ({ onBack, o
       ...(pinCode && { pinCode: pinCode.trim() }),
       ...(description && { description: description.trim() }),
       ...(websiteUrl && { websiteUrl: websiteUrl.trim() }),
+      ...(logoUrl && { logoUrl }),
+      ...(loadingGifUrl && { loadingGifUrl }),
+      ...(imageUrl && { imageUrl }),
       country: 'Sri Lanka',
     };
 
@@ -164,7 +334,7 @@ const InstituteRegistration: React.FC<InstituteRegistrationProps> = ({ onBack, o
       const result = await registerInstitute(payload);
       toast({
         title: 'Institute registered successfully!',
-        description: `Institute code: ${result.data.code}`,
+        description: `Institute code: ${result.code}`,
       });
       onComplete(result);
     } catch (err: any) {
@@ -217,8 +387,8 @@ const InstituteRegistration: React.FC<InstituteRegistrationProps> = ({ onBack, o
             <h3 className="font-semibold text-sm text-foreground">Contact Details</h3>
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs">System Contact Phone * (+947XXXXXXXX)</Label>
-            <PhoneInput value={systemContactPhone} onChange={v => setSystemContactPhone(v)} className="h-9" />
+            <Label className="text-xs">System Contact Phone *</Label>
+            <Input type="tel" value={systemContactPhone} onChange={e => setSystemContactPhone(e.target.value)} placeholder="+94712345678" className="h-9" maxLength={20} />
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs">System Contact Email *</Label>
@@ -289,6 +459,55 @@ const InstituteRegistration: React.FC<InstituteRegistrationProps> = ({ onBack, o
       );
     }
 
+    if (step === 'images') {
+      return (
+        <div className="space-y-4">
+          <div className="flex items-center gap-2 pb-1 border-b border-border/50">
+            <ImageIcon className="h-4 w-4 text-primary" />
+            <h3 className="font-semibold text-sm text-foreground">Institute Images</h3>
+          </div>
+          <p className="text-xs text-muted-foreground">Upload your institute branding images. All fields are optional.</p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <ImageUploadItem
+              label="Logo"
+              preview={logoPreview}
+              uploading={uploadingField === 'logo'}
+              accept="image/png,image/jpeg,image/svg+xml,image/webp"
+              onUpload={(file) => handleImageUpload(file, 'logo')}
+              onRemove={() => removeImage('logo')}
+            />
+            <ImageUploadItem
+              label="Loading GIF"
+              preview={loadingGifPreview}
+              uploading={uploadingField === 'loadingGif'}
+              accept="image/gif,image/png,image/webp"
+              onUpload={(file) => handleImageUpload(file, 'loadingGif')}
+              onRemove={() => removeImage('loadingGif')}
+            />
+          </div>
+
+          <ImageUploadItem
+            label="Main Image / Cover"
+            preview={imagePreview}
+            uploading={uploadingField === 'image'}
+            accept="image/png,image/jpeg,image/webp"
+            onUpload={(file) => handleImageUpload(file, 'image')}
+            onRemove={() => removeImage('image')}
+          />
+
+          <div className="flex gap-3 mt-2">
+            <Button variant="outline" className="h-11" onClick={handleBack}>
+              <ArrowLeft className="h-4 w-4 mr-2" /> Back
+            </Button>
+            <Button className="flex-1 h-11" onClick={handleNext}>
+              Continue <ChevronRight className="h-4 w-4 ml-2" />
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
     if (step === 'additional') {
       return (
         <div className="space-y-4">
@@ -342,6 +561,33 @@ const InstituteRegistration: React.FC<InstituteRegistrationProps> = ({ onBack, o
               </div>
             ))}
           </div>
+
+          {/* Image previews */}
+          {(logoPreview || loadingGifPreview || imagePreview) && (
+            <div className="space-y-2">
+              <span className="text-xs font-medium text-muted-foreground">Uploaded Images</span>
+              <div className="flex gap-3 flex-wrap">
+                {logoPreview && (
+                  <div className="space-y-1">
+                    <img src={logoPreview} alt="Logo" className="w-16 h-16 rounded-lg border border-border object-contain bg-muted" />
+                    <span className="text-[10px] text-muted-foreground block text-center">Logo</span>
+                  </div>
+                )}
+                {loadingGifPreview && (
+                  <div className="space-y-1">
+                    <img src={loadingGifPreview} alt="Loading GIF" className="w-16 h-16 rounded-lg border border-border object-contain bg-muted" />
+                    <span className="text-[10px] text-muted-foreground block text-center">Loading</span>
+                  </div>
+                )}
+                {imagePreview && (
+                  <div className="space-y-1">
+                    <img src={imagePreview} alt="Cover" className="w-16 h-16 rounded-lg border border-border object-contain bg-muted" />
+                    <span className="text-[10px] text-muted-foreground block text-center">Cover</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           <div className="text-xs text-muted-foreground bg-primary/10 p-3 rounded-lg">
             By registering, you agree to the terms of service. Your institute code will be auto-generated upon successful registration.

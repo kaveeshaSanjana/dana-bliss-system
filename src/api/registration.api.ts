@@ -140,7 +140,7 @@ export const registerUser = async (data: CreateUserRequest): Promise<Registratio
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-api-key': apiKey,
+      'Authorization': `Bearer ${apiKey}`,
     },
     body: JSON.stringify(data),
   });

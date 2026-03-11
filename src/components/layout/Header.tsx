@@ -366,17 +366,7 @@ const Header = ({ onMenuClick }: HeaderProps) => {
           {/* Notification Bell */}
           <button
             onClick={() => {
-              if (selectedInstitute?.id) {
-                const context = {
-                  instituteId: selectedInstitute.id,
-                  classId: selectedClass?.id,
-                  subjectId: selectedSubject?.id,
-                };
-                const url = buildSidebarUrl('institute-notifications', context);
-                navigate(url);
-              } else {
-                navigate('/notifications');
-              }
+              navigate('/all-notifications');
             }}
             className="relative p-2.5 rounded-xl hover:bg-muted/60 active:scale-95 transition-all"
             aria-label="Notifications"

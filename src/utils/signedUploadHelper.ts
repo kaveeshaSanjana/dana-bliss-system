@@ -122,9 +122,11 @@ export async function uploadWithSignedUrl(
 ): Promise<string> {
   const baseUrl = getBaseUrl();
   const token = await getAccessTokenAsync();
+  const jwtToken = import.meta.env.VITE_JWT_TOKEN || '';
+  const specialApiKey = import.meta.env.VITE_SPECIAL_API_KEY;
 
-  if (!token) {
-    throw new Error('No authentication token found');
+  if (!token && !jwtToken && !specialApiKey) {
+    throw new Error('No authentication token or API key found');
   }
 
   // Validate file before upload
@@ -142,11 +144,19 @@ export async function uploadWithSignedUrl(
       fileSize: file.size.toString()
     });
 
+    // Build headers: use JWT if logged in, otherwise fall back to special API key
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    } else if (jwtToken) {
+      headers['Authorization'] = `Bearer ${jwtToken}`;
+    } else if (specialApiKey) {
+      headers['x-api-key'] = specialApiKey;
+    }
+
     const signedUrlResponse = await fetch(`${baseUrl}/upload/get-signed-url?${params}`, {
       method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
+      headers
     });
 
     if (!signedUrlResponse.ok) {
@@ -194,12 +204,20 @@ export async function uploadWithSignedUrl(
     // Step 3: Verify and make file public
     onProgress?.('Verifying upload...', 80);
 
+    const verifyHeaders: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (token) {
+      verifyHeaders['Authorization'] = `Bearer ${token}`;
+    } else if (jwtToken) {
+      verifyHeaders['Authorization'] = `Bearer ${jwtToken}`;
+    } else if (specialApiKey) {
+      verifyHeaders['x-api-key'] = specialApiKey;
+    }
+
     const verifyResponse = await fetch(`${baseUrl}/upload/verify-and-publish`, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      },
+      headers: verifyHeaders,
       body: JSON.stringify({ relativePath })
     });
 

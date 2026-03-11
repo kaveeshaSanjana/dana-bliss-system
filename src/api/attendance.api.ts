@@ -10,6 +10,7 @@
 
 import { attendanceApiClient } from './attendanceClient';
 import { getAttendanceUrl, getApiHeaders, getBaseUrl } from '@/contexts/utils/auth.api';
+import { parseApiError } from '@/api/apiError';
 import { attendanceDuplicateChecker } from '@/utils/attendanceDuplicateCheck';
 import type {
   AttendanceStatus,
@@ -53,7 +54,7 @@ async function postAttendance<T>(endpoint: string, body: any): Promise<T> {
 
   if (!response.ok) {
     const errorText = await response.text().catch(() => '');
-    throw new Error(`HTTP ${response.status}: ${errorText || response.statusText}`);
+    throw parseApiError(response.status, errorText, url);
   }
   return response.json();
 }

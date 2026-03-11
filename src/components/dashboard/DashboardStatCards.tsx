@@ -1,14 +1,13 @@
 import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useInstituteRole } from '@/hooks/useInstituteRole';
-import { School, UserCheck, Calendar, BookOpen } from 'lucide-react';
+import { School, UserCheck, BookOpen, Building2, TrendingUp, CalendarDays } from 'lucide-react';
 
 interface StatCard {
   label: string;
   value: string | number;
   icon: React.ReactNode;
-  color: string;
-  bgColor: string;
+  gradient: string;
 }
 
 const DashboardStatCards = () => {
@@ -17,63 +16,64 @@ const DashboardStatCards = () => {
 
   const cards: StatCard[] = [];
 
-  // Always show institutes count
   const totalInstitutes = user?.institutes?.length || 0;
   cards.push({
     label: 'Institutes',
     value: totalInstitutes,
-    icon: <School className="h-6 w-6" />,
-    color: 'text-blue-600 dark:text-blue-400',
-    bgColor: 'bg-blue-500/10',
+    icon: <Building2 className="h-5 w-5" />,
+    gradient: 'from-blue-500 to-blue-600',
   });
 
   if (selectedInstitute) {
     cards.push({
-      label: 'Role',
+      label: 'Your Role',
       value: userRole || '—',
-      icon: <UserCheck className="h-6 w-6" />,
-      color: 'text-emerald-600 dark:text-emerald-400',
-      bgColor: 'bg-emerald-500/10',
+      icon: <UserCheck className="h-5 w-5" />,
+      gradient: 'from-emerald-500 to-emerald-600',
     });
   }
 
   if (selectedClass) {
     cards.push({
       label: 'Class',
-      value: selectedClass.name?.slice(0, 15) || '—',
-      icon: <Calendar className="h-6 w-6" />,
-      color: 'text-violet-600 dark:text-violet-400',
-      bgColor: 'bg-violet-500/10',
+      value: selectedClass.name?.slice(0, 12) || '—',
+      icon: <School className="h-5 w-5" />,
+      gradient: 'from-violet-500 to-violet-600',
     });
   }
 
   if (selectedSubject) {
     cards.push({
       label: 'Subject',
-      value: selectedSubject.name?.slice(0, 15) || '—',
-      icon: <BookOpen className="h-6 w-6" />,
-      color: 'text-amber-600 dark:text-amber-400',
-      bgColor: 'bg-amber-500/10',
+      value: selectedSubject.name?.slice(0, 12) || '—',
+      icon: <BookOpen className="h-5 w-5" />,
+      gradient: 'from-amber-500 to-amber-600',
     });
   }
 
   if (cards.length === 0) return null;
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+    <div className="grid grid-cols-2 gap-2.5">
       {cards.map((card) => (
         <div
           key={card.label}
-          className="bg-card border border-border rounded-2xl p-4 shadow-sm"
+          className="relative overflow-hidden rounded-xl border border-border/50 bg-card p-3.5 shadow-sm"
         >
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
-            {card.label}
-          </p>
-          <div className="flex items-center gap-3">
-            <div className={`p-2.5 rounded-xl ${card.bgColor} ${card.color}`}>
+          {/* Gradient accent bar */}
+          <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${card.gradient}`} />
+          <div className="flex items-center gap-2.5 mt-0.5">
+            <div className={`p-2 rounded-lg bg-gradient-to-br ${card.gradient} text-white shadow-sm`}>
               {card.icon}
             </div>
-            <span className="text-xl font-bold text-foreground truncate">{card.value}</span>
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                {card.label}
+              </p>
+              <p className="text-base font-bold text-foreground truncate leading-tight mt-0.5">
+                {card.value}
+              </p>
+            </div>
           </div>
         </div>
       ))}

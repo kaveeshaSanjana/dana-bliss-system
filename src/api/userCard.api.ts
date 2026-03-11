@@ -41,8 +41,14 @@ export enum OrderStatus {
 }
 
 export enum PaymentType {
+  BANK_TRANSFER = 'BANK_TRANSFER',
   SLIP_UPLOAD = 'SLIP_UPLOAD',
   VISA_MASTER = 'VISA_MASTER'
+}
+
+export enum UploadMethod {
+  CLOUD_STORAGE = 'CLOUD_STORAGE',
+  GOOGLE_DRIVE = 'GOOGLE_DRIVE'
 }
 
 export enum PaymentStatus {
@@ -169,6 +175,32 @@ export interface SubmitPaymentRequest {
   paymentType: PaymentType;
   paymentAmount: number;
   paymentReference?: string;
+  notes?: string;
+}
+
+export interface SubmitDrivePaymentRequest {
+  driveFileId: string;
+  driveWebViewLink: string;
+  driveFileName?: string;
+  paymentType: PaymentType;
+  paymentAmount: number;
+  paymentReference?: string;
+  notes?: string;
+}
+
+export interface SignedUploadUrlRequest {
+  fileName: string;
+  contentType: string;
+}
+
+export interface SignedUploadUrlResponse {
+  uploadUrl: string;
+  relativePath: string;
+  expiresAt: string;
+  maxFileSize: number;
+  contentType: string;
+  instructions: string;
+  fields?: Record<string, string>;
 }
 
 export interface UpdateCardStatusRequest {
@@ -207,11 +239,27 @@ class UserCardApi {
   }
 
   /**
-   * Submit payment for an order
+   * Get signed upload URL for payment slip (Cloud Storage)
+   */
+  async getPaymentSlipUploadUrl(orderId: number, data: SignedUploadUrlRequest): Promise<SignedUploadUrlResponse> {
+    console.log('📤 Getting signed upload URL:', orderId, data);
+    return apiClient.post<SignedUploadUrlResponse>(`/user-card/orders/${orderId}/payment-slip/upload-url`, data);
+  }
+
+  /**
+   * Submit payment for an order (Cloud Storage)
    */
   async submitPayment(orderId: number, data: SubmitPaymentRequest): Promise<CardPayment> {
     console.log('💳 Submitting payment for order:', orderId, data);
     return apiClient.post<CardPayment>(`/user-card/orders/${orderId}/payment`, data);
+  }
+
+  /**
+   * Submit payment via Google Drive
+   */
+  async submitDrivePayment(orderId: number, data: SubmitDrivePaymentRequest): Promise<CardPayment> {
+    console.log('💳 Submitting Drive payment for order:', orderId, data);
+    return apiClient.post<CardPayment>(`/user-card/orders/${orderId}/payment/drive`, data);
   }
 
   /**

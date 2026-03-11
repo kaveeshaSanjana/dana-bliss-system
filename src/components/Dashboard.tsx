@@ -7,6 +7,8 @@ import ParentChildrenSelector from './ParentChildrenSelector';
 import { Users } from 'lucide-react';
 
 import DesktopDashboard from './dashboard/DesktopDashboard';
+import MobileDashboard from './MobileDashboard';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const Dashboard = () => {
   const {
@@ -17,6 +19,7 @@ const Dashboard = () => {
     selectedChild,
     isViewingAsParent
   } = useAuth();
+  const isMobile = useIsMobile();
 
   const userRole = useInstituteRole();
   const location = useLocation();
@@ -52,9 +55,11 @@ const Dashboard = () => {
     );
   }
 
+  const DashboardComponent = isMobile ? MobileDashboard : DesktopDashboard;
+
   // Subject-level dashboard
   if (hasSubjectContext) {
-    return <DesktopDashboard />;
+    return <DashboardComponent />;
   }
 
   // Special handling for Parent role - child selector
@@ -75,6 +80,6 @@ const Dashboard = () => {
   }
 
   // For all roles - show unified dashboard
-  return <DesktopDashboard />;
+  return <DashboardComponent />;
 };
 export default Dashboard;
